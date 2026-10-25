@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(17);
 
 -- Pre-approved profile, user signs in afterwards (the usual order).
 insert into public.profiles (email, first_name, last_name) values ('first@t.test', 'First', 'Login');
@@ -62,6 +62,45 @@ select is(
   (select user_id from public.profiles where email = 'unconfirmed@t.test'),
   null,
   'an unconfirmed email is not linked'
+);
+
+-- GoTrue does not always write a user in one go: the admin API (and possibly the OAuth flow) inserts the row first and
+-- sets the provider and the email confirmation afterwards. Linking has to follow that order too.
+insert into public.profiles (email, first_name, last_name) values ('twostep@t.test', 'Two', 'Step');
+insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values ('00000000-0000-4000-8000-0000000000a6', 'authenticated', 'authenticated', 'twostep@t.test', null,
+        '{"provider":"email","providers":["email"]}', '{}', now(), now());
+select is(
+  (select user_id from public.profiles where email = 'twostep@t.test'),
+  null,
+  'a row inserted as an unconfirmed email account is not linked yet'
+);
+update auth.users
+   set email_confirmed_at = now(),
+       raw_app_meta_data = '{"provider":"google","providers":["google"]}',
+       raw_user_meta_data = '{"avatar_url":"https://example.test/two.png"}'
+ where id = '00000000-0000-4000-8000-0000000000a6';
+select is(
+  (select user_id from public.profiles where email = 'twostep@t.test'),
+  '00000000-0000-4000-8000-0000000000a6'::uuid,
+  'confirming and marking the account as Google afterwards links the profile'
+);
+select is(
+  (select avatar_url from public.profiles where email = 'twostep@t.test'),
+  'https://example.test/two.png',
+  'the Google picture is taken over in the two-step order as well'
+);
+
+-- Confirming a password account must not link it.
+insert into public.profiles (email, first_name, last_name) values ('pwconfirm@t.test', 'Pw', 'Confirm');
+insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values ('00000000-0000-4000-8000-0000000000a7', 'authenticated', 'authenticated', 'pwconfirm@t.test', null,
+        '{"provider":"email","providers":["email"]}', '{}', now(), now());
+update auth.users set email_confirmed_at = now() where id = '00000000-0000-4000-8000-0000000000a7';
+select is(
+  (select user_id from public.profiles where email = 'pwconfirm@t.test'),
+  null,
+  'confirming an email/password account does not link it'
 );
 
 -- Deleting the auth user keeps the profile and frees it for a new sign-in.

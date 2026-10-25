@@ -13,9 +13,20 @@ npm run db:test:concurrency   # real parallel sessions against claim_slot() (nee
 
 `seed.sql` is development data only (and the first admin, `petrovicmilos@gmail.com`, who is also a teacher). Nobody can sign in locally with the seeded people: there is no Google account behind them.
 
+## First administrator on staging and production
+
+`seed.sql` never reaches the hosted projects, so the first admin (`petrovicmilos@gmail.com`, also a teacher, with the four starting subjects) is created by `bootstrap/first-admin.sql`. Run it with the manual **Bootstrap admin** workflow (Actions tab; the workflow has to be on `main`):
+
+1. Run with `dry_run` on. It prints `bootstrap/first-admin.check.sql`: which parts exist, whether a Google account with that email exists, whether the profile is linked.
+2. Run with `dry_run` off. Production waits for the required reviewer, like the migrations. It prints the state again.
+3. Sign in once with Google. `linked` becomes true. If the person signed in before the script ran, the script links them itself.
+
+The script is idempotent: it never deletes or renames anything, and it only creates the starting subjects while the school has none. It links the project and then runs `supabase db query --linked`, with the same secrets as the migrations (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`). The very first dry run on staging is also what proves that this works from a GitHub runner.
+
 ## How access works
 
 - A person exists in the database **before** they sign in: `create_teacher`, `add_student` and `add_parent_to_student` create a `profiles` row for the email. When that email signs in with Google, the profile is linked to the account (`profiles.user_id`). Only a confirmed Google sign-in can claim a profile.
+- Linking runs when an auth user is inserted **and** when it is updated (provider or email confirmation set afterwards, as GoTrue's admin API does). Only a confirmed Google account is linked.
 - A Google account without a profile sees nothing at all (the client shows "you are not a member yet").
 - Roles are rows, not flags: `teachers`, `students`, `parents` (and `profiles.is_admin`). One account can hold several. A person who studies with two teachers has two `students` rows.
 - The Data API roles get **no** privileges by default. Each table grants only the operations and columns it needs (`migrations/*_rls_and_grants.sql`), and policies filter rows. `anon` has no table access; it can only call `list_public_cvs()` and `get_public_cv()`.
@@ -41,6 +52,7 @@ npm run db:test:concurrency   # real parallel sessions against claim_slot() (nee
 | `list_public_cvs()` / `get_public_cv(slug)` | anyone | CVs with the public switch on |
 | `list_member_cvs()` / `get_member_cv(slug)` | signed-in members | CVs with the members switch on |
 | `max_lesson_students()` | signed in | the participant limit (4) |
+| `my_roles()` | signed in | the caller's profile and role flags (`is_admin`, `is_teacher`, `is_student`, `is_parent`). No row: a Google account without a profile. All flags false: an approved profile with no role in force (a deactivated teacher). Decides the screen after sign-in only; RLS still filters every query |
 
 ### Errors
 
