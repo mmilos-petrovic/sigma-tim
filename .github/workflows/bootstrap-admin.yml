@@ -1,0 +1,59 @@
+name: Bootstrap admin
+
+# Creates the first administrator (supabase/bootstrap/first-admin.sql). Manual only, and idempotent.
+# A dry run only prints the current state. Production waits for the required reviewer, like the migrations.
+# Links the project first, exactly like the "Database migrate" workflow, because the CLI cannot reach the database
+# directly from GitHub runners (no IPv6).
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to set up
+        type: choice
+        options: [staging, production]
+        default: staging
+      dry_run:
+        description: Only show the current state, change nothing
+        type: boolean
+        default: true
+
+concurrency: bootstrap-admin-${{ inputs.target }}
+
+jobs:
+  bootstrap:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ inputs.target == 'production' && 'gwkmptdhlzmhzztlcqco' || 'wxrzcoxwnvxkplnekunl' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Check required secrets are set
+        run: |
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret $name is missing or empty"
+              exit 1
+            fi
+          done
+
+      - run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: State before
+        run: npx supabase db query --linked --file supabase/bootstrap/first-admin.check.sql
+
+      - name: Create the first administrator
+        if: ${{ !inputs.dry_run }}
+        run: npx supabase db query --linked --file supabase/bootstrap/first-admin.sql
+
+      - name: State after
+        if: ${{ !inputs.dry_run }}
+        run: npx supabase db query --linked --file supabase/bootstrap/first-admin.check.sql
