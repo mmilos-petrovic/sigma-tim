@@ -22,7 +22,15 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm test
       - run: npm run build
+      # The development sign-in (test accounts, password panel) must never reach the production bundle.
+      - name: Check the build has no development sign-in
+        run: |
+          if grep -rIl --include='*.js' --include='*.html' -e 'example\.test' -e 'Prijava test nalogom' -e 'VITE_DEV_LOGIN_PASSWORD' dist; then
+            echo "::error::The production build contains development sign-in code"
+            exit 1
+          fi
 
   database:
     runs-on: ubuntu-latest
