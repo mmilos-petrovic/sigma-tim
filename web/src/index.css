@@ -1,4 +1,353 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1c2430;
+  --muted: #5d6877;
+  --border: #dde1e7;
+  --primary: #1f5eff;
+  --primary-text: #ffffff;
+  --primary-soft: #e8efff;
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --radius: 10px;
+  --header-height: 56px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c;
+    --surface: #1a2029;
+    --text: #e8ecf1;
+    --muted: #9aa5b4;
+    --border: #2d3644;
+    --primary: #6b96ff;
+    --primary-text: #0b1220;
+    --primary-soft: #1f2d4d;
+    --danger: #ff8b82;
+    --danger-soft: #3a1f1d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+}
+
+p {
+  margin: 0 0 0.75rem;
+}
+
+a {
+  color: var(--primary);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* Buttons ---------------------------------------------------------------------------------------------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px; /* a comfortable touch target */
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.button--secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Full-page screens: sign in, not a member, errors, loading ----------------------------------------- */
+
+.screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.screen__card {
+  width: 100%;
+  max-width: 28rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.screen__card [role='alert'] {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.screen__card[role='alert'] {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.screen__card[role='status'] {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.screen__card[role='status'] p {
+  margin: 0;
+}
+
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 3s;
+  }
+}
+
+.choices {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choices .button {
+  width: 100%;
+}
+
+/* Development sign-in (never in the production build) -------------------------------------------------- */
+
+.dev-login {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+
+.dev-login__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* App shell ------------------------------------------------------------------------------------------- */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-height: var(--header-height);
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.shell__brand {
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.switcher {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.switcher a {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.switcher a[aria-current='page'] {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.shell__user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.shell__user .button {
+  min-height: 36px;
+  padding: 0.25rem 0.8rem;
+  font-size: 0.875rem;
+}
+
+.shell__name {
+  display: none;
+  font-size: 0.9rem;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar--initials {
+  display: inline-grid;
+  place-items: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.shell__body {
+  flex: 1;
+  display: flex;
+}
+
+.shell__main {
+  flex: 1;
+  min-width: 0;
+  padding: 1rem;
+}
+
+.empty {
+  max-width: 36rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Mobile-first layout (student, parent): one column, comfortable on a phone. */
+.shell[data-layout='mobile'] .shell__main {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+/* Desktop-first layout (teacher, administration): sidebar and a wide work area. */
+.shell[data-layout='desktop'] .shell__sidebar {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .shell__name {
+    display: inline;
+  }
+}
+
+@media (min-width: 900px) {
+  .shell__header {
+    padding: 0.5rem 1.5rem;
+  }
+
+  .shell[data-layout='desktop'] .shell__sidebar {
+    display: block;
+    flex: 0 0 13rem;
+    padding: 1rem 0.75rem;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+  }
+
+  .shell[data-layout='desktop'] .shell__sidebar nav {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .shell[data-layout='desktop'] .shell__sidebar a {
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .shell[data-layout='desktop'] .shell__sidebar a[aria-current='page'] {
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .shell[data-layout='desktop'] .shell__main {
+    padding: 1.5rem 2rem;
+  }
 }

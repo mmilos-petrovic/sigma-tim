@@ -11,7 +11,7 @@ npm run db:test               # pgTAP suite
 npm run db:test:concurrency   # real parallel sessions against claim_slot() (needs bash and docker)
 ```
 
-`seed.sql` is development data only (and the first admin, `petrovicmilos@gmail.com`, who is also a teacher). Nobody can sign in locally with the seeded people: there is no Google account behind them.
+`seed.sql` is development data only (and the first admin, `petrovicmilos@gmail.com`, who is also a teacher). There is no Google account behind the seeded people, so `npm run dev:setup` (also run by `npm run dev` and `npm run db:reset`) creates local auth users for the test accounts listed in `web/src/dev/personas.ts` (admin, admin and teacher, teacher, student, parent, and a stranger without a profile). They get a random password that is written to `web/.env.local`; the app's development sign-in panel uses it. The users are made like a Google sign-in (provider `google`, confirmed email), so the real linking trigger attaches them to their profiles. This exists only locally: hosted projects have the email provider switched off and never run the script.
 
 ## First administrator on staging and production
 

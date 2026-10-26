@@ -15,7 +15,18 @@ insert into public.teachers (profile_id) select id from public.profiles where em
 insert into public.teacher_subjects (teacher_id, subject_id)
 select p.id, s.id from public.profiles p cross join public.subjects s where p.email = 'petrovicmilos@gmail.com';
 
--- A few people to look at in Studio and in the calendar. They cannot sign in locally (no Google account behind them).
+-- Two more accounts for the sign-in tests: an administrator who is not a teacher, and one who is both.
+-- (petrovicmilos@gmail.com above stays unlinked locally, so a real Google account could still be tried with it.)
+insert into public.profiles (email, first_name, last_name, is_admin) values
+  ('admin@example.test', 'Dragana', 'Stojanović', true),
+  ('admin.nastavnik@example.test', 'Nikola', 'Đorđević', true);
+insert into public.teachers (profile_id) select id from public.profiles where email = 'admin.nastavnik@example.test';
+insert into public.teacher_subjects (teacher_id, subject_id)
+select p.id, s.id from public.profiles p cross join public.subjects s where p.email = 'admin.nastavnik@example.test';
+
+-- A few people to look at in Studio and in the calendar. Nobody can sign in as them with Google locally (there is no
+-- Google account behind them); `npm run dev:setup` gives the six test accounts of web/src/dev/personas.ts a password
+-- instead, so the development sign-in panel can use them.
 insert into public.profiles (email, first_name, last_name) values
   ('ana.nikolic@example.test', 'Ana', 'Nikolić'),
   ('marko.jovanovic@example.test', 'Marko', 'Jovanović'),
