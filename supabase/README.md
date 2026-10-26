@@ -19,7 +19,7 @@ npm run db:test:concurrency   # real parallel sessions against claim_slot() (nee
 
 1. Run with `dry_run` on. It prints `bootstrap/first-admin.check.sql`: which parts exist, whether a Google account with that email exists, whether the profile is linked.
 2. Run with `dry_run` off. Production waits for the required reviewer, like the migrations. It prints the state again.
-3. Sign in once with Google. `linked` becomes true. If the person signed in before the script ran, the script links them itself.
+3. Sign in once with Google. `linked` becomes true. If the person signed in before the script ran, the profile is linked the moment the script creates it; a profile that already exists is linked by the sign-in itself.
 
 The script is idempotent: it never deletes or renames anything, and it only creates the starting subjects while the school has none. It links the project and then runs `supabase db query --linked`, with the same secrets as the migrations (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`). The very first dry run on staging is also what proves that this works from a GitHub runner.
 
@@ -49,6 +49,8 @@ The script is idempotent: it never deletes or renames anything, and it only crea
 | `request_takeover(student_id)` | teacher | ask for an unassigned student |
 | `approve_takeover(id)` / `reject_takeover(id)` | admin | approving closes competing requests |
 | `deactivate_teacher(teacher_id)` | admin | deletes future lessons (participants are notified), unassigns students |
+| `reactivate_teacher(teacher_id)` | admin | makes the teacher active again. Deleted lessons do not return and released students stay unassigned: the teacher asks for them with `request_takeover` and the admin approves |
+| `change_profile_email(profile_id, new_email)` | admin | corrects a person's email. Everything on the profile stays; the old Google account is cut off at once (it becomes an unknown account) and the profile is linked to the new address's Google account if one exists, otherwise at its first sign-in. Not for the admin's own profile; `PT409` if another profile has the address |
 | `list_public_cvs()` / `get_public_cv(slug)` | anyone | CVs with the public switch on |
 | `list_member_cvs()` / `get_member_cv(slug)` | signed-in members | CVs with the members switch on |
 | `max_lesson_students()` | signed in | the participant limit (4) |
@@ -66,6 +68,10 @@ Errors use PostgREST's custom codes, so they arrive as HTTP statuses. The messag
 | `PT409` | 409 | conflict, for example `slot is already taken`, `lesson already started` |
 
 Table constraint violations keep their Postgres codes (`23514` check, `23503` foreign key, `23505` unique).
+
+## Storage
+
+One private bucket, `location-photos` (JPEG or WebP, at most 2 MiB per file; the Storage API enforces both). Only approved members read it (through signed links), only the admin writes. Objects are named `<location id>/<file>` and `public.location_photos` keeps the order (1 to 3 per location). Storage refuses a direct `DELETE` from SQL, and deleting a location does not remove its files, so the app deletes the files through the Storage API before it deletes the location.
 
 ## Notifications
 
