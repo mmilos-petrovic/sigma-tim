@@ -17,6 +17,7 @@
     "lint": "npm --prefix web run lint",
     "typecheck": "npm --prefix web run typecheck",
     "dev:setup": "node scripts/dev-setup.mjs",
-    "test": "npm --prefix web test"
+    "test": "npm --prefix web test",
+    "deploy:staging": "git push --force origin HEAD:refs/heads/staging"
   }
 }
