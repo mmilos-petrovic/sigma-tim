@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
+import type { NavItem } from '../admin/nav'
 import { useAuth } from '../auth/AuthProvider'
 import { CONTEXT_LABEL, homePath, type Context, type MyRoles } from '../auth/roles'
 
@@ -28,15 +29,21 @@ export function AppShell({
   context,
   contexts,
   roles,
+  nav,
   children,
 }: {
   context: Context
   contexts: readonly Context[]
   roles: MyRoles
+  /** The sections of this context; a single link to its home when omitted. */
+  nav?: NavItem[]
   children: ReactNode
 }) {
   const { signOut } = useAuth()
   const layout = LAYOUT[context]
+  const items: NavItem[] = nav ?? [
+    { to: homePath(context), label: CONTEXT_LABEL[context], end: true },
+  ]
 
   return (
     <div className="shell" data-layout={layout}>
@@ -70,9 +77,11 @@ export function AppShell({
         {layout === 'desktop' && (
           <aside className="shell__sidebar">
             <nav aria-label="Glavna navigacija">
-              <NavLink to={homePath(context)} end>
-                {CONTEXT_LABEL[context]}
-              </NavLink>
+              {items.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.end}>
+                  {item.label}
+                </NavLink>
+              ))}
             </nav>
           </aside>
         )}

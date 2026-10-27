@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
+import { AdminRoutes } from '../admin/AdminRoutes'
+import { ADMIN_NAV } from '../admin/nav'
 import { destinationFor } from '../auth/destination'
 import { writeLastContext } from '../auth/lastContext'
 import { CONTEXT_LABEL, homePath, type Context } from '../auth/roles'
@@ -37,16 +39,25 @@ export function ContextPage({ context }: { context: Context }) {
   if (!held) return <Navigate to={destinationFor(roles, null)} replace />
 
   return (
-    <AppShell context={context} contexts={contexts} roles={roles}>
-      <Routes>
-        <Route index element={<ContextHome context={context} />} />
-        <Route
-          path="*"
-          element={
-            <NotFoundContent homeTo={homePath(context)} homeLabel={CONTEXT_LABEL[context]} />
-          }
-        />
-      </Routes>
+    <AppShell
+      context={context}
+      contexts={contexts}
+      roles={roles}
+      nav={context === 'admin' ? ADMIN_NAV : undefined}
+    >
+      {context === 'admin' ? (
+        <AdminRoutes />
+      ) : (
+        <Routes>
+          <Route index element={<ContextHome context={context} />} />
+          <Route
+            path="*"
+            element={
+              <NotFoundContent homeTo={homePath(context)} homeLabel={CONTEXT_LABEL[context]} />
+            }
+          />
+        </Routes>
+      )}
     </AppShell>
   )
 }
