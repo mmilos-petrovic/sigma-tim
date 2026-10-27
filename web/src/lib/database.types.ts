@@ -444,6 +444,9 @@ isOneToOne: true
 "cancel_lesson":
 { Args: { "p_lesson_id": string }; Returns: undefined
                            },
+"change_profile_email":
+{ Args: { "p_new_email": string,"p_profile_id": string }; Returns: undefined
+                           },
 "claim_slot":
 { Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: Database["public"]['Enums']["lesson_status"]
                            },
@@ -487,6 +490,9 @@ isOneToOne: true
 { Args: Record<PropertyKey, never>; Returns: {
               "avatar_url": string,"email": string,"first_name": string,"is_admin": boolean,"is_parent": boolean,"is_student": boolean,"is_teacher": boolean,"last_name": string,"profile_id": string
             }[]
+                           },
+"reactivate_teacher":
+{ Args: { "p_teacher_id": string }; Returns: undefined
                            },
 "reject_takeover":
 { Args: { "p_request_id": string }; Returns: undefined
