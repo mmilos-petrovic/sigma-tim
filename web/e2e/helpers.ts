@@ -12,7 +12,11 @@ export function localEnv() {
     const match = /^([A-Z0-9_]+)=(.*)$/.exec(line)
     if (match) values[match[1]] = match[2]
   }
-  return { url: values.VITE_SUPABASE_URL, key: values.VITE_SUPABASE_PUBLISHABLE_KEY }
+  return {
+    url: values.VITE_SUPABASE_URL,
+    key: values.VITE_SUPABASE_PUBLISHABLE_KEY,
+    password: values.VITE_DEV_LOGIN_PASSWORD,
+  }
 }
 
 export async function signInAs(page: Page, label: string) {
