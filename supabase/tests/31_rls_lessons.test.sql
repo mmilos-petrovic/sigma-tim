@@ -82,7 +82,7 @@ select is((select count(*)::int from public.lesson_students where lesson_id = an
 -- busy times: colleagues'' lessons without anyone''s identity -------------------------------------
 select tests.login_as('tc');
 select is(
-  (select count(*)::int from public.busy_times(tests.at(0), tests.at(100 * 60))), 4,
+  (select count(*)::int from public.busy_times(tests.at(0), tests.at(100 * 60)) where teacher_id = any (tests.ids('p:'))), 4,
   'a teacher sees when colleagues are busy (group, solo, tb_lesson, boss_lesson), but not free slots or past lessons'
 );
 select is(
@@ -91,7 +91,7 @@ select is(
   'busy_times exposes no student, subject or note columns'
 );
 select tests.login_as('admin');
-select is((select count(*)::int from public.busy_times(tests.at(0), tests.at(100 * 60))), 4, 'admin can read busy times');
+select is((select count(*)::int from public.busy_times(tests.at(0), tests.at(100 * 60)) where teacher_id = any (tests.ids('p:'))), 4, 'admin can read busy times');
 select tests.login_as('s1');
 select throws_ok($$ select * from public.busy_times(tests.at(0), tests.at(100 * 60)) $$, 'PT403', null,
   'students cannot read busy times');
