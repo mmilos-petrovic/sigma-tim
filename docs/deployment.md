@@ -36,3 +36,29 @@ The web app and the database move separately. A branch with new migrations shows
 - **Bootstrap admin**: creates the first administrator (`supabase/bootstrap/`), manual, dry run by default. See `supabase/README.md`.
 
 Secrets live in GitHub environments and in the Cloudflare and Supabase dashboards, never in the repository.
+
+## Google sign-in setup
+
+Each environment has its own Google OAuth client, so a mistake or a deletion in one cannot break the other. Production and staging live in two separate Google Cloud projects, each with its own consent screen. Name things clearly (`Sigma Tim staging - Supabase`, `Sigma Tim production - Supabase`) so nobody deletes the wrong client: deleting a client makes sign-in fail with `Error 401: deleted_client` until it is restored (Google keeps deleted clients for 30 days) or replaced.
+
+To set up an environment (about 10 minutes):
+
+1. **Google Cloud project.** Create a project (for example `Sigma Tim Staging`) under the account that owns the school's cloud.
+2. **Consent screen** (Google Auth Platform): app name `Sigma Tim (staging)` or `Sigma Tim`, user support and developer email, audience **External**.
+3. **Data access:** scopes `openid`, `.../auth/userinfo.email` and `.../auth/userinfo.profile` only. With these three no Google verification review is needed.
+4. **Audience:** staging stays in **Testing** with the people who test as **test users** (anyone else gets `403 access_denied`). Production is **In production**; strangers can sign in with Google but see "Još niste član škole" because the database gives them nothing.
+5. **Authorized domain** (under Branding) is optional without branding links. If set, it must be the project's own domain (`<project ref>.supabase.co`); `supabase.co` itself is refused.
+6. **OAuth client:** type **Web application**. Leave JavaScript origins empty. Authorized redirect URI, exactly: `https://<project ref>.supabase.co/auth/v1/callback`.
+7. **Secret:** copy the client ID and secret when the client is created (Google may show the secret only once; otherwise add a new secret in the client's settings). Never put it in chat or git.
+8. **Supabase:** Authentication → Sign In / Providers → Google → enable, paste client ID and secret, save. Check that the callback URL shown there equals the redirect URI from step 6. Leave "Skip nonce checks" off. Authentication → URL Configuration is a separate setting and does not change.
+9. **Test:** open the site, press **Prijavi se Google nalogom**, approve, and you should land in the app.
+
+A Google account keeps the same internal ID across different OAuth clients, so replacing a client does not change who is who: existing users and profiles stay linked.
+
+| Symptom | Cause |
+| --- | --- |
+| `deleted_client` | Supabase still has the ID of a deleted client. |
+| `invalid_client` / 401 | Mistyped client ID or secret. |
+| `redirect_uri_mismatch` | The redirect URI in Google differs from the Supabase callback URL (a space, a trailing slash, or the other project's ref). |
+| `403 access_denied` | The consent screen is in Testing and the account is not a test user. |
+| "Još niste član škole" after signing in | Sign-in works; the account has no approved profile (see `supabase/README.md`, "How access works"). |

@@ -71,7 +71,7 @@ Table constraint violations keep their Postgres codes (`23514` check, `23503` fo
 
 ## Storage
 
-One private bucket, `location-photos` (JPEG or WebP, at most 2 MiB per file; the Storage API enforces both). Only approved members read it (through signed links), only the admin writes. Objects are named `<location id>/<file>` and `public.location_photos` keeps the order (1 to 3 per location). Storage refuses a direct `DELETE` from SQL, and deleting a location does not remove its files, so the app deletes the files through the Storage API before it deletes the location.
+One private bucket, `location-photos` (JPEG or WebP, at most 2 MiB per file; the Storage API enforces both). Only approved members read it (through signed links), only the admin writes. Objects are named `<location id>/<file>` and `public.location_photos` keeps the order (1 to 3 per location). Storage refuses a direct `DELETE` from SQL, and deleting a location does not remove its files, so the app deletes the files through the Storage API right after it deletes the location row (in that order: if rooms or lessons still use the location, the delete is refused and nothing is lost; if removing the files fails afterwards, they are only orphans, which the app logs).
 
 ## Notifications
 

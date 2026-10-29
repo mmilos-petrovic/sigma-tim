@@ -1,13 +1,16 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { AdminApiProvider } from './admin/AdminApiProvider'
 import { AppRoutes } from './AppRoutes'
 import { AuthExpiredError } from './auth/authApi'
 import { AuthProvider } from './auth/AuthProvider'
 import { readLastContext, writeLastContext } from './auth/lastContext'
 import { saveReturnTo } from './auth/returnTo'
 import type { MyRoles } from './auth/roles'
+import { createFakeAdminApi } from './test/fakeAdminApi'
 import { createFakeAuthApi, sessionFor, type FakeAuthApi } from './test/fakeAuthApi'
 import { personas } from './test/fixtures'
 
@@ -17,13 +20,19 @@ function Where() {
 }
 
 function renderApp(api: FakeAuthApi, path = '/') {
+  // The administration screens need their data layer, even though these tests only look at routing.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   return render(
-    <AuthProvider api={api}>
-      <MemoryRouter initialEntries={[path]}>
-        <Where />
-        <AppRoutes />
-      </MemoryRouter>
-    </AuthProvider>,
+    <QueryClientProvider client={queryClient}>
+      <AdminApiProvider api={createFakeAdminApi()}>
+        <AuthProvider api={api}>
+          <MemoryRouter initialEntries={[path]}>
+            <Where />
+            <AppRoutes />
+          </MemoryRouter>
+        </AuthProvider>
+      </AdminApiProvider>
+    </QueryClientProvider>,
   )
 }
 

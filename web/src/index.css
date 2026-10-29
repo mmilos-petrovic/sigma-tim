@@ -305,9 +305,36 @@ a:focus-visible {
   margin: 0 auto;
 }
 
-/* Desktop-first layout (teacher, administration): sidebar and a wide work area. */
+/* Desktop-first layout (teacher, administration): a sidebar and a wide work area. On a narrow screen the
+   navigation becomes a scrollable strip under the header, so it stays reachable on a phone. */
+.shell[data-layout='desktop'] .shell__body {
+  flex-direction: column;
+}
+
 .shell[data-layout='desktop'] .shell__sidebar {
-  display: none;
+  overflow-x: auto;
+  padding: 0 0.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.shell[data-layout='desktop'] .shell__sidebar nav {
+  display: flex;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.shell[data-layout='desktop'] .shell__sidebar a {
+  padding: 0.7rem 0.75rem;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+}
+
+.shell[data-layout='desktop'] .shell__sidebar a[aria-current='page'] {
+  color: var(--primary);
+  font-weight: 600;
+  border-bottom-color: var(--primary);
 }
 
 @media (min-width: 640px) {
@@ -321,30 +348,31 @@ a:focus-visible {
     padding: 0.5rem 1.5rem;
   }
 
+  .shell[data-layout='desktop'] .shell__body {
+    flex-direction: row;
+  }
+
   .shell[data-layout='desktop'] .shell__sidebar {
-    display: block;
-    flex: 0 0 13rem;
+    flex: 0 0 14rem;
     padding: 1rem 0.75rem;
-    background: var(--surface);
+    overflow-x: visible;
+    border-bottom: 0;
     border-right: 1px solid var(--border);
   }
 
   .shell[data-layout='desktop'] .shell__sidebar nav {
     display: grid;
-    gap: 0.25rem;
+    white-space: normal;
   }
 
   .shell[data-layout='desktop'] .shell__sidebar a {
     padding: 0.5rem 0.75rem;
     border-radius: 8px;
-    color: var(--text);
-    text-decoration: none;
+    border-bottom: 0;
   }
 
   .shell[data-layout='desktop'] .shell__sidebar a[aria-current='page'] {
     background: var(--primary-soft);
-    color: var(--primary);
-    font-weight: 600;
   }
 
   .shell[data-layout='desktop'] .shell__main {
