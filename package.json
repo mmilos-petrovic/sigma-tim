@@ -10,7 +10,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && node scripts/dev-setup.mjs",
     "db:test": "supabase test db",
-    "db:test:concurrency": "bash supabase/tests/concurrency/claim_slot_race.sh",
+    "db:test:concurrency": "bash supabase/tests/concurrency/claim_slot_race.sh && bash supabase/tests/concurrency/parent_unlink_race.sh",
     "web:dev": "npm --prefix web run dev",
     "dev": "npm run db:start && npm run dev:setup && npm run web:dev",
     "install:all": "npm install && npm --prefix web install",

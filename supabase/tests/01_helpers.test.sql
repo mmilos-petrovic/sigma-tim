@@ -38,6 +38,12 @@ language sql stable as $$
   select to_timestamp(ceil(extract(epoch from now()) / 900) * 900) + p_minutes * interval '1 minute'
 $$;
 
+-- 00:00 today in the school's time zone: lessons are locked by calendar day, not by the clock.
+create or replace function tests.today_start() returns timestamptz
+language sql stable as $$
+  select ((now() at time zone 'Europe/Belgrade')::date)::timestamp at time zone 'Europe/Belgrade'
+$$;
+
 -- Session helpers: behave like a PostgREST request made by the given fixture user.
 create or replace function tests.login_as(p_key text) returns void
 language plpgsql as $$
