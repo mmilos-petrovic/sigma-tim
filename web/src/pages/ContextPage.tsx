@@ -8,6 +8,8 @@ import { CONTEXT_LABEL, homePath, type Context } from '../auth/roles'
 import { AppShell } from '../components/AppShell'
 import { useMember } from '../components/guards'
 import { NotFoundContent } from '../components/NotFound'
+import { TEACHER_NAV } from '../teacher/nav'
+import { TeacherRoutes } from '../teacher/TeacherRoutes'
 
 const EMPTY_TEXT: Record<Context, string> = {
   admin: 'Ovde će se podešavati škola: nastavnici, predmeti i lokacije.',
@@ -43,10 +45,12 @@ export function ContextPage({ context }: { context: Context }) {
       context={context}
       contexts={contexts}
       roles={roles}
-      nav={context === 'admin' ? ADMIN_NAV : undefined}
+      nav={context === 'admin' ? ADMIN_NAV : context === 'teacher' ? TEACHER_NAV : undefined}
     >
       {context === 'admin' ? (
         <AdminRoutes />
+      ) : context === 'teacher' ? (
+        <TeacherRoutes />
       ) : (
         <Routes>
           <Route index element={<ContextHome context={context} />} />

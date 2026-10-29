@@ -1,10 +1,13 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { personas } from '../test/fixtures'
 import { createFakeAdminApi } from '../test/fakeAdminApi'
 import { page, renderAdmin } from '../test/renderAdmin'
 import { AdminError } from './adminApi'
+
+// An administrator who teaches can switch to the schedule; the real calendar is checked in the browser.
+vi.mock('../teacher/calendar/WeekCalendar', async () => import('../test/mockCalendar'))
 
 describe('administration navigation', () => {
   it('offers the five sections and marks the current one', async () => {

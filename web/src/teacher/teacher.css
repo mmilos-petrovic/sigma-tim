@@ -1,0 +1,168 @@
+/* Teacher screens: the weekly calendar and its blocks. Colours come from the tokens in index.css. */
+
+.week-calendar {
+  height: 100%;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.cal-item {
+  color: #ffffff;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.cal-item__body {
+  display: flex;
+  flex-direction: column;
+  padding: 0.1rem 0.3rem;
+}
+
+.cal-item__time {
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+/* A colleague's lesson: only the time and the person, so it reads as "taken", not as mine. */
+.cal-item--busy {
+  opacity: 0.55;
+  cursor: default;
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 6px,
+    rgba(255, 255, 255, 0.28) 6px 12px
+  );
+}
+
+/* A free slot is an offer, not a booking: outlined, light. */
+.cal-item--slot {
+  background: var(--surface) !important;
+  color: var(--text);
+  border: 2px dashed currentColor !important;
+}
+
+/* A late booking that waits for an answer. */
+.cal-item--pending {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 6px,
+    rgba(255, 255, 255, 0.35) 6px 12px
+  );
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+}
+
+/* A lesson whose day is over: still readable, no longer movable. */
+.cal-item--locked {
+  filter: saturate(0.6);
+}
+
+/* Students and parents */
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.plain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plain-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.plain-list li .muted {
+  flex-basis: 100%;
+}
+
+.section-title {
+  margin: 2rem 0 0.25rem;
+}
+
+.field--readonly {
+  display: grid;
+  gap: 0.15rem;
+  margin-bottom: 0.75rem;
+}
+
+.field--readonly span:first-child {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* The schedule page */
+
+/* The calendar takes the rest of the screen; the week scrolls inside it. */
+.schedule {
+  height: calc(100dvh - 17rem);
+  min-height: 34rem;
+}
+
+.pending {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+}
+
+.pending h2 {
+  margin-bottom: 0.1rem;
+}
+
+.pending .plain-list li {
+  gap: 0.25rem 0.75rem;
+}
+
+.warning {
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+}
+
+.warning ul {
+  margin: 0.25rem 0;
+  padding-left: 1.1rem;
+}
+
+.notice--locked {
+  background: var(--primary-soft);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.facts dt {
+  font-weight: 600;
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.note {
+  margin-bottom: 0.75rem;
+}
+
+.note textarea {
+  width: 100%;
+  font: inherit;
+}

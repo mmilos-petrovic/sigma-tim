@@ -23,8 +23,10 @@ export async function rpc<T = unknown>(
     headers: { apikey: key, Authorization: `Bearer ${token}` },
     data: body,
   })
-  expect(response.ok(), `${name}: ${await response.text()}`).toBe(true)
-  return (await response.json()) as T
+  const text = await response.text()
+  expect(response.ok(), `${name}: ${text}`).toBe(true)
+  // a function that returns nothing has an empty body
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 export async function select<T = Record<string, unknown>>(

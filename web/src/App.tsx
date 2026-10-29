@@ -8,10 +8,16 @@ import { createSupabaseAuthApi } from './auth/supabaseAuthApi'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ConfigErrorScreen } from './components/Status'
 import { createAppClient } from './lib/supabase'
+import { TeacherApiProvider } from './teacher/TeacherApiProvider'
+import { createSupabaseTeacherApi } from './teacher/supabaseTeacherApi'
 
 const client = createAppClient()
 const services = client
-  ? { auth: createSupabaseAuthApi(client), admin: createSupabaseAdminApi(client) }
+  ? {
+      auth: createSupabaseAuthApi(client),
+      admin: createSupabaseAdminApi(client),
+      teacher: createSupabaseTeacherApi(client),
+    }
   : null
 
 // One retry is enough: a failing request gets an explained error and a "try again" button.
@@ -23,11 +29,13 @@ export default function App() {
       {services ? (
         <QueryClientProvider client={queryClient}>
           <AdminApiProvider api={services.admin}>
-            <AuthProvider api={services.auth}>
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </AuthProvider>
+            <TeacherApiProvider api={services.teacher}>
+              <AuthProvider api={services.auth}>
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </AuthProvider>
+            </TeacherApiProvider>
           </AdminApiProvider>
         </QueryClientProvider>
       ) : (

@@ -4,9 +4,11 @@ import { MemoryRouter } from 'react-router'
 import { AdminApiProvider } from '../admin/AdminApiProvider'
 import { AppRoutes } from '../AppRoutes'
 import { AuthProvider } from '../auth/AuthProvider'
+import { TeacherApiProvider } from '../teacher/TeacherApiProvider'
 import type { MyRoles } from '../auth/roles'
 import { createFakeAdminApi, type FakeAdminApi } from './fakeAdminApi'
 import { createFakeAuthApi } from './fakeAuthApi'
+import { createFakeTeacherApi } from './fakeTeacherApi'
 import { personas } from './fixtures'
 
 /** Renders the whole app at a path as a signed-in account, on top of an in-memory admin backend. */
@@ -19,11 +21,13 @@ export function renderAdmin(path: string, options: { api?: FakeAdminApi; roles?:
   const view = render(
     <QueryClientProvider client={queryClient}>
       <AdminApiProvider api={adminApi}>
-        <AuthProvider api={auth}>
-          <MemoryRouter initialEntries={[path]}>
-            <AppRoutes />
-          </MemoryRouter>
-        </AuthProvider>
+        <TeacherApiProvider api={createFakeTeacherApi()}>
+          <AuthProvider api={auth}>
+            <MemoryRouter initialEntries={[path]}>
+              <AppRoutes />
+            </MemoryRouter>
+          </AuthProvider>
+        </TeacherApiProvider>
       </AdminApiProvider>
     </QueryClientProvider>,
   )
