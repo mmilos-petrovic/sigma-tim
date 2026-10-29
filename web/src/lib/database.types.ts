@@ -497,11 +497,20 @@ isOneToOne: true
 "reject_takeover":
 { Args: { "p_request_id": string }; Returns: undefined
                            },
+"remove_parent_from_student":
+{ Args: { "p_parent_id": string,"p_student_id": string }; Returns: undefined
+                           },
+"rename_person":
+{ Args: { "p_first_name": string,"p_last_name": string,"p_profile_id": string }; Returns: undefined
+                           },
 "request_takeover":
 { Args: { "p_student_id": string }; Returns: string
                            },
 "schedule_lesson":
 { Args: { "p_end_at": string,"p_location_id": string,"p_room_id": string,"p_start_at": string,"p_student_ids": (string)[],"p_subject_id": string }; Returns: string
+                           },
+"set_lesson_students":
+{ Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: undefined
                            }
           }
           Enums: {

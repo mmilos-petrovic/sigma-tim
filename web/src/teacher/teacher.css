@@ -1,0 +1,63 @@
+/* Teacher screens: the weekly calendar and its blocks. Colours come from the tokens in index.css. */
+
+.week-calendar {
+  height: 100%;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.cal-item {
+  color: #ffffff;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.cal-item__body {
+  display: flex;
+  flex-direction: column;
+  padding: 0.1rem 0.3rem;
+}
+
+.cal-item__time {
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+/* A colleague's lesson: only the time and the person, so it reads as "taken", not as mine. */
+.cal-item--busy {
+  opacity: 0.55;
+  cursor: default;
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 6px,
+    rgba(255, 255, 255, 0.28) 6px 12px
+  );
+}
+
+/* A free slot is an offer, not a booking: outlined, light. */
+.cal-item--slot {
+  background: var(--surface) !important;
+  color: var(--text);
+  border: 2px dashed currentColor !important;
+}
+
+/* A late booking that waits for an answer. */
+.cal-item--pending {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 6px,
+    rgba(255, 255, 255, 0.35) 6px 12px
+  );
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+}
+
+/* A lesson whose day is over: still readable, no longer movable. */
+.cal-item--locked {
+  filter: saturate(0.6);
+}
