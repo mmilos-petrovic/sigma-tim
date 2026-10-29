@@ -40,12 +40,15 @@ The script is idempotent: it never deletes or renames anything, and it only crea
 | `create_teacher(email, first, last, subject_ids)` | admin | pre-approve a teacher |
 | `add_student(email, first, last, school, grade, section, teacher_id)` | teacher, admin | pre-approve a student (admin may pick the teacher or leave them unassigned) |
 | `add_parent_to_student(student_id, email, first, last)` | the student's teacher, admin | link a parent by email (max 2 per student); an existing parent is reused |
-| `schedule_lesson(subject, location, room, start, end, student_ids)` | teacher | confirmed lesson for their own students |
+| `schedule_lesson(subject, location, room, start, end, student_ids)` | teacher | confirmed lesson for their own students. It may start earlier today (to enter a lesson afterwards), not on a day that has passed (`PT400`) |
+| `set_lesson_students(lesson_id, student_ids)` | the lesson's teacher | replaces the participants of a confirmed lesson: 1 to 4 of the teacher's own students; students who stay keep their notes. Not subject to the day lock. `PT409` for a free slot or a pending booking |
 | `claim_slot(lesson_id, student_ids)` | student, parent | book a free slot; atomic, first one wins; returns `confirmed` or `pending` (less than 12 h ahead) |
-| `confirm_booking(lesson_id)` / `decline_booking(lesson_id)` | the slot's teacher | answer a `pending` booking; declining frees the slot |
+| `confirm_booking(lesson_id)` / `decline_booking(lesson_id)` | the slot's teacher | answer a `pending` booking; declining frees the slot. Declining after the start is refused (`PT409`, it would leave a free slot in the past); confirming still works, which is how an outcome is recorded for a booking nobody answered |
 | `cancel_lesson(lesson_id)` | teacher, participant, parent | before the start only. The teacher cancels the whole lesson. A student or parent removes only their own student(s); the lesson goes on for the others. When the last participant leaves, the lesson is deleted, or a booked slot is freed |
 | `find_conflicts(teacher, room, start, end, exclude_lesson)` | teacher, admin | overlaps, as a warning only; times and places, never students |
 | `busy_times(from, to)` | teacher, admin | colleagues' busy times (no subject, no students) |
+| `rename_person(profile_id, first, last)` | teacher | corrects the name of one of their students or of a parent of one. Never an email. The name belongs to the person, so a parent shared with another teacher is renamed for both. Colleagues, admins and the teacher themselves are refused (`PT403`) |
+| `remove_parent_from_student(student_id, parent_id)` | the student's teacher, admin | unlinks a parent (the way to fix a wrong parent email: remove, then `add_parent_to_student` with the right one). A parent with no children left loses the parent role; the profile stays |
 | `request_takeover(student_id)` | teacher | ask for an unassigned student |
 | `approve_takeover(id)` / `reject_takeover(id)` | admin | approving closes competing requests |
 | `deactivate_teacher(teacher_id)` | admin | deletes future lessons (participants are notified), unassigns students |
@@ -68,6 +71,16 @@ Errors use PostgREST's custom codes, so they arrive as HTTP statuses. The messag
 | `PT409` | 409 | conflict, for example `slot is already taken`, `lesson already started` |
 
 Table constraint violations keep their Postgres codes (`23514` check, `23503` foreign key, `23505` unique).
+
+## Editing lessons
+
+A teacher edits their own lessons directly (`update` on `lessons`: subject, location, room, time, outcome) and their notes (`update` on `lesson_students.note`). The rules that apply, all in the database:
+
+- **The day lock.** Subject, location, room and time can be changed until 23:59 of the day the lesson was held, by the **Europe/Belgrade** calendar day of its start. After that, and as soon as an outcome is recorded, they are frozen (`PT409`). Participants, notes and the outcome stay editable. To correct a lesson that has an outcome, clear the outcome first.
+- **Never into a passed day.** A lesson cannot be moved to a day before today (`PT400`).
+- **Deleting is different.** A lesson that has started can no longer be deleted or cancelled, even within its day; it can only be moved.
+- **Free slots** can only be published or moved into the future (a row-level-security check, `42501`). An expired slot is left alone.
+- Changing who attends goes through `set_lesson_students`; there is no direct write on `lesson_students` other than the note.
 
 ## Storage
 
