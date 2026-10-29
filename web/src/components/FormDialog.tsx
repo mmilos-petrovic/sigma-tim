@@ -14,6 +14,7 @@ export function FormDialog({
   onSubmit,
   onClose,
   validate,
+  explain,
   disabled = false,
   danger = false,
   children,
@@ -24,6 +25,8 @@ export function FormDialog({
   onSubmit: () => Promise<void>
   onClose: () => void
   validate?: () => string | null
+  /** Explains a failure in the dialog's own way, for when one dialog does several things. Falls back to the action's texts. */
+  explain?: (failure: unknown) => string | null
   /** Blocks sending, for example while the consequences are still being loaded. */
   disabled?: boolean
   danger?: boolean
@@ -47,7 +50,7 @@ export function FormDialog({
     try {
       await onSubmit()
     } catch (failure) {
-      setError(explainError(failure, action))
+      setError(explain?.(failure) ?? explainError(failure, action))
     } finally {
       inFlight.current = false
       setBusy(false)
@@ -87,6 +90,8 @@ export function Field({
   maxLength,
   type = 'text',
   autoComplete = 'off',
+  disabled = false,
+  step,
 }: {
   label: string
   value: string
@@ -94,6 +99,9 @@ export function Field({
   maxLength?: number
   type?: string
   autoComplete?: string
+  disabled?: boolean
+  /** For a time field: seconds between the choices (900 is a quarter of an hour). */
+  step?: number
 }) {
   return (
     <label className="field">
@@ -103,8 +111,33 @@ export function Field({
         value={value}
         maxLength={maxLength}
         autoComplete={autoComplete}
+        disabled={disabled}
+        step={step}
         onChange={(event) => onChange(event.target.value)}
       />
+    </label>
+  )
+}
+
+export function SelectField({
+  label,
+  value,
+  onChange,
+  disabled = false,
+  children,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        {children}
+      </select>
     </label>
   )
 }

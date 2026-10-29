@@ -447,6 +447,9 @@ isOneToOne: true
 "change_profile_email":
 { Args: { "p_new_email": string,"p_profile_id": string }; Returns: undefined
                            },
+"change_student_email":
+{ Args: { "p_new_email": string,"p_student_id": string }; Returns: undefined
+                           },
 "claim_slot":
 { Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: Database["public"]['Enums']["lesson_status"]
                            },

@@ -29,14 +29,14 @@ export function toAdminError(
   return new AdminError('unknown', message)
 }
 
-interface Result<T> {
+export interface Result<T> {
   data: T
   error: { code?: string; message?: string } | null
   status: number
   count?: number | null
 }
 
-async function run<T>(query: PromiseLike<Result<T>>): Promise<Result<T>> {
+export async function run<T>(query: PromiseLike<Result<T>>): Promise<Result<T>> {
   let result: Result<T>
   try {
     result = await query
@@ -48,7 +48,7 @@ async function run<T>(query: PromiseLike<Result<T>>): Promise<Result<T>> {
 }
 
 /** An update or delete that matched no row means somebody else got there first. */
-async function runOne(query: PromiseLike<Result<unknown[] | null>>): Promise<void> {
+export async function runOne(query: PromiseLike<Result<unknown[] | null>>): Promise<void> {
   const { data } = await run(query)
   if (!data || data.length === 0) throw new AdminError('PT404', 'no matching row')
 }

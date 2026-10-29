@@ -62,7 +62,10 @@ test.describe('the five test accounts', () => {
       'ana.nikolic@example.test',
       'ucenik1@example.test',
     ])
-    expect(await readable(request, token, 'lessons', 'id')).toEqual([])
+    // Lessons: only those the student takes part in (the teacher may have scheduled some by now, so not "none").
+    const lessons = await readable(request, token, 'lessons', 'id')
+    const attended = await readable(request, token, 'lesson_students', 'lesson_id')
+    expect(lessons.every((id) => attended.includes(id))).toBe(true)
     expect(await readable(request, token, 'push_subscriptions', 'id')).toEqual([])
   })
 

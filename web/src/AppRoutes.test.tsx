@@ -11,8 +11,13 @@ import { readLastContext, writeLastContext } from './auth/lastContext'
 import { saveReturnTo } from './auth/returnTo'
 import type { MyRoles } from './auth/roles'
 import { createFakeAdminApi } from './test/fakeAdminApi'
+import { createFakeTeacherApi } from './test/fakeTeacherApi'
+import { TeacherApiProvider } from './teacher/TeacherApiProvider'
 import { createFakeAuthApi, sessionFor, type FakeAuthApi } from './test/fakeAuthApi'
 import { personas } from './test/fixtures'
+
+// The teacher's home is the schedule; the real calendar is checked in the browser.
+vi.mock('./teacher/calendar/WeekCalendar', async () => import('./test/mockCalendar'))
 
 function Where() {
   const { pathname } = useLocation()
@@ -25,12 +30,14 @@ function renderApp(api: FakeAuthApi, path = '/') {
   return render(
     <QueryClientProvider client={queryClient}>
       <AdminApiProvider api={createFakeAdminApi()}>
-        <AuthProvider api={api}>
-          <MemoryRouter initialEntries={[path]}>
-            <Where />
-            <AppRoutes />
-          </MemoryRouter>
-        </AuthProvider>
+        <TeacherApiProvider api={createFakeTeacherApi()}>
+          <AuthProvider api={api}>
+            <MemoryRouter initialEntries={[path]}>
+              <Where />
+              <AppRoutes />
+            </MemoryRouter>
+          </AuthProvider>
+        </TeacherApiProvider>
       </AdminApiProvider>
     </QueryClientProvider>,
   )

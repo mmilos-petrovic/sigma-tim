@@ -61,3 +61,108 @@
 .cal-item--locked {
   filter: saturate(0.6);
 }
+
+/* Students and parents */
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.plain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plain-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.plain-list li .muted {
+  flex-basis: 100%;
+}
+
+.section-title {
+  margin: 2rem 0 0.25rem;
+}
+
+.field--readonly {
+  display: grid;
+  gap: 0.15rem;
+  margin-bottom: 0.75rem;
+}
+
+.field--readonly span:first-child {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* The schedule page */
+
+/* The calendar takes the rest of the screen; the week scrolls inside it. */
+.schedule {
+  height: calc(100dvh - 17rem);
+  min-height: 34rem;
+}
+
+.pending {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+}
+
+.pending h2 {
+  margin-bottom: 0.1rem;
+}
+
+.pending .plain-list li {
+  gap: 0.25rem 0.75rem;
+}
+
+.warning {
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+}
+
+.warning ul {
+  margin: 0.25rem 0;
+  padding-left: 1.1rem;
+}
+
+.notice--locked {
+  background: var(--primary-soft);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.facts dt {
+  font-weight: 600;
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.note {
+  margin-bottom: 0.75rem;
+}
+
+.note textarea {
+  width: 100%;
+  font: inherit;
+}
