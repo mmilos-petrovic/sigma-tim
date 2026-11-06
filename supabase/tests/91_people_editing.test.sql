@@ -97,10 +97,10 @@ select is(
 select tests.login_as('ta');
 
 -- room for a replacement: a student has at most two parents
-select lives_ok($$ select public.add_parent_to_student(tests.id('s:s1'), 'p1@t.test', 'Test', 'Roditelj1') $$, 'a second parent fits again');
-select throws_ok($$ select public.add_parent_to_student(tests.id('s:s1'), 'novi@t.test', 'Novi', 'Roditelj') $$, 'PT409', null, 'a third does not');
+select lives_ok($$ select public.add_parent_to_student(tests.id('s:s1'), 'p1@t.test', 'Test', 'Roditelj1', '+381641234567') $$, 'a second parent fits again');
+select throws_ok($$ select public.add_parent_to_student(tests.id('s:s1'), 'novi@t.test', 'Novi', 'Roditelj', '+381641234567') $$, 'PT409', null, 'a third does not');
 select lives_ok($$ select public.remove_parent_from_student(tests.id('s:s1'), tests.id('p:p3')) $$, 'after unlinking one');
-select lives_ok($$ select public.add_parent_to_student(tests.id('s:s1'), 'novi@t.test', 'Novi', 'Roditelj') $$, 'the corrected parent is added by the right email');
+select lives_ok($$ select public.add_parent_to_student(tests.id('s:s1'), 'novi@t.test', 'Novi', 'Roditelj', '+381641234567') $$, 'the corrected parent is added by the right email');
 
 -- what an unlinked parent can no longer see
 select tests.login_as('p2');
@@ -108,7 +108,7 @@ select is((select count(*)::int from public.students where id = tests.id('s:s2')
 select is((select count(*)::int from public.lessons where id = tests.id('les:group')), 0, 'nor the child''s lessons');
 
 select tests.login_as('boss');
-select lives_ok($$ select public.add_parent_to_student(tests.id('s:sb'), 'bp@t.test', 'Bo', 'Parent') $$, 'a parent is added to the boss''s student');
+select lives_ok($$ select public.add_parent_to_student(tests.id('s:sb'), 'bp@t.test', 'Bo', 'Parent', '+381641234567') $$, 'a parent is added to the boss''s student');
 select lives_ok($$ select public.remove_parent_from_student(tests.id('s:sb'), (select id from public.profiles where email = 'bp@t.test')) $$,
   'an admin who teaches unlinks a parent of their own student');
 select tests.login_as('admin');

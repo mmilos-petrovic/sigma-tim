@@ -8,7 +8,7 @@ Postgres schema, access rules (RLS) and booking logic for the school. All author
 npm run db:start              # local stack in Docker
 npm run db:reset              # re-apply migrations and seed.sql
 npm run db:test               # pgTAP suite
-npm run db:test:concurrency   # real parallel sessions against claim_slot(), remove_parent_from_student(), erase_teacher() and taking a location away (needs bash and docker)
+npm run db:test:concurrency   # real parallel sessions against claim_slot(), remove_parent_from_student(), erase_teacher() (also against setting a phone number) and taking a location away (needs bash and docker)
 ```
 
 `seed.sql` is development data only (and the first admin, `petrovicmilos@gmail.com`, who is also a teacher). There is no Google account behind the seeded people, so `npm run dev:setup` (also run by `npm run dev` and `npm run db:reset`) creates local auth users for the test accounts listed in `web/src/dev/personas.ts` (admin, admin and teacher, teacher, student, parent, and a stranger without a profile). They get a random password that is written to `web/.env.local`; the app's development sign-in panel uses it. The users are made like a Google sign-in (provider `google`, confirmed email), so the real linking trigger attaches them to their profiles. This exists only locally: hosted projects have the email provider switched off and never run the script.
@@ -37,10 +37,11 @@ The script is idempotent: it never deletes or renames anything, and it only crea
 
 | Function | Who | What |
 | --- | --- | --- |
-| `create_teacher(email, first, last, subject_ids, location_ids)` | admin | pre-approve a teacher with their subjects and the locations where they may teach (at least one of each) |
+| `create_teacher(email, first, last, subject_ids, location_ids, phone)` | admin | pre-approve a teacher with their subjects, the locations where they may teach (at least one of each) and a phone number (required) |
 | `set_teacher_locations(teacher_id, location_ids)` | admin | replaces the locations where a teacher may hold lessons (at least one). Refused with `PT409` while the teacher has a lesson or free slot that has not ended yet at a location that would go; the error `detail` is JSON, `{"total": n, "lessons": [{id, location_id, start_at, end_at, status}]}` with the first twenty, never who attends. Nothing is changed then |
-| `add_student(email, first, last, school, grade, section, teacher_id)` | teacher, admin | pre-approve a student (admin may pick the teacher or leave them unassigned) |
-| `add_parent_to_student(student_id, email, first, last)` | the student's teacher, admin | link a parent by email (max 2 per student); an existing parent is reused |
+| `add_student(email, first, last, school, grade, section, teacher_id, phone)` | teacher, admin | pre-approve a student (admin may pick the teacher or leave them unassigned). The phone number is optional; an empty one counts as none, one that is not a number is refused |
+| `add_parent_to_student(student_id, email, first, last, phone)` | the student's teacher, admin | link a parent by email (max 2 per student); an existing parent is reused. The phone number is required |
+| `set_person_phone(profile_id, phone)` | admin, the person, the teacher of the student (or of the student of whom this is a parent) | sets a phone number (see Phone numbers); an empty one takes it away, which is refused for teachers and parents (`PT409`) |
 | `schedule_lesson(subject, location, room, start, end, student_ids)` | teacher | confirmed lesson for their own students. It may start earlier today (to enter a lesson afterwards), not on a day that has passed (`PT400`) |
 | `set_lesson_students(lesson_id, student_ids)` | the lesson's teacher | replaces the participants of a confirmed lesson: 1 to 4 of the teacher's own students; students who stay keep their notes. Not subject to the day lock. `PT409` for a free slot or a pending booking |
 | `claim_slot(lesson_id, student_ids)` | student, parent | book a free slot; atomic, first one wins; returns `confirmed` or `pending` (less than 12 h ahead) |
@@ -82,6 +83,18 @@ Table constraint violations keep their Postgres codes (`23514` check, `23503` fo
 - **At least one location** for every teacher, deactivated ones too, so reactivating is always safe; the record of an erased teacher is exempt. Deleting a location removes it from the teachers who may use it, unless that would leave a teacher without any (`PT409`); a location with lessons or rooms is refused by those foreign keys as before. A location created later is not given to existing teachers: the administrator chooses.
 - **Colour.** `teachers.color` is one of twelve names (`red`, `orange`, `brown`, `olive`, `green`, `teal`, `blue`, `indigo`, `purple`, `magenta`, `wine`, `slate`) or null (no choice: the calendar keeps its default colours). The app decides the shades. A teacher updates only their own row; everybody who can read a teacher reads the colour. Because it belongs to the teacher, it applies to all their lessons, past and future.
 - The first administrator's bootstrap script gives them every existing location, but only while they have none.
+
+## Phone numbers
+
+- **Required for teachers and parents, optional for students**, from any country. A number is kept in the international form: `+` and 7 to 15 digits, the first not 0. `private.normalize_phone` turns what a person types (`+381 64 123-4567`, `00381641234567`, `+1 (415) 555-2671`) into it and refuses the rest (`PT400`, `invalid phone number`); a number without `+` or `00` is refused, because the country cannot be guessed.
+- **Where it lives.** `person_phones` (one row per profile), not a column of `profiles`, so that who reads a number is decided per number. Nobody writes it directly. The Edge Function that sends notifications reads it as the service role.
+- **Who reads whose** (policy `person_phones_select`): the administrator every number; a person their own; a teacher the numbers of their own students and those students' parents (not colleagues', not those of students nobody teaches); a student and a parent the number of their teacher; a parent also their children's.
+- **Who sets whose** (`set_person_phone`): the administrator anybody's; a person their own; a teacher the number of a student of theirs or of a parent of one (a parent shared by two teachers is changed by either: it is one number). Nothing is set for an erased person (`PT409`).
+- **Taking a number away** (an empty number) is only for people who need none, i.e. a student: a teacher, also a deactivated one, and a parent keep theirs (`PT409`).
+- **Adding a person again does not change their number**, like their name: `create_teacher`, `add_parent_to_student` and `add_student` store the number only when the person has none; `set_person_phone` is the way to change it.
+- **Erasing** a person (`erased_at` set, by `erase_teacher` or any later flow) deletes the number through a trigger; deleting the profile deletes it by cascade.
+- **Existing teachers and parents** (from before this was a rule) have no number. The database cannot require it of them; the app asks for it. The first administrator's bootstrap does not set one either (`first-admin.check.sql` shows `has_phone`).
+- `create_teacher` and `add_parent_to_student` exist only with the number (the older versions were dropped); `add_student` takes it as a last, optional argument.
 
 ## Editing lessons
 
