@@ -61,7 +61,6 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
     if (lesson.status === 'open' && new Date(lesson.start) <= now) continue
     const state = lessonState(lesson, now)
     const room = roomName(reference, lesson.locationId, lesson.roomId)
-    const subject = reference.subjects.find((s) => s.id === lesson.subjectId)?.name ?? 'Čas'
     const names = studentNames(lesson, students)
     const movable = state.canEditPlaceAndTime
     // a slot is 45 or 60 minutes, whether or not somebody booked it
@@ -72,7 +71,7 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
       items.push({
         ...base,
         title: 'Slobodan termin',
-        detail: [subject, room].filter(Boolean).join(' · '),
+        detail: room ?? '',
         color: OWN_COLOR,
         variant: 'slot',
       })
@@ -80,15 +79,15 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
       items.push({
         ...base,
         title: 'Na čekanju',
-        detail: [names, subject].filter(Boolean).join(' · '),
+        detail: [names, room].filter(Boolean).join(' · '),
         color: OWN_COLOR,
         variant: 'pending',
       })
     } else {
       items.push({
         ...base,
-        title: subject,
-        detail: [names, room].filter(Boolean).join(' · '),
+        title: names,
+        detail: room ?? '',
         color: OWN_COLOR,
         variant: state.locked ? 'own locked' : 'own',
       })
@@ -103,10 +102,8 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
       id: `busy:${block.teacherId}:${block.start}`,
       start: block.start,
       end: block.end,
-      title: 'Zauzeto',
-      detail: [colleague ? fullName(colleague) : 'Drugi nastavnik', room]
-        .filter(Boolean)
-        .join(' · '),
+      title: colleague ? fullName(colleague) : 'Drugi nastavnik',
+      detail: room ?? '',
       color: teacherColor(block.teacherId),
       variant: 'busy',
       movable: false,

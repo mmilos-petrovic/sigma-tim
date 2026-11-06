@@ -19,9 +19,9 @@ async function open(blockName: string | RegExp, dialogName: string) {
   return inDialog(dialogName)
 }
 
-const TODAY = /^Matematika – Ana Petrović · Učionica 2/ // 08:00-09:00 today: over, still open to changes
-const TOMORROW = /^Fizika/ // Thursday 16:00-17:00, Ana and Luka
-const LOCKED = /^Matematika – Ana Petrović$/ // Monday, outcome recorded
+const TODAY = /^Ana Petrović – Učionica 2/ // 08:00-09:00 today: over, still open to changes
+const TOMORROW = /^Ana Petrović, Luka Ilić – Učionica 1/ // Thursday 16:00-17:00, Ana and Luka
+const LOCKED = /^Ana Petrović$/ // Monday, outcome recorded
 
 describe('looking at a lesson', () => {
   it('shows when and where, and each student with their note', async () => {
@@ -168,7 +168,7 @@ describe('deleting, cancelling and removing', () => {
     }
     const lessons = state.lessons.map((l) => (l.id === 'slot-open' ? booked : l))
     const { teacherApi } = renderTeacher(PATH, { api: createFakeTeacherApi({ lessons }) })
-    const dialog = await open(/^Matematika – Luka Ilić/, 'Matematika')
+    const dialog = await open(/^Luka Ilić$/, 'Matematika')
     await userEvent.click(dialog.getByRole('button', { name: 'Otkaži čas' }))
     const confirm = await inDialog('Otkazivanje časa')
     expect(confirm.getByText(/ponovo postaje slobodan/)).toBeInTheDocument()
@@ -178,7 +178,7 @@ describe('deleting, cancelling and removing', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Čas je otkazan, termin je ponovo slobodan.',
     )
-    expect(await block(/^Slobodan termin – Matematika/)).toBeInTheDocument()
+    expect(await block(/^Slobodan termin$/)).toBeInTheDocument()
   })
 })
 
@@ -346,7 +346,7 @@ describe('editing a lesson', () => {
     }
     const lessons = state.lessons.map((l) => (l.id === 'slot-open' ? booked : l))
     const { teacherApi } = renderTeacher(PATH, { api: createFakeTeacherApi({ lessons }) })
-    const form = await edit(/^Matematika – Luka Ilić/, 'Matematika')
+    const form = await edit(/^Luka Ilić$/, 'Matematika')
     expect(form.getByLabelText('Kraj')).toBeDisabled()
     setField(form.getByLabelText('Početak'), '19:00')
     expect(form.getByLabelText('Kraj')).toHaveValue('20:00')
