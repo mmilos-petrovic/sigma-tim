@@ -204,6 +204,23 @@
   color: #ffffff;
 }
 
+.button--danger-text {
+  color: var(--danger);
+}
+
+.erased {
+  margin-top: 2rem;
+}
+
+.erased h2 {
+  font-size: 1.1rem;
+}
+
+.erased ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+}
+
 .actions--end {
   justify-content: flex-end;
 }

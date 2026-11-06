@@ -231,14 +231,14 @@ isOneToOne: true
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"created_at": string,"email": string,"first_name": string,"id": string,"is_admin": boolean,"last_name": string,"user_id": string | null
+                    "avatar_url": string | null,"created_at": string,"email": string,"erased_at": string | null,"first_name": string,"id": string,"is_admin": boolean,"last_name": string,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"first_name": string,"id"?: string,"is_admin"?: boolean,"last_name": string,"user_id"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"erased_at"?: string | null,"first_name": string,"id"?: string,"is_admin"?: boolean,"last_name": string,"user_id"?: string | null
                   }
                   Update: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"first_name"?: string,"id"?: string,"is_admin"?: boolean,"last_name"?: string,"user_id"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"erased_at"?: string | null,"first_name"?: string,"id"?: string,"is_admin"?: boolean,"last_name"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     
@@ -464,6 +464,9 @@ isOneToOne: true
                            },
 "decline_booking":
 { Args: { "p_lesson_id": string }; Returns: undefined
+                           },
+"erase_teacher":
+{ Args: { "p_teacher_id": string }; Returns: string
                            },
 "find_conflicts":
 { Args: { "p_end_at": string,"p_exclude_lesson_id"?: string,"p_room_id": string,"p_start_at": string,"p_teacher_id": string }; Returns: {
