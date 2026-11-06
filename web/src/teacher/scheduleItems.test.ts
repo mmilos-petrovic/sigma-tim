@@ -41,19 +41,47 @@ describe('colours', () => {
 })
 
 describe('what the calendar shows', () => {
-  it('names a lesson by its subject and lists the students and the room', () => {
+  it('names a lesson by its students and shows the room, without the subject', () => {
     expect(item('les-tomorrow')).toMatchObject({
-      title: 'Fizika',
-      detail: 'Ana Petrović, Luka Ilić · Učionica 1',
+      title: 'Ana Petrović, Luka Ilić',
+      detail: 'Učionica 1',
       variant: 'own',
       color: OWN_COLOR,
     })
   })
 
-  it('shows a free slot as an offer and a late booking as waiting', () => {
-    expect(item('slot-open')).toMatchObject({ title: 'Slobodan termin', variant: 'slot' })
-    expect(item('booking-pending')).toMatchObject({ title: 'Na čekanju', variant: 'pending' })
-    expect(item('booking-pending')!.detail).toContain('Luka Ilić')
+  it('shows a lesson without a room by its students alone', () => {
+    expect(item('les-locked')).toMatchObject({ title: 'Ana Petrović', detail: '' })
+  })
+
+  it('shows a free slot as an offer and a late booking as waiting, with no subject', () => {
+    expect(item('slot-open')).toMatchObject({
+      title: 'Slobodan termin',
+      detail: '',
+      variant: 'slot',
+    })
+    expect(item('booking-pending')).toMatchObject({
+      title: 'Na čekanju',
+      detail: 'Luka Ilić',
+      variant: 'pending',
+    })
+  })
+
+  it('adds the room to a free slot and to a late booking when they have one', () => {
+    const withRoom = (id: string) => ({ ...byId(id), roomId: 'r-1' })
+    const [slot, pending] = build({ lessons: [withRoom('slot-open'), withRoom('booking-pending')] })
+    expect(slot).toMatchObject({ title: 'Slobodan termin', detail: 'Učionica 1' })
+    expect(pending).toMatchObject({ title: 'Na čekanju', detail: 'Luka Ilić · Učionica 1' })
+  })
+
+  it('never puts a subject on any card', () => {
+    const names = seed.reference.subjects.map((s) => s.name)
+    const withRoom = lessons.map((l) => ({ ...l, roomId: 'r-1' }))
+    for (const card of build({ lessons: withRoom })) {
+      for (const name of names) {
+        expect(`${card.title} ${card.detail}`).not.toContain(name)
+      }
+    }
   })
 
   it('hides a free slot that has already begun', () => {
@@ -63,12 +91,19 @@ describe('what the calendar shows', () => {
   it('draws a colleague as a block with the person and the room, nothing else', () => {
     const [busy] = build().filter((i) => i.variant === 'busy')
     expect(busy).toMatchObject({
-      title: 'Zauzeto',
-      detail: 'Marko Jovanović · Učionica 1',
+      title: 'Marko Jovanović',
+      detail: 'Učionica 1',
       color: teacherColor('t-marko'),
       movable: false,
       resizable: false,
     })
+  })
+
+  it('does not write the word "Zauzeto" on a colleague, nor name a colleague it does not know', () => {
+    const stranger = build({ busy: [{ ...seed.busy[0], teacherId: 't-gone', roomId: null }] })
+    const [busy] = stranger.filter((i) => i.variant === 'busy')
+    expect(busy).toMatchObject({ title: 'Drugi nastavnik', detail: '' })
+    expect(`${busy.title} ${busy.detail}`).not.toMatch(/Zauzeto/i)
   })
 
   it("leaves out the teacher's own entries of the busy list", () => {
@@ -80,7 +115,7 @@ describe('what the calendar shows', () => {
     const odd = [
       { ...byId('les-today'), roomId: 'r-gone', participants: [{ studentId: 'gone', note: null }] },
     ]
-    expect(build({ lessons: odd })[0].detail).toBeTruthy()
+    expect(build({ lessons: odd })[0]).toMatchObject({ title: 'Nepoznat učenik', detail: '' })
   })
 })
 

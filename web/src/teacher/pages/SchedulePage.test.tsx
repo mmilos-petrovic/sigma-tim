@@ -26,43 +26,50 @@ describe('the weekly schedule', () => {
     renderTeacher(PATH)
     await page('Moj raspored')
 
-    expect(await block('Fizika – Ana Petrović, Luka Ilić · Učionica 1')).toHaveAttribute(
+    expect(await block('Ana Petrović, Luka Ilić – Učionica 1')).toHaveAttribute(
       'data-variant',
       'own',
     )
-    expect(await block('Matematika – Ana Petrović · Učionica 2')).toBeInTheDocument()
-    expect(await block('Slobodan termin – Matematika')).toHaveAttribute('data-variant', 'slot')
-    expect(await block(/^Na čekanju/)).toHaveAttribute('data-variant', 'pending')
-    expect(await block('Zauzeto – Marko Jovanović · Učionica 1')).toHaveAttribute(
-      'data-variant',
-      'busy',
-    )
+    expect(await block('Ana Petrović – Učionica 2')).toBeInTheDocument()
+    expect(await block('Slobodan termin')).toHaveAttribute('data-variant', 'slot')
+    expect(await block('Na čekanju – Luka Ilić')).toHaveAttribute('data-variant', 'pending')
+    expect(await block('Marko Jovanović – Učionica 1')).toHaveAttribute('data-variant', 'busy')
   })
 
-  it('never shows what colleagues teach or to whom: only that they are busy', async () => {
+  it('writes no subject and no "Zauzeto" on any block', async () => {
     renderTeacher(PATH)
-    const busy = await block(/^Zauzeto/)
+    await block('Marko Jovanović – Učionica 1')
+    const cards = within(screen.getByRole('region', { name: 'Kalendar' })).getAllByRole('button')
+    expect(cards.length).toBeGreaterThan(4)
+    for (const card of cards) {
+      expect(card).not.toHaveTextContent(/Zauzeto|Matematika|Fizika|Hemija/)
+    }
+  })
+
+  it('never shows what colleagues teach or to whom: only who is busy and where', async () => {
+    renderTeacher(PATH)
+    const busy = await block('Marko Jovanović – Učionica 1')
     expect(busy).toHaveTextContent('Marko Jovanović')
     expect(busy).not.toHaveTextContent(/Matematika|Fizika|Hemija/)
   })
 
   it('leaves out an expired free slot, and marks frozen lessons', async () => {
     renderTeacher(PATH)
-    await block(/^Fizika/)
+    await block('Ana Petrović, Luka Ilić – Učionica 1')
     expect(screen.getAllByRole('button', { name: /^Slobodan termin/ })).toHaveLength(1)
-    expect(await block(/^Matematika – Ana Petrović$/)).toHaveAttribute('data-variant', 'own locked')
+    expect(await block(/^Ana Petrović$/)).toHaveAttribute('data-variant', 'own locked')
   })
 
   it('asks for the week that is on screen, for this teacher only', async () => {
     const { teacherApi } = renderTeacher(PATH)
-    await block(/^Fizika/)
+    await block(/^Ana Petrović, Luka Ilić/)
     expect(teacherApi.listLessons).toHaveBeenCalledWith(TEST_WEEK, 'p-teacher')
     expect(teacherApi.listBusy).toHaveBeenCalledWith(TEST_WEEK, 'p-teacher')
   })
 
   it('moves to another week when the calendar says so', async () => {
     const { teacherApi } = renderTeacher(PATH)
-    await block(/^Fizika/)
+    await block(/^Ana Petrović, Luka Ilić – Učionica 1/)
     const next = { start: '2026-11-08T23:00:00.000Z', end: '2026-11-15T23:00:00.000Z' }
     act(() => calendar().onRangeChange(next))
     await waitFor(() => expect(teacherApi.listLessons).toHaveBeenCalledWith(next, 'p-teacher'))
@@ -74,7 +81,7 @@ describe('the weekly schedule', () => {
     renderTeacher(PATH, { api })
     expect(await screen.findByRole('alert')).toHaveTextContent('Nema veze sa serverom.')
     await userEvent.click(screen.getByRole('button', { name: 'Pokušaj ponovo' }))
-    expect(await block(/^Fizika/)).toBeInTheDocument()
+    expect(await block(/^Ana Petrović, Luka Ilić – Učionica 1/)).toBeInTheDocument()
   })
 })
 
@@ -98,7 +105,7 @@ describe('bookings that wait for an answer', () => {
     renderTeacher(PATH, {
       api: createFakeTeacherApi({ lessons: state.lessons.filter((l) => l.status !== 'pending') }),
     })
-    await block(/^Fizika/)
+    await block(/^Ana Petrović, Luka Ilić – Učionica 1/)
     expect(screen.queryByRole('heading', { name: 'Zahtevi na čekanju' })).not.toBeInTheDocument()
   })
 
@@ -110,7 +117,7 @@ describe('bookings that wait for an answer', () => {
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: 'Zahtevi na čekanju' })).not.toBeInTheDocument(),
     )
-    expect(await block(/^Matematika – Luka Ilić/)).toHaveAttribute('data-variant', 'own')
+    expect(await block(/^Luka Ilić$/)).toHaveAttribute('data-variant', 'own')
   })
 
   it('declines a booking, which frees the slot again', async () => {
@@ -168,7 +175,7 @@ describe('scheduling a lesson', () => {
       studentIds: ['st-luka'],
     })
     expect(await screen.findByRole('status')).toHaveTextContent('Čas je zakazan.')
-    expect(await block('Matematika – Luka Ilić · Učionica 2')).toBeInTheDocument()
+    expect(await block('Luka Ilić – Učionica 2')).toBeInTheDocument()
   })
 
   it('offers only the subjects the teacher teaches, the rooms of the chosen location, and no room', async () => {
@@ -202,7 +209,7 @@ describe('scheduling a lesson', () => {
 
   it('is prefilled from the stretch of time selected on the calendar', async () => {
     renderTeacher(PATH)
-    await block(/^Fizika/)
+    await block(/^Ana Petrović, Luka Ilić – Učionica 1/)
     act(() =>
       calendar().onCreate({ start: '2026-11-06T09:00:00+01:00', end: '2026-11-06T10:15:00+01:00' }),
     )
@@ -348,7 +355,7 @@ describe('moving a lesson by dragging it', () => {
 
   it('saves the new time as it is on the Belgrade clock', async () => {
     const { teacherApi } = renderTeacher(PATH)
-    await block(/^Matematika – Ana Petrović · Učionica 2/)
+    await block(/^Ana Petrović – Učionica 2/)
     await act(async () => {
       await move('les-today', '2026-11-04T09:00:00+01:00', '2026-11-04T10:00:00+01:00')
     })
@@ -361,7 +368,7 @@ describe('moving a lesson by dragging it', () => {
 
   it('warns about a clash before saving, and puts the lesson back if the teacher declines', async () => {
     const { teacherApi } = renderTeacher(PATH)
-    await block(/^Fizika/)
+    await block(/^Ana Petrović, Luka Ilić – Učionica 1/)
     let result: Promise<void> = Promise.resolve()
     act(() => {
       result = move('les-tomorrow', '2026-11-05T17:00:00+01:00', '2026-11-05T18:00:00+01:00')
@@ -379,7 +386,7 @@ describe('moving a lesson by dragging it', () => {
 
   it('saves anyway when the teacher accepts the warning', async () => {
     const { teacherApi } = renderTeacher(PATH)
-    await block(/^Fizika/)
+    await block(/^Ana Petrović, Luka Ilić – Učionica 1/)
     let result: Promise<void> = Promise.resolve()
     act(() => {
       result = move('les-tomorrow', '2026-11-05T17:00:00+01:00', '2026-11-05T18:00:00+01:00')
@@ -397,7 +404,7 @@ describe('moving a lesson by dragging it', () => {
 
   it('shows why a move failed and lets the calendar put the block back', async () => {
     const { teacherApi } = renderTeacher(PATH)
-    await block(/^Matematika – Ana Petrović · Učionica 2/)
+    await block(/^Ana Petrović – Učionica 2/)
     teacherApi.failNext('updateLesson', new AdminError('PT409', 'the day of this lesson is over'))
     await act(async () => {
       await expect(

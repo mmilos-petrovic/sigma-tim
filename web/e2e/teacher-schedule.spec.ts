@@ -126,7 +126,8 @@ test.describe("the teacher's schedule", () => {
         await expect(page.getByRole('status')).toHaveText('Čas je zakazan.')
 
         const block = await shown(page, lessonBlock(page, start, end, 'Luka Ilić'))
-        await expect(block).toContainText('Matematika')
+        await expect(block).toContainText('Učionica 3')
+        await expect(block).not.toContainText('Matematika') // the card shows students and room, not the subject
         expect(await lessons()).toHaveLength(1)
       })
 
@@ -148,7 +149,8 @@ test.describe("the teacher's schedule", () => {
         expect(await lessons()).toHaveLength(1) // nothing saved yet
 
         await form.getByRole('button', { name: 'Sačuvaj i pored upozorenja' }).click()
-        await expect(page.getByRole('status')).toHaveText('Čas je zakazan.')
+        // the notice of the first lesson is still on screen, so it proves nothing: wait for the form itself to close
+        await expect(dialog(page, 'Novi čas')).toBeHidden()
         expect(await lessons()).toHaveLength(2)
       })
 
