@@ -8,7 +8,7 @@ Postgres schema, access rules (RLS) and booking logic for the school. All author
 npm run db:start              # local stack in Docker
 npm run db:reset              # re-apply migrations and seed.sql
 npm run db:test               # pgTAP suite
-npm run db:test:concurrency   # real parallel sessions against claim_slot() (needs bash and docker)
+npm run db:test:concurrency   # real parallel sessions against claim_slot(), remove_parent_from_student() and erase_teacher() (needs bash and docker)
 ```
 
 `seed.sql` is development data only (and the first admin, `petrovicmilos@gmail.com`, who is also a teacher). There is no Google account behind the seeded people, so `npm run dev:setup` (also run by `npm run dev` and `npm run db:reset`) creates local auth users for the test accounts listed in `web/src/dev/personas.ts` (admin, admin and teacher, teacher, student, parent, and a stranger without a profile). They get a random password that is written to `web/.env.local`; the app's development sign-in panel uses it. The users are made like a Google sign-in (provider `google`, confirmed email), so the real linking trigger attaches them to their profiles. This exists only locally: hosted projects have the email provider switched off and never run the script.
@@ -54,6 +54,7 @@ The script is idempotent: it never deletes or renames anything, and it only crea
 | `approve_takeover(id)` / `reject_takeover(id)` | admin | approving closes competing requests |
 | `deactivate_teacher(teacher_id)` | admin | deletes future lessons (participants are notified), unassigns students |
 | `reactivate_teacher(teacher_id)` | admin | makes the teacher active again. Deleted lessons do not return and released students stay unassigned: the teacher asks for them with `request_takeover` and the admin approves |
+| `erase_teacher(teacher_id)` | admin | erases a teacher's whole profile: the teacher role with CV and subjects, the same person's student and parent roles, devices and waiting notices. Lessons still to come are cancelled (participants notified) and students become unassigned, as in deactivation; a student role also leaves the future lessons it attended (a free slot they had booked becomes free again). Lessons that already started are never deleted: when the teacher has one, the profile stays as an inactive record (`erased_at` set, name kept, email replaced by a placeholder so the address is free) and the function returns `kept_history`; otherwise everything is deleted and it returns `deleted`. The Google account itself is left alone and becomes an unknown account. An erased person cannot be reactivated or get a new email (`PT409`), and an administrator cannot be erased (`PT409`) |
 | `change_profile_email(profile_id, new_email)` | admin | corrects a person's email. Everything on the profile stays; the old Google account is cut off at once (it becomes an unknown account) and the profile is linked to the new address's Google account if one exists, otherwise at its first sign-in. Not for the admin's own profile; `PT409` if another profile has the address |
 | `list_public_cvs()` / `get_public_cv(slug)` | anyone | CVs with the public switch on |
 | `list_member_cvs()` / `get_member_cv(slug)` | signed-in members | CVs with the members switch on |
