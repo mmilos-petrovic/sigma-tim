@@ -16,6 +16,13 @@ export interface TeacherRow {
   isActive: boolean
   /** False until the person has signed in with Google for the first time. */
   hasSignedIn: boolean
+  /** An administrator who also teaches: never erased from here. */
+  isAdmin: boolean
+  /**
+   * An erased account that stays only as the record behind lessons that took place: the name is kept, the email is a
+   * placeholder and nothing else is left. It cannot be reactivated or edited.
+   */
+  erased: boolean
   subjectIds: string[]
 }
 
@@ -60,6 +67,9 @@ export interface TeacherImpact {
   pendingRequests: number
 }
 
+/** `deleted`: nothing is left. `kept_history`: the name stays as a record behind lessons that already started. */
+export type EraseResult = 'deleted' | 'kept_history'
+
 export const MAX_LOCATION_PHOTOS = 3
 
 export interface AdminApi {
@@ -80,6 +90,8 @@ export interface AdminApi {
   teacherImpact(teacherId: string): Promise<TeacherImpact>
   deactivateTeacher(teacherId: string): Promise<void>
   reactivateTeacher(teacherId: string): Promise<void>
+  /** Erases the whole profile (also the person's student and parent roles); lessons that started are kept. */
+  eraseTeacher(teacherId: string): Promise<EraseResult>
 
   listLocations(): Promise<LocationRow[]>
   addLocation(input: { name: string; address: string }): Promise<void>
@@ -119,6 +131,7 @@ export type ActionKey =
   | 'changeEmail'
   | 'deactivateTeacher'
   | 'reactivateTeacher'
+  | 'eraseTeacher'
   | 'addSubject'
   | 'renameSubject'
   | 'deleteSubject'

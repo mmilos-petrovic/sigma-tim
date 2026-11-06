@@ -71,6 +71,31 @@ describe('explainError', () => {
       expect(explain('PT409', 'deactivateTeacher')).toBe('Nastavnik je već deaktiviran.')
       expect(explain('PT409', 'reactivateTeacher')).toBe('Nastavnik je već aktivan.')
     })
+
+    it('erase, and what an erased record cannot do any more', () => {
+      expect(explain('PT404', 'eraseTeacher')).toBe('Nastavnik više ne postoji. Osvežite stranicu.')
+      expect(explain('PT409', 'eraseTeacher', 'an administrator cannot be erased')).toBe(
+        'Administrator se ne briše ovde. Prvo mu oduzmite ulogu administratora.',
+      )
+      expect(explain('PT409', 'eraseTeacher', 'this person was already erased')).toBe(
+        'Nalog je već obrisan. Osvežite stranicu.',
+      )
+      expect(explain('PT409', 'reactivateTeacher', 'this person was erased')).toBe(
+        'Obrisani nalog ne može da se vrati. Osvežite stranicu.',
+      )
+      expect(explain('PT409', 'changeEmail', 'this person was erased')).toBe(
+        'Obrisani nalog ne može da dobije novu email adresu.',
+      )
+    })
+  })
+
+  describe('the teacher’s own screens', () => {
+    it('say when the student or the parent link is already gone', () => {
+      expect(explain('PT404', 'updateStudent')).toBe('Učenik više nije kod vas. Osvežite stranicu.')
+      expect(explain('PT404', 'removeParent')).toBe(
+        'Roditelj više nije povezan sa ovim učenikom. Osvežite stranicu.',
+      )
+    })
   })
 
   describe('subjects, locations and rooms', () => {

@@ -78,7 +78,14 @@ export function mapSubject(row: {
 export function mapTeacher(row: {
   profile_id: string
   is_active: boolean
-  profile: { email: string; first_name: string; last_name: string; user_id: string | null }
+  profile: {
+    email: string
+    first_name: string
+    last_name: string
+    user_id: string | null
+    is_admin: boolean
+    erased_at: string | null
+  }
   subjects: { subject_id: string }[]
 }): TeacherRow {
   return {
@@ -88,6 +95,8 @@ export function mapTeacher(row: {
     lastName: row.profile.last_name,
     isActive: row.is_active,
     hasSignedIn: row.profile.user_id !== null,
+    isAdmin: row.profile.is_admin,
+    erased: row.profile.erased_at !== null,
     subjectIds: row.subjects.map((s) => s.subject_id),
   }
 }
@@ -185,7 +194,7 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
         client
           .from('teachers')
           .select(
-            'profile_id, is_active, profile:profiles(email, first_name, last_name, user_id), subjects:teacher_subjects(subject_id)',
+            'profile_id, is_active, profile:profiles(email, first_name, last_name, user_id, is_admin, erased_at), subjects:teacher_subjects(subject_id)',
           ),
       )
       return (data ?? [])
@@ -260,6 +269,11 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
     },
     async reactivateTeacher(teacherId) {
       await run(client.rpc('reactivate_teacher', { p_teacher_id: teacherId }))
+    },
+    async eraseTeacher(teacherId) {
+      const { data } = await run(client.rpc('erase_teacher', { p_teacher_id: teacherId }))
+      if (data !== 'deleted' && data !== 'kept_history') throw new AdminError('unknown')
+      return data
     },
 
     async listLocations() {

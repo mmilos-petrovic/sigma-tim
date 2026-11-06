@@ -72,6 +72,8 @@ describe('row mappers', () => {
         first_name: 'Ana',
         last_name: 'Nikolić',
         user_id: null,
+        is_admin: false,
+        erased_at: null,
       },
       subjects: [{ subject_id: 's1' }, { subject_id: 's2' }],
     }
@@ -82,11 +84,32 @@ describe('row mappers', () => {
       lastName: 'Nikolić',
       isActive: true,
       hasSignedIn: false,
+      isAdmin: false,
+      erased: false,
       subjectIds: ['s1', 's2'],
     })
     expect(mapTeacher({ ...row, profile: { ...row.profile, user_id: 'u1' } }).hasSignedIn).toBe(
       true,
     )
+  })
+
+  it('knows an administrator who teaches and an erased record', () => {
+    const profile = {
+      email: 'ana@example.test',
+      first_name: 'Ana',
+      last_name: 'Nikolić',
+      user_id: null,
+      is_admin: false,
+      erased_at: null,
+    }
+    const row = { profile_id: 't1', is_active: false, profile, subjects: [] }
+    expect(mapTeacher({ ...row, profile: { ...profile, is_admin: true } })).toMatchObject({
+      isAdmin: true,
+      erased: false,
+    })
+    expect(
+      mapTeacher({ ...row, profile: { ...profile, erased_at: '2026-11-06T10:00:00Z' } }),
+    ).toMatchObject({ isAdmin: false, erased: true })
   })
 
   it('maps a location with its rooms and photos in a sensible order', () => {

@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
 import { localEnv } from './helpers.ts'
 
 /** Talks to the local stack the way the app's own session would: as a signed-in dev account, through RLS. */
@@ -55,4 +56,30 @@ export async function storedPhotos(
   })
   expect(response.ok(), 'listing the bucket').toBe(true)
   return ((await response.json()) as { name: string }[]).map((object) => object.name)
+}
+
+/**
+ * Runs SQL as the database owner, for what the app cannot do on purpose: a lesson that has already taken place, and
+ * removing such test data again (a started lesson cannot be deleted through the app). Local stack only.
+ */
+export function sql(statement: string): string {
+  return execFileSync(
+    'docker',
+    [
+      'exec',
+      '-i',
+      process.env.DB_CONTAINER ?? 'supabase_db_sigma-tim',
+      'psql',
+      '-U',
+      'supabase_admin',
+      '-d',
+      'postgres',
+      '-X',
+      '-q',
+      '-At',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
+    { input: statement, encoding: 'utf8' },
+  ).trim()
 }

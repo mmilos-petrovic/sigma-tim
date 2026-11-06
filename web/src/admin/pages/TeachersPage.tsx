@@ -11,10 +11,13 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const normaliseEmail = (value: string) => value.trim().toLowerCase()
 const fullName = (teacher: Pick<TeacherRow, 'firstName' | 'lastName'>) =>
   `${teacher.firstName} ${teacher.lastName}`
+// Case and extra spaces do not matter; letters with marks do.
+const squash = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
+const sameName = (typed: string, name: string) => squash(typed) === squash(name)
 
 type Dialog =
   | { kind: 'add' }
-  | { kind: 'subjects' | 'email' | 'deactivate' | 'activate'; teacher: TeacherRow }
+  | { kind: 'subjects' | 'email' | 'deactivate' | 'activate' | 'erase'; teacher: TeacherRow }
   | null
 
 interface DialogProps {
@@ -138,6 +141,23 @@ function EmailDialog({ teacher, onClose, onDone }: DialogProps & { teacher: Teac
   )
 }
 
+/** What deactivating or erasing will do to the teacher's lessons, students and requests. */
+function Impact({ impact }: { impact: ReturnType<typeof useTeacherImpact> }) {
+  return (
+    <>
+      {impact.isPending && <Loading />}
+      {impact.isError && <LoadError error={impact.error} onRetry={() => void impact.refetch()} />}
+      {impact.isSuccess && (
+        <ul className="impact">
+          <li>Budući časovi koji se brišu: {impact.data.futureLessons}</li>
+          <li>Učenici koji postaju neraspoređeni: {impact.data.students}</li>
+          <li>Zahtevi za preuzimanje koji se zatvaraju: {impact.data.pendingRequests}</li>
+        </ul>
+      )}
+    </>
+  )
+}
+
 function DeactivateDialog({ teacher, onClose, onDone }: DialogProps & { teacher: TeacherRow }) {
   const api = useAdminApi()
   const refresh = useRefresh()
@@ -161,16 +181,60 @@ function DeactivateDialog({ teacher, onClose, onDone }: DialogProps & { teacher:
         Nastavnik <strong>{fullName(teacher)}</strong> više neće moći da radi u aplikaciji. Prošli
         časovi i podaci ostaju.
       </p>
-      {impact.isPending && <Loading />}
-      {impact.isError && <LoadError error={impact.error} onRetry={() => void impact.refetch()} />}
-      {impact.isSuccess && (
-        <ul className="impact">
-          <li>Budući časovi koji se brišu: {impact.data.futureLessons}</li>
-          <li>Učenici koji postaju neraspoređeni: {impact.data.students}</li>
-          <li>Zahtevi za preuzimanje koji se zatvaraju: {impact.data.pendingRequests}</li>
-        </ul>
-      )}
+      <Impact impact={impact} />
       <p className="muted">Učesnici obrisanih časova biće obavešteni.</p>
+    </FormDialog>
+  )
+}
+
+function EraseDialog({ teacher, onClose, onDone }: DialogProps & { teacher: TeacherRow }) {
+  const api = useAdminApi()
+  const refresh = useRefresh()
+  const impact = useTeacherImpact(teacher.id)
+  const [typed, setTyped] = useState('')
+
+  return (
+    <FormDialog
+      title="Brisanje naloga"
+      action="eraseTeacher"
+      submitLabel="Obriši nalog"
+      danger
+      disabled={!impact.isSuccess}
+      onClose={onClose}
+      validate={() =>
+        sameName(typed, fullName(teacher)) ? null : 'Upišite ime i prezime nastavnika radi potvrde.'
+      }
+      onSubmit={async () => {
+        const result = await api.eraseTeacher(teacher.id)
+        await refresh()
+        onDone(
+          result === 'kept_history'
+            ? 'Nalog je obrisan. Održani časovi ostaju u evidenciji.'
+            : 'Nalog je obrisan.',
+        )
+      }}
+    >
+      <p>
+        Nalog nastavnika <strong>{fullName(teacher)}</strong> biće obrisan. Ovo se ne može
+        poništiti.
+      </p>
+      <p>
+        Briše se sve što je vezano za osobu: biografija, predmeti i CV. Ako je ova osoba i učenik
+        ili roditelj, i ti nalozi se brišu.
+      </p>
+      <Impact impact={impact} />
+      <p className="muted">Učesnici obrisanih časova biće obavešteni.</p>
+      <p>
+        Časovi koji su već počeli ostaju u evidenciji i vidljivi su administratoru, uz ime
+        nastavnika. Email adresa se oslobađa i može ponovo da se doda.
+      </p>
+      <Field
+        label={`Za potvrdu upišite ime i prezime: ${fullName(teacher)}`}
+        value={typed}
+        onChange={setTyped}
+        maxLength={200}
+        autoComplete="off"
+      />
     </FormDialog>
   )
 }
@@ -236,7 +300,9 @@ export function TeachersPage() {
       <Loaded query={subjects}>
         {(subjectRows) => (
           <Loaded query={teachers}>
-            {(rows) => {
+            {(allRows) => {
+              const rows = allRows.filter((teacher) => !teacher.erased)
+              const erased = allRows.filter((teacher) => teacher.erased)
               const subjectName = new Map(subjectRows.map((subject) => [subject.id, subject.name]))
               const subjectsOf = (teacher: TeacherRow) =>
                 teacher.subjectIds
@@ -245,82 +311,113 @@ export function TeachersPage() {
                   .sort((a, b) => a.localeCompare(b, 'sr'))
                   .join(', ')
 
-              if (rows.length === 0)
-                return <p className="empty-note">Još nema nastavnika. Dodajte prvog.</p>
+              const list =
+                rows.length === 0 ? (
+                  <p className="empty-note">Još nema nastavnika. Dodajte prvog.</p>
+                ) : (
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Ime i prezime</th>
+                        <th>Email</th>
+                        <th>Predmeti</th>
+                        <th>Status</th>
+                        <th>
+                          <span className="visually-hidden">Radnje</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((teacher) => {
+                        const own = teacher.id === roles.profileId
+                        const open = (
+                          kind: 'subjects' | 'email' | 'deactivate' | 'activate' | 'erase',
+                        ) => {
+                          setNotice(null)
+                          setDialog({ kind, teacher })
+                        }
+                        return (
+                          <tr key={teacher.id}>
+                            <td>
+                              {fullName(teacher)}
+                              {own && <span className="muted"> (vi)</span>}
+                            </td>
+                            <td>
+                              <span>{teacher.email}</span>
+                              {!teacher.hasSignedIn && (
+                                <span className="badge">Još se nije prijavio</span>
+                              )}
+                            </td>
+                            <td>{subjectsOf(teacher)}</td>
+                            <td>{teacher.isActive ? 'Aktivan' : 'Deaktiviran'}</td>
+                            <td className="table__actions">
+                              <button
+                                type="button"
+                                className="button button--small button--secondary"
+                                onClick={() => open('subjects')}
+                              >
+                                Predmeti
+                              </button>
+                              {!own && (
+                                <button
+                                  type="button"
+                                  className="button button--small button--secondary"
+                                  onClick={() => open('email')}
+                                >
+                                  Promeni email
+                                </button>
+                              )}
+                              {teacher.isActive ? (
+                                <button
+                                  type="button"
+                                  className="button button--small button--secondary"
+                                  onClick={() => open('deactivate')}
+                                >
+                                  Deaktiviraj
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="button button--small button--secondary"
+                                  onClick={() => open('activate')}
+                                >
+                                  Aktiviraj
+                                </button>
+                              )}
+                              {!own && !teacher.isAdmin && (
+                                <button
+                                  type="button"
+                                  className="button button--small button--secondary button--danger-text"
+                                  onClick={() => open('erase')}
+                                >
+                                  Obriši nalog
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )
               return (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Ime i prezime</th>
-                      <th>Email</th>
-                      <th>Predmeti</th>
-                      <th>Status</th>
-                      <th>
-                        <span className="visually-hidden">Radnje</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((teacher) => {
-                      const own = teacher.id === roles.profileId
-                      const open = (kind: 'subjects' | 'email' | 'deactivate' | 'activate') => {
-                        setNotice(null)
-                        setDialog({ kind, teacher })
-                      }
-                      return (
-                        <tr key={teacher.id}>
-                          <td>
-                            {fullName(teacher)}
-                            {own && <span className="muted"> (vi)</span>}
-                          </td>
-                          <td>
-                            <span>{teacher.email}</span>
-                            {!teacher.hasSignedIn && (
-                              <span className="badge">Još se nije prijavio</span>
-                            )}
-                          </td>
-                          <td>{subjectsOf(teacher)}</td>
-                          <td>{teacher.isActive ? 'Aktivan' : 'Deaktiviran'}</td>
-                          <td className="table__actions">
-                            <button
-                              type="button"
-                              className="button button--small button--secondary"
-                              onClick={() => open('subjects')}
-                            >
-                              Predmeti
-                            </button>
-                            {!own && (
-                              <button
-                                type="button"
-                                className="button button--small button--secondary"
-                                onClick={() => open('email')}
-                              >
-                                Promeni email
-                              </button>
-                            )}
-                            {teacher.isActive ? (
-                              <button
-                                type="button"
-                                className="button button--small button--secondary"
-                                onClick={() => open('deactivate')}
-                              >
-                                Deaktiviraj
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="button button--small button--secondary"
-                                onClick={() => open('activate')}
-                              >
-                                Aktiviraj
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                <>
+                  {list}
+                  {erased.length > 0 && (
+                    <section aria-labelledby="erased-heading" className="erased">
+                      <h2 id="erased-heading">Obrisani nalozi</h2>
+                      <p className="muted">
+                        Podaci ovih osoba su obrisani. Časovi koji su održani su sačuvani i vidljivi
+                        su administratoru.
+                      </p>
+                      <ul>
+                        {erased.map((teacher) => (
+                          <li key={teacher.id}>{fullName(teacher)}</li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </>
               )
             }}
           </Loaded>
@@ -346,6 +443,9 @@ export function TeachersPage() {
       )}
       {dialog?.kind === 'activate' && (
         <ActivateDialog teacher={dialog.teacher} onClose={close} onDone={done} />
+      )}
+      {dialog?.kind === 'erase' && (
+        <EraseDialog teacher={dialog.teacher} onClose={close} onDone={done} />
       )}
     </>
   )

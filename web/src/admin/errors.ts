@@ -24,6 +24,11 @@ export function explainError(error: unknown, action: ActionKey): string {
     case 'photoLimit':
       return 'Lokacija već ima tri fotografije.'
     case 'PT404':
+      if (action === 'eraseTeacher') return 'Nastavnik više ne postoji. Osvežite stranicu.'
+      if (action === 'updateStudent') return 'Učenik više nije kod vas. Osvežite stranicu.'
+      if (action === 'removeParent') {
+        return 'Roditelj više nije povezan sa ovim učenikom. Osvežite stranicu.'
+      }
       return 'Podatak više ne postoji. Osvežite stranicu.'
     case 'PT403':
     case '42501':
@@ -60,14 +65,28 @@ export function explainError(error: unknown, action: ActionKey): string {
         return 'Nastavnik mora da ima bar jedan predmet.'
       break
     case 'changeEmail':
-      if (code === 'PT409') return 'Ova adresa već pripada drugoj osobi.'
+      if (code === 'PT409') {
+        if (/erased/i.test(message)) return 'Obrisani nalog ne može da dobije novu email adresu.'
+        return 'Ova adresa već pripada drugoj osobi.'
+      }
       if (code === 'PT400') return 'Email adresa nije ispravna.'
       break
     case 'deactivateTeacher':
       if (code === 'PT409') return 'Nastavnik je već deaktiviran.'
       break
     case 'reactivateTeacher':
-      if (code === 'PT409') return 'Nastavnik je već aktivan.'
+      if (code === 'PT409') {
+        if (/erased/i.test(message)) return 'Obrisani nalog ne može da se vrati. Osvežite stranicu.'
+        return 'Nastavnik je već aktivan.'
+      }
+      break
+    case 'eraseTeacher':
+      if (code === 'PT409') {
+        if (/administrator/i.test(message)) {
+          return 'Administrator se ne briše ovde. Prvo mu oduzmite ulogu administratora.'
+        }
+        return 'Nalog je već obrisan. Osvežite stranicu.'
+      }
       break
     case 'addSubject':
     case 'renameSubject':
@@ -108,9 +127,6 @@ export function explainError(error: unknown, action: ActionKey): string {
         return 'Ova adresa već pripada drugoj osobi.'
       }
       break
-    case 'updateStudent':
-      if (code === 'PT404') return 'Učenik više nije kod vas. Osvežite stranicu.'
-      break
     case 'renamePerson':
       if (code === 'PT400') return 'Ime i prezime su obavezni (najviše 100 znakova).'
       break
@@ -120,9 +136,6 @@ export function explainError(error: unknown, action: ActionKey): string {
         if (/email/i.test(message)) return 'Email adresa nije ispravna.'
         if (/name/i.test(message)) return 'Ime i prezime su obavezni.'
       }
-      break
-    case 'removeParent':
-      if (code === 'PT404') return 'Roditelj više nije povezan sa ovim učenikom. Osvežite stranicu.'
       break
     case 'requestTakeover':
       if (code === 'PT409') {

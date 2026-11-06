@@ -338,3 +338,190 @@ describe('reactivating a teacher', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Nastavnik je ponovo aktivan.')
   })
 })
+
+describe('erasing a teacher', () => {
+  const erase = async (name: string) => {
+    await userEvent.click(within(await row(name)).getByRole('button', { name: 'Obriši nalog' }))
+    return inDialog('Brisanje naloga')
+  }
+  const confirmWith = async (dialog: Awaited<ReturnType<typeof inDialog>>, name: string) => {
+    await dialog.findByText('Budući časovi koji se brišu', { exact: false })
+    await userEvent.type(dialog.getByLabelText(/Za potvrdu upišite/), name)
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši nalog' }))
+  }
+
+  it('is offered for active and deactivated teachers, not for the admin or other admins', async () => {
+    const api = createFakeAdminApi({
+      teachers: [
+        ...seed().teachers,
+        {
+          ...seed().teachers[0],
+          id: 'p-boss',
+          firstName: 'Boris',
+          lastName: 'Šef',
+          email: 'boss@example.test',
+        },
+        {
+          ...seed().teachers[0],
+          id: 'p-other-admin',
+          firstName: 'Dragan',
+          lastName: 'Upravnik',
+          email: 'dragan@example.test',
+          isAdmin: true,
+        },
+      ],
+    })
+    renderAdmin('/administracija/nastavnici', { api, roles: personas.adminTeacher })
+    expect(
+      within(await row('Ana Nikolić')).getByRole('button', { name: 'Obriši nalog' }),
+    ).toBeInTheDocument()
+    expect(
+      within(await row('Goran Savić')).getByRole('button', { name: 'Obriši nalog' }),
+    ).toBeInTheDocument()
+    expect(
+      within(await row('Boris Šef')).queryByRole('button', { name: 'Obriši nalog' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(await row('Dragan Upravnik')).queryByRole('button', { name: 'Obriši nalog' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('says what goes and what stays, and shows the consequences', async () => {
+    const { adminApi } = await open()
+    const dialog = await erase('Ana Nikolić')
+
+    expect(await dialog.findByText('Budući časovi koji se brišu: 3')).toBeInTheDocument()
+    expect(dialog.getByText('Učenici koji postaju neraspoređeni: 2')).toBeInTheDocument()
+    expect(dialog.getByText('Zahtevi za preuzimanje koji se zatvaraju: 1')).toBeInTheDocument()
+    expect(adminApi.teacherImpact).toHaveBeenCalledWith('t-ana')
+    expect(dialog.getByText(/Ovo se ne može poništiti/)).toBeInTheDocument()
+    expect(dialog.getByText(/biografija, predmeti i CV/)).toBeInTheDocument()
+    expect(dialog.getByText(/i učenik ili roditelj, i ti nalozi se brišu/)).toBeInTheDocument()
+    expect(dialog.getByText(/Časovi koji su već počeli ostaju u evidenciji/)).toBeInTheDocument()
+  })
+
+  it('cannot be confirmed before the consequences are known', async () => {
+    const api = createFakeAdminApi()
+    const release = api.hold('teacherImpact')
+    await open('/administracija/nastavnici', { api })
+    const dialog = await erase('Ana Nikolić')
+    expect(dialog.getByRole('button', { name: 'Obriši nalog' })).toBeDisabled()
+    release()
+    await dialog.findByText('Budući časovi koji se brišu: 3')
+    expect(dialog.getByRole('button', { name: 'Obriši nalog' })).toBeEnabled()
+  })
+
+  it('asks for the name before it erases anything', async () => {
+    const { adminApi } = await open()
+    const dialog = await erase('Ana Nikolić')
+    await dialog.findByText('Budući časovi koji se brišu: 3')
+
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši nalog' }))
+    expect(dialog.getByText('Upišite ime i prezime nastavnika radi potvrde.')).toBeInTheDocument()
+
+    await userEvent.type(dialog.getByLabelText(/Za potvrdu upišite/), 'Ana Nikolic')
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši nalog' }))
+    expect(adminApi.eraseTeacher).not.toHaveBeenCalled()
+  })
+
+  it('deletes a teacher with no lessons that took place, and the name check ignores case and spaces', async () => {
+    const { adminApi } = await open()
+    await confirmWith(await erase('Marko Jovanović'), '  marko  jovanović ')
+
+    expect(adminApi.eraseTeacher).toHaveBeenCalledWith('t-marko')
+    expect(await screen.findByRole('status')).toHaveTextContent('Nalog je obrisan.')
+    expect(screen.queryByRole('row', { name: /Marko Jovanović/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Obrisani nalozi' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a record of a teacher who has lessons that took place', async () => {
+    const { adminApi } = await open()
+    await confirmWith(await erase('Ana Nikolić'), 'Ana Nikolić')
+
+    expect(adminApi.eraseTeacher).toHaveBeenCalledWith('t-ana')
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Nalog je obrisan. Održani časovi ostaju u evidenciji.',
+    )
+
+    // gone from the working list, present in the record of erased accounts
+    const records = within(await screen.findByRole('region', { name: 'Obrisani nalozi' }))
+    expect(records.getByText('Ana Nikolić')).toBeInTheDocument()
+    expect(records.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByText('ana.nikolic@example.test')).not.toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /Marko Jovanović/ })).toBeInTheDocument()
+  })
+
+  it('shows a record of an erased account that was there from the start', async () => {
+    const api = createFakeAdminApi({
+      teachers: [
+        ...seed().teachers,
+        {
+          ...seed().teachers[0],
+          id: 't-erased',
+          firstName: 'Nikola',
+          lastName: 'Petrović',
+          email: 'erased-1@erased.invalid',
+          isActive: false,
+          hasSignedIn: false,
+          subjectIds: [],
+          erased: true,
+        },
+      ],
+    })
+    await open('/administracija/nastavnici', { api })
+    const records = within(await screen.findByRole('region', { name: 'Obrisani nalozi' }))
+    expect(records.getByText('Nikola Petrović')).toBeInTheDocument()
+    expect(records.getByText(/Časovi koji su održani su sačuvani/)).toBeInTheDocument()
+    expect(screen.queryByText('erased-1@erased.invalid')).not.toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Nikola Petrović/ })).not.toBeInTheDocument()
+  })
+
+  it('does not show the record section when nobody was erased', async () => {
+    await open()
+    expect(screen.queryByRole('region', { name: 'Obrisani nalozi' })).not.toBeInTheDocument()
+  })
+
+  it('explains an administrator who cannot be erased', async () => {
+    const { adminApi } = await open()
+    adminApi.failNext('eraseTeacher', new AdminError('PT409', 'an administrator cannot be erased'))
+    await confirmWith(await erase('Ana Nikolić'), 'Ana Nikolić')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Administrator se ne briše ovde. Prvo mu oduzmite ulogu administratora.',
+    )
+  })
+
+  it('explains an account that was erased meanwhile, and one that is gone', async () => {
+    const { adminApi } = await open()
+    adminApi.failNext('eraseTeacher', new AdminError('PT409', 'this person was already erased'))
+    const dialog = await erase('Ana Nikolić')
+    await confirmWith(dialog, 'Ana Nikolić')
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Nalog je već obrisan. Osvežite stranicu.',
+    )
+
+    adminApi.failNext('eraseTeacher', new AdminError('PT404'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši nalog' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Nastavnik više ne postoji. Osvežite stranicu.',
+    )
+  })
+
+  it('leaves everything alone when cancelled', async () => {
+    const { adminApi } = await open()
+    await userEvent.click((await erase('Ana Nikolić')).getByRole('button', { name: 'Odustani' }))
+    expect(adminApi.eraseTeacher).not.toHaveBeenCalled()
+  })
+
+  it('tells the admin why a record cannot be reactivated or given another email', async () => {
+    const { adminApi } = await open()
+    adminApi.failNext('reactivateTeacher', new AdminError('PT409', 'this person was erased'))
+    await userEvent.click(
+      within(await row('Goran Savić')).getByRole('button', { name: 'Aktiviraj' }),
+    )
+    const dialog = await inDialog('Aktivacija nastavnika')
+    await userEvent.click(dialog.getByRole('button', { name: 'Aktiviraj' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Obrisani nalog ne može da se vrati. Osvežite stranicu.',
+    )
+  })
+})

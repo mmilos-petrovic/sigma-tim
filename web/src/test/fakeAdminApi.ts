@@ -6,6 +6,7 @@ import {
   type Photo,
   type Subject,
   type TakeoverRow,
+  type EraseResult,
   type TeacherImpact,
   type TeacherRow,
 } from '../admin/adminApi'
@@ -16,6 +17,8 @@ export interface FakeState {
   locations: LocationRow[]
   takeovers: TakeoverRow[]
   impact: Record<string, TeacherImpact>
+  /** Teachers who have a lesson that already started: erasing them leaves a record. */
+  history: Record<string, boolean>
 }
 
 type Methods = keyof AdminApi
@@ -43,6 +46,8 @@ export const seed = (): FakeState => ({
       lastName: 'Nikolić',
       isActive: true,
       hasSignedIn: true,
+      isAdmin: false,
+      erased: false,
       subjectIds: ['s-mat', 's-fiz'],
     },
     {
@@ -52,6 +57,8 @@ export const seed = (): FakeState => ({
       lastName: 'Jovanović',
       isActive: true,
       hasSignedIn: false,
+      isAdmin: false,
+      erased: false,
       subjectIds: ['s-hem'],
     },
     {
@@ -61,6 +68,8 @@ export const seed = (): FakeState => ({
       lastName: 'Savić',
       isActive: false,
       hasSignedIn: true,
+      isAdmin: false,
+      erased: false,
       subjectIds: ['s-mat'],
     },
   ],
@@ -106,6 +115,7 @@ export const seed = (): FakeState => ({
     },
   ],
   impact: { 't-ana': { futureLessons: 3, students: 2, pendingRequests: 1 } },
+  history: { 't-ana': true },
 })
 
 /** An in-memory backend that follows the same rules as the database, for the screen tests. */
@@ -174,6 +184,8 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
         lastName: input.lastName,
         isActive: true,
         hasSignedIn: false,
+        isAdmin: false,
+        erased: false,
         subjectIds: [...input.subjectIds],
       })
     },
@@ -187,6 +199,7 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       await gate('changeEmail')
       const teacher = state.teachers.find((t) => t.id === profileId)
       if (!teacher) throw new AdminError('PT404')
+      if (teacher.erased) throw new AdminError('PT409', 'this person was erased')
       if (state.teachers.some((t) => t.id !== profileId && t.email === email)) {
         throw new AdminError('PT409', 'this email already belongs to another person')
       }
@@ -208,8 +221,29 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       await gate('reactivateTeacher')
       const teacher = state.teachers.find((t) => t.id === teacherId)
       if (!teacher) throw new AdminError('PT404')
+      if (teacher.erased) throw new AdminError('PT409', 'this person was erased')
       if (teacher.isActive) throw new AdminError('PT409', 'the teacher is already active')
       teacher.isActive = true
+    },
+    async eraseTeacher(teacherId): Promise<EraseResult> {
+      await gate('eraseTeacher')
+      const teacher = state.teachers.find((t) => t.id === teacherId)
+      if (!teacher) throw new AdminError('PT404')
+      if (teacher.isAdmin) throw new AdminError('PT409', 'an administrator cannot be erased')
+      if (teacher.erased) throw new AdminError('PT409', 'this person was already erased')
+      state.takeovers = state.takeovers.filter((q) => q.teacher.id !== teacherId)
+      if (state.history[teacherId]) {
+        Object.assign(teacher, {
+          email: `erased-${teacherId}@erased.invalid`,
+          isActive: false,
+          hasSignedIn: false,
+          erased: true,
+          subjectIds: [],
+        })
+        return 'kept_history'
+      }
+      state.teachers = state.teachers.filter((t) => t.id !== teacherId)
+      return 'deleted'
     },
 
     async listLocations() {
