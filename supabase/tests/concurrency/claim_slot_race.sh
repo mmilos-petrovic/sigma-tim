@@ -44,6 +44,8 @@ insert into public.profiles (email, first_name, last_name) values
 insert into public.teachers (profile_id) select id from public.profiles where email = 'teacher@race.test';
 insert into public.teacher_subjects (teacher_id, subject_id)
   select p.id, s.id from public.profiles p, public.subjects s where p.email = 'teacher@race.test' and s.name = 'Race Subject';
+insert into public.teacher_locations (teacher_id, location_id)
+  select p.id, l.id from public.profiles p, public.locations l where p.email = 'teacher@race.test' and l.name = 'Race Location';
 insert into public.students (profile_id, teacher_id)
   select s.id, t.id from public.profiles s, public.profiles t
    where s.email in ('a@race.test', 'b@race.test') and t.email = 'teacher@race.test';

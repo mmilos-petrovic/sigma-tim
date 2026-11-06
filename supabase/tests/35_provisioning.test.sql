@@ -1,33 +1,50 @@
 -- Pre-approving people: admin adds teachers, teachers add students and their parents.
 begin;
-select plan(42);
+select plan(50);
 
 select tests.seed_basic();
 
 -- create_teacher -------------------------------------------------------------------------------------------
 select tests.login_as('admin');
-select ok(public.create_teacher('new@t.test', 'Nova', 'Nastavnica', array[tests.id('subj:math')]) is not null, 'admin adds a teacher');
+select ok(public.create_teacher('new@t.test', 'Nova', 'Nastavnica', array[tests.id('subj:math')], array[tests.id('loc:L1'), tests.id('loc:L2')]) is not null, 'admin adds a teacher');
+select is(
+  (select array_agg(tests.key_of(tl.location_id) order by tests.key_of(tl.location_id))
+     from public.teacher_locations tl join public.profiles p on p.id = tl.teacher_id where p.email = 'new@t.test'),
+  array['loc:L1', 'loc:L2'], 'the new teacher may use the locations the administrator chose'
+);
 select is(
   (select p.user_id is null and t.is_active and (select count(*) from public.teacher_subjects ts where ts.teacher_id = t.profile_id) = 1
      from public.profiles p join public.teachers t on t.profile_id = p.id where p.email = 'new@t.test'),
   true, 'the new teacher is active, has the subject and has not signed in yet'
 );
-select throws_ok($$ select public.create_teacher('none@t.test', 'No', 'Subjects', array[]::uuid[]) $$, 'PT400', null,
+select throws_ok($$ select public.create_teacher('none@t.test', 'No', 'Subjects', array[]::uuid[], array[tests.id('loc:L1')]) $$, 'PT400', null,
   'a teacher needs at least one subject');
 select tests.login_as('ta');
-select throws_ok($$ select public.create_teacher('x@t.test', 'X', 'Y', array[tests.id('subj:math')]) $$, 'PT403', null,
+select throws_ok($$ select public.create_teacher('x@t.test', 'X', 'Y', array[tests.id('subj:math')], array[tests.id('loc:L1')]) $$, 'PT403', null,
   'only admin adds teachers');
 select tests.login_as('admin');
-select throws_ok($$ select public.create_teacher('new@t.test', 'Nova', 'Nastavnica', array[tests.id('subj:math')]) $$, 'PT409', null,
+select throws_ok($$ select public.create_teacher('new@t.test', 'Nova', 'Nastavnica', array[tests.id('subj:math')], array[tests.id('loc:L1')]) $$, 'PT409', null,
   'the same teacher cannot be added twice');
-select ok(public.create_teacher('p2@t.test', 'Other', 'Name', array[tests.id('subj:phys')]) is not null,
+select ok(public.create_teacher('p2@t.test', 'Other', 'Name', array[tests.id('subj:phys')], array[tests.id('loc:L1'), tests.id('loc:L1')]) is not null,
   'a parent can also become a teacher');
 select is(
   (select count(*)::int || '/' || min(first_name) from public.profiles where email = 'p2@t.test'), '1/Test',
   'which reuses the existing profile and keeps its name'
 );
-select ok(public.create_teacher('  NEW2@T.test ', 'Second', 'Teacher', array[tests.id('subj:math')]) is not null, 'emails are normalised');
-select throws_ok($$ select public.create_teacher('not an email', 'X', 'Y', array[tests.id('subj:math')]) $$, 'PT400', null, 'invalid emails are refused');
+select ok(public.create_teacher('  NEW2@T.test ', 'Second', 'Teacher', array[tests.id('subj:math')], array[tests.id('loc:L1')]) is not null, 'emails are normalised');
+select throws_ok($$ select public.create_teacher('not an email', 'X', 'Y', array[tests.id('subj:math')], array[tests.id('loc:L1')]) $$, 'PT400', null, 'invalid emails are refused');
+
+select throws_ok($$ select public.create_teacher('noloc@t.test', 'No', 'Location', array[tests.id('subj:math')], array[]::uuid[]) $$, 'PT400',
+  'a teacher needs at least one location', 'a teacher needs at least one location');
+select throws_ok($$ select public.create_teacher('noloc@t.test', 'No', 'Location', array[tests.id('subj:math')], null) $$, 'PT400',
+  'a teacher needs at least one location', 'a missing list of locations is refused too');
+select throws_ok($$ select public.create_teacher('noloc@t.test', 'No', 'Location', array[tests.id('subj:math')], array[gen_random_uuid()]) $$, 'PT400',
+  'unknown location', 'an unknown location is refused');
+select is((select count(*)::int from public.profiles where email = 'noloc@t.test'), 0, 'and a refused teacher leaves nothing behind');
+select is((select count(*)::int from public.teacher_locations where teacher_id = (select id from public.profiles where email = 'p2@t.test')), 1,
+  'a location named twice is stored once');
+select has_function('public', 'create_teacher', array['text', 'text', 'text', 'uuid[]', 'uuid[]'], 'create_teacher takes the locations');
+select hasnt_function('public', 'create_teacher', array['text', 'text', 'text', 'uuid[]'], 'and there is no way to create a teacher without them');
 
 select tests.logout();
 insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
