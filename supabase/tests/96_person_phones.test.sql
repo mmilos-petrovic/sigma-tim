@@ -3,7 +3,7 @@
 -- their own, a teacher those of their own students and those students' parents, a student and a parent the number of
 -- their teacher, and a parent the numbers of their children. Colleagues, unassigned students and strangers read none.
 begin;
-select plan(126);
+select plan(132);
 
 select tests.seed_basic();
 
@@ -31,6 +31,15 @@ select is(private.normalize_phone(null), null, 'and neither is null');
 select has_table('public', 'person_phones', 'numbers have a table of their own');
 select throws_ok($$ insert into public.person_phones (profile_id, phone) values (tests.id('p:ta'), '0641234567') $$, '23514', null,
   'the table itself only holds numbers in international form');
+
+select throws_ok($$ insert into public.person_phones (profile_id, phone) values (tests.id('p:ta'), '+0123456789') $$, '23514', null,
+  'the table refuses a country code that starts with 0');
+select throws_ok($$ insert into public.person_phones (profile_id, phone) values (tests.id('p:ta'), '+12') $$, '23514', null,
+  'a number that is too short');
+select throws_ok($$ insert into public.person_phones (profile_id, phone) values (tests.id('p:ta'), '+1234567890123456') $$, '23514', null,
+  'one that is too long');
+select throws_ok($$ insert into public.person_phones (profile_id, phone) values (tests.id('p:ta'), '+38164abc4567') $$, '23514', null,
+  'and one with letters in it');
 
 -- Everybody of the fixture school has a number, so that the matrix below shows what is hidden
 insert into public.person_phones (profile_id, phone)
@@ -223,6 +232,12 @@ select throws_ok($$ select public.add_parent_to_student(tests.id('s:s2'), 'ph.q@
   'a parent needs a phone number', 'an empty one is no number');
 select throws_ok($$ select public.add_parent_to_student(tests.id('s:s2'), 'ph.q@t.test', 'Bez', 'Broja', '12345') $$, 'PT400',
   'invalid phone number', 'a number that is not one is refused');
+-- who asks is checked before what is asked: somebody who may not add a parent is told so, not that the number is missing
+select throws_ok($$ select public.add_parent_to_student(tests.id('s:s3'), 'ph.r@t.test', 'Bez', 'Broja', null) $$, 'PT403', 'not allowed',
+  'a teacher of another student is refused first, with or without a number');
+select tests.login_as('s1');
+select throws_ok($$ select public.add_parent_to_student(tests.id('s:s1'), 'ph.r@t.test', 'Bez', 'Broja', '') $$, 'PT403', 'not allowed',
+  'so is a student');
 select tests.logout();
 select is((select pp.phone from public.person_phones pp join public.profiles p on p.id = pp.profile_id where p.email = 'ph.p@t.test'), '+381631112224',
   'the parent''s number is stored in the normal form');
