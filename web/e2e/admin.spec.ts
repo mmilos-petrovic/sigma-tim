@@ -76,10 +76,18 @@ test.describe('administration', () => {
       await add.getByLabel('Ime', { exact: true }).fill('E2E')
       await add.getByLabel('Prezime').fill(`Nastavnik${run}`)
       await add.getByRole('checkbox', { name: renamed }).check()
+
+      // a teacher needs a location too
+      await add.getByRole('button', { name: 'Dodaj' }).click()
+      await expect(add.getByRole('alert')).toHaveText('Izaberite bar jednu lokaciju.')
+      await add.getByRole('checkbox', { name: 'Glavna lokacija' }).check()
+      await add.getByRole('checkbox', { name: location }).check()
       await add.getByRole('button', { name: 'Dodaj' }).click()
       await expect(page.getByRole('status')).toHaveText('Nastavnik je dodat.')
       await expect(row(page, email)).toContainText('Još se nije prijavio')
       await expect(row(page, email)).toContainText(renamed)
+      await expect(row(page, email)).toContainText('Glavna lokacija')
+      await expect(row(page, email)).toContainText(location)
 
       // the subject is in use now
       await section(page, 'Predmeti')
@@ -98,6 +106,22 @@ test.describe('administration', () => {
       await subjects.getByRole('button', { name: 'Sačuvaj' }).click()
       await expect(row(page, email)).toContainText('Matematika')
       await expect(row(page, email)).not.toContainText(renamed)
+
+      // where the teacher may teach: take a location away, and give it back
+      await row(page, email).getByRole('button', { name: 'Lokacije' }).click()
+      const places = dialog(page, `Lokacije nastavnika E2E Nastavnik${run}`)
+      await places.getByRole('checkbox', { name: 'Glavna lokacija' }).uncheck()
+      await places.getByRole('checkbox', { name: location }).uncheck()
+      await places.getByRole('button', { name: 'Sačuvaj' }).click()
+      await expect(places.getByRole('alert')).toHaveText('Izaberite bar jednu lokaciju.')
+      await places.getByRole('checkbox', { name: 'Glavna lokacija' }).check()
+      await places.getByRole('button', { name: 'Sačuvaj' }).click()
+      await expect(page.getByRole('status')).toHaveText('Lokacije su sačuvane.')
+      await expect(row(page, email)).not.toContainText(location)
+      await row(page, email).getByRole('button', { name: 'Lokacije' }).click()
+      await places.getByRole('checkbox', { name: location }).check()
+      await places.getByRole('button', { name: 'Sačuvaj' }).click()
+      await expect(row(page, email)).toContainText(location)
 
       await row(page, email).getByRole('button', { name: 'Promeni email' }).click()
       await dialog(page, 'Promena email adrese').getByLabel('Nova email adresa').fill(newEmail)

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { AdminError } from '../admin/adminApi'
 import { run, runOne } from '../admin/supabaseAdminApi'
 import type { Database } from '../lib/database.types'
+import { isColorKey, type ColorKey } from './colors'
 import type {
   BusyRow,
   Conflict,
@@ -12,6 +13,7 @@ import type {
   Option,
   Outcome,
   ParentRow,
+  Reference,
   StudentRow,
   TeacherApi,
   UnassignedStudent,
@@ -100,6 +102,42 @@ export function mapLocation(row: {
     name: row.name,
     // "Učionica 2" before "Učionica 10"
     rooms: [...row.rooms].sort((a, b) => a.name.localeCompare(b.name, 'sr', { numeric: true })),
+  }
+}
+
+/** A colour name the database sent; one this version does not know (a newer palette) counts as no choice. */
+const colorOf = (color: string | null): ColorKey | null => (isColorKey(color) ? color : null)
+
+/** What the lesson forms and the calendar choose from, put together from the four queries. */
+export function mapReference(input: {
+  teacherId: string
+  subjects: { subject: Option | null }[]
+  locations: { id: string; name: string; rooms: { id: string; name: string }[] }[]
+  ownLocationIds: string[]
+  teachers: {
+    profile_id: string
+    color: string | null
+    profile: { first_name: string; last_name: string }
+  }[]
+}): Reference {
+  const me = input.teachers.find((t) => t.profile_id === input.teacherId)
+  return {
+    subjects: input.subjects
+      .flatMap((row) => (row.subject ? [row.subject] : []))
+      .sort((a, b) => byName(a.name, b.name)),
+    locations: input.locations.map(mapLocation).sort((a, b) => byName(a.name, b.name)),
+    ownLocationIds: input.ownLocationIds,
+    color: colorOf(me?.color ?? null),
+    colleagues: sortByName(
+      input.teachers
+        .filter((t) => t.profile_id !== input.teacherId)
+        .map((t) => ({
+          id: t.profile_id,
+          firstName: t.profile.first_name,
+          lastName: t.profile.last_name,
+          color: colorOf(t.color),
+        })),
+    ),
   }
 }
 
@@ -266,7 +304,7 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
     },
 
     async reference(teacherId) {
-      const [subjects, locations, colleagues] = await Promise.all([
+      const [subjects, locations, own, teachers] = await Promise.all([
         run(
           client
             .from('teacher_subjects')
@@ -274,30 +312,24 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
             .eq('teacher_id', teacherId),
         ),
         run(client.from('locations').select('id, name, rooms(id, name)')),
-        run(client.from('teachers').select('profile_id, profile:profiles(first_name, last_name)')),
-      ])
-      return {
-        subjects: (subjects.data ?? [])
-          .flatMap((row) => {
-            const subject = (row as unknown as { subject: Option | null }).subject
-            return subject ? [subject] : []
-          })
-          .sort((a, b) => byName(a.name, b.name)),
-        locations: (locations.data ?? [])
-          .map((row) => mapLocation(row as unknown as Parameters<typeof mapLocation>[0]))
-          .sort((a, b) => byName(a.name, b.name)),
-        colleagues: sortByName(
-          (colleagues.data ?? [])
-            .map((row) => {
-              const { profile_id, profile } = row as unknown as {
-                profile_id: string
-                profile: { first_name: string; last_name: string }
-              }
-              return { id: profile_id, firstName: profile.first_name, lastName: profile.last_name }
-            })
-            .filter((colleague) => colleague.id !== teacherId),
+        run(client.from('teacher_locations').select('location_id').eq('teacher_id', teacherId)),
+        run(
+          client
+            .from('teachers')
+            .select('profile_id, color, profile:profiles(first_name, last_name)'),
         ),
-      }
+      ])
+      return mapReference({
+        teacherId,
+        subjects: (subjects.data ?? []) as unknown as Parameters<
+          typeof mapReference
+        >[0]['subjects'],
+        locations: locations.data ?? [],
+        ownLocationIds: (own.data ?? []).map((row) => row.location_id),
+        teachers: (teachers.data ?? []) as unknown as Parameters<
+          typeof mapReference
+        >[0]['teachers'],
+      })
     },
     async listLessons(range, teacherId) {
       const { data } = await run(
@@ -407,6 +439,12 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
     },
     async setOutcome(lessonId, outcome) {
       await runOne(client.from('lessons').update({ outcome }).eq('id', lessonId).select('id'))
+    },
+
+    async setColor(teacherId, color) {
+      await runOne(
+        client.from('teachers').update({ color }).eq('profile_id', teacherId).select('profile_id'),
+      )
     },
   }
 }

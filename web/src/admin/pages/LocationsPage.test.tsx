@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeAdminApi } from '../../test/fakeAdminApi'
@@ -116,6 +116,31 @@ describe('locations', () => {
     expect(adminApi.deleteLocation).toHaveBeenCalledWith('l-second')
     await location('Glavna lokacija')
     expect(screen.queryByRole('article', { name: 'Zemun' })).not.toBeInTheDocument()
+  })
+
+  it('takes a deleted location off the lists of the teachers who may use it', async () => {
+    const { adminApi } = await open()
+    await userEvent.click(within(await location('Zemun')).getByRole('button', { name: 'Obriši' }))
+    await userEvent.click(
+      (await inDialog('Brisanje lokacije')).getByRole('button', { name: 'Obriši' }),
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('article', { name: 'Zemun' })).not.toBeInTheDocument(),
+    )
+    expect(adminApi.state.teachers.find((t) => t.id === 't-ana')?.locationIds).toEqual(['l-main'])
+  })
+
+  it('refuses to delete the only location of a teacher, and says what to do', async () => {
+    const api = createFakeAdminApi()
+    api.state.teachers.find((t) => t.id === 't-marko')!.locationIds = ['l-second']
+    await open(api)
+    await userEvent.click(within(await location('Zemun')).getByRole('button', { name: 'Obriši' }))
+    const dialog = await inDialog('Brisanje lokacije')
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Ovo je jedina lokacija nekog nastavnika. Prvo tom nastavniku dodajte drugu lokaciju (stranica Nastavnici).',
+    )
+    expect(api.state.locations.map((l) => l.id)).toContain('l-second')
   })
 
   it('says a location with rooms must be emptied first', async () => {

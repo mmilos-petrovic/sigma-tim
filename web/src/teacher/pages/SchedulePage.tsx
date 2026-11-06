@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { explainError } from '../../admin/errors'
+import { SelectField } from '../../components/FormDialog'
 import { Loaded, Loading, LoadError, Notice, PageHeader } from '../../components/Loaded'
 import { CONTEXT_LABEL } from '../../auth/roles'
 import { useNow } from '../clock'
@@ -19,7 +20,7 @@ import {
 } from '../queries'
 import { buildItems } from '../scheduleItems'
 import { useTeacherApi } from '../TeacherApiProvider'
-import type { Conflict, TimeRange } from '../teacherApi'
+import { ownLocations, type Conflict, type TimeRange } from '../teacherApi'
 
 // FullCalendar is large and only this page needs it.
 const WeekCalendar = lazy(() =>
@@ -51,6 +52,8 @@ export function SchedulePage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [conflicts, setConflicts] = useState<Conflict[] | null>(null)
+  // "" shows every location
+  const [locationFilter, setLocationFilter] = useState('')
   const pendingAnswer = useRef<((save: boolean) => void) | null>(null)
 
   const onRangeChange = useCallback(
@@ -60,6 +63,11 @@ export function SchedulePage() {
       ),
     [],
   )
+
+  // the filter only makes sense with a choice to make; a location the teacher no longer has is not a filter any more
+  const myLocations = reference.data ? ownLocations(reference.data) : []
+  const activeLocation = myLocations.some((l) => l.id === locationFilter) ? locationFilter : ''
+  const noLocation = reference.data !== undefined && myLocations.length === 0
 
   const items = useMemo(
     () =>
@@ -71,9 +79,10 @@ export function SchedulePage() {
             reference: reference.data,
             teacherId,
             now,
+            locationId: activeLocation || null,
           })
         : [],
-    [lessons.data, busy.data, students.data, reference.data, teacherId, now],
+    [lessons.data, busy.data, students.data, reference.data, teacherId, now, activeLocation],
   )
 
   const done = (message: string | null) => {
@@ -127,12 +136,18 @@ export function SchedulePage() {
   return (
     <>
       <PageHeader title={CONTEXT_LABEL.teacher}>
-        <button type="button" className="button" onClick={() => setDialog({ kind: 'new' })}>
+        <button
+          type="button"
+          className="button"
+          disabled={noLocation}
+          onClick={() => setDialog({ kind: 'new' })}
+        >
           Novi čas
         </button>
         <button
           type="button"
           className="button button--secondary"
+          disabled={noLocation}
           onClick={() => setDialog({ kind: 'slot' })}
         >
           Objavi slobodan termin
@@ -142,6 +157,11 @@ export function SchedulePage() {
       {error && (
         <p role="alert" className="form-error">
           {error}
+        </p>
+      )}
+      {noLocation && (
+        <p className="muted">
+          Nemate nijednu lokaciju na kojoj možete da držite časove. Obratite se administratoru.
         </p>
       )}
 
@@ -166,6 +186,22 @@ export function SchedulePage() {
 
                 {lessons.isError && (
                   <LoadError error={lessons.error} onRetry={() => void lessons.refetch()} />
+                )}
+                {myLocations.length > 1 && (
+                  <div className="schedule-filter">
+                    <SelectField
+                      label="Prikaz po lokaciji"
+                      value={activeLocation}
+                      onChange={setLocationFilter}
+                    >
+                      <option value="">Sve lokacije</option>
+                      {myLocations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </div>
                 )}
                 <div className="schedule">
                   <Suspense fallback={<Loading />}>

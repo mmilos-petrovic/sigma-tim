@@ -12,6 +12,11 @@ export function PlaceFields({
   disabled?: boolean
 }) {
   const rooms = reference.locations.find((l) => l.id === place.locationId)?.rooms ?? []
+  // only where the teacher may teach; a lesson that is already somewhere else (the location was taken away later,
+  // when it was over) keeps showing its own place
+  const choices = reference.locations.filter(
+    (l) => reference.ownLocationIds.includes(l.id) || l.id === place.locationId,
+  )
   return (
     <>
       <SelectField
@@ -32,7 +37,7 @@ export function PlaceFields({
         onChange={place.setLocationId}
         disabled={disabled}
       >
-        {reference.locations.map((location) => (
+        {choices.map((location) => (
           <option key={location.id} value={location.id}>
             {location.name}
           </option>

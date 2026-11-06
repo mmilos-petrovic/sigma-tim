@@ -166,3 +166,26 @@
   width: 100%;
   font: inherit;
 }
+
+/* Settings: the colour a teacher is drawn with */
+
+.settings {
+  max-width: 32rem;
+}
+
+.color-option .swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.3rem;
+  flex: none;
+}
+
+.swatch--none {
+  border: 2px dashed;
+  background: var(--surface);
+}
+
+.schedule-filter {
+  max-width: 16rem;
+  margin: 0 0 0.75rem;
+}

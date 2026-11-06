@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useMember } from '../../components/guards'
-import { Field, FormDialog, SubjectChoice } from '../../components/FormDialog'
+import { Field, FormDialog, LocationChoice, SubjectChoice } from '../../components/FormDialog'
 import { LoadError, Loaded, Loading, Notice, PageHeader } from '../../components/Loaded'
+import { formatDay, formatRange } from '../../teacher/format'
 import { useAdminApi } from '../AdminApiProvider'
-import type { Subject, TeacherRow } from '../adminApi'
-import { useRefresh, useSubjects, useTeacherImpact, useTeachers } from '../queries'
+import { AdminError, type LocationRow, type Subject, type TeacherRow } from '../adminApi'
+import { parseLocationBlockers, STATUS_LABEL } from '../locationBlockers'
+import { useLocations, useRefresh, useSubjects, useTeacherImpact, useTeachers } from '../queries'
 
 // The same shape the database accepts.
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
@@ -17,7 +19,10 @@ const sameName = (typed: string, name: string) => squash(typed) === squash(name)
 
 type Dialog =
   | { kind: 'add' }
-  | { kind: 'subjects' | 'email' | 'deactivate' | 'activate' | 'erase'; teacher: TeacherRow }
+  | {
+      kind: 'subjects' | 'locations' | 'email' | 'deactivate' | 'activate' | 'erase'
+      teacher: TeacherRow
+    }
   | null
 
 interface DialogProps {
@@ -25,13 +30,19 @@ interface DialogProps {
   onDone: (message: string) => void
 }
 
-function AddTeacherDialog({ subjects, onClose, onDone }: DialogProps & { subjects: Subject[] }) {
+function AddTeacherDialog({
+  subjects,
+  locations,
+  onClose,
+  onDone,
+}: DialogProps & { subjects: Subject[]; locations: LocationRow[] }) {
   const api = useAdminApi()
   const refresh = useRefresh()
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [selected, setSelected] = useState<string[]>([])
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([])
 
   return (
     <FormDialog
@@ -43,6 +54,7 @@ function AddTeacherDialog({ subjects, onClose, onDone }: DialogProps & { subject
         if (!EMAIL.test(normaliseEmail(email))) return 'Unesite ispravnu email adresu.'
         if (!firstName.trim() || !lastName.trim()) return 'Unesite ime i prezime.'
         if (selected.length === 0) return 'Izaberite bar jedan predmet.'
+        if (selectedLocations.length === 0) return 'Izaberite bar jednu lokaciju.'
         return null
       }}
       onSubmit={async () => {
@@ -51,6 +63,7 @@ function AddTeacherDialog({ subjects, onClose, onDone }: DialogProps & { subject
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           subjectIds: selected,
+          locationIds: selectedLocations,
         })
         await refresh()
         onDone('Nastavnik je dodat.')
@@ -75,6 +88,11 @@ function AddTeacherDialog({ subjects, onClose, onDone }: DialogProps & { subject
         autoComplete="family-name"
       />
       <SubjectChoice subjects={subjects} selected={selected} onChange={setSelected} />
+      <LocationChoice
+        locations={locations}
+        selected={selectedLocations}
+        onChange={setSelectedLocations}
+      />
     </FormDialog>
   )
 }
@@ -103,6 +121,76 @@ function SubjectsDialog({
       }}
     >
       <SubjectChoice subjects={subjects} selected={selected} onChange={setSelected} />
+    </FormDialog>
+  )
+}
+
+/** The lessons and free slots that stop a location from being taken away, as the database listed them. */
+function BlockedLocations({
+  details,
+  locations,
+}: {
+  details: string | undefined
+  locations: LocationRow[]
+}) {
+  const blockers = parseLocationBlockers(details)
+  if (!blockers || blockers.lessons.length === 0) {
+    return <>Nastavnik još ima buduće časove ili slobodne termine na lokaciji koja se uklanja.</>
+  }
+  const placeName = new Map(locations.map((location) => [location.id, location.name]))
+  const more = blockers.total - blockers.lessons.length
+  return (
+    <>
+      <p>
+        Ne može: na lokaciji koja se uklanja nastavnik još ima buduće časove i slobodne termine.
+        Obrišite ih ili premestite, pa pokušajte ponovo.
+      </p>
+      <ul>
+        {blockers.lessons.map((lesson) => (
+          <li key={lesson.id}>
+            {`${formatDay(lesson.start)}, ${formatRange(lesson.start, lesson.end)} · ${
+              placeName.get(lesson.locationId) ?? 'Nepoznata lokacija'
+            } · ${STATUS_LABEL[lesson.status]}`}
+          </li>
+        ))}
+      </ul>
+      {more > 0 && <p>i još {more}</p>}
+    </>
+  )
+}
+
+function LocationsDialog({
+  teacher,
+  locations,
+  onClose,
+  onDone,
+}: DialogProps & { teacher: TeacherRow; locations: LocationRow[] }) {
+  const api = useAdminApi()
+  const refresh = useRefresh()
+  const [selected, setSelected] = useState(teacher.locationIds)
+
+  return (
+    <FormDialog
+      title={`Lokacije nastavnika ${fullName(teacher)}`}
+      action="setLocations"
+      submitLabel="Sačuvaj"
+      onClose={onClose}
+      validate={() => (selected.length === 0 ? 'Izaberite bar jednu lokaciju.' : null)}
+      explain={(failure) =>
+        failure instanceof AdminError && failure.code === 'PT409' && failure.details ? (
+          <BlockedLocations details={failure.details} locations={locations} />
+        ) : null
+      }
+      onSubmit={async () => {
+        await api.setTeacherLocations(teacher.id, selected)
+        await refresh()
+        onDone('Lokacije su sačuvane.')
+      }}
+    >
+      <p className="muted">
+        Nastavnik može da drži časove i objavljuje slobodne termine samo na ovim lokacijama.
+      </p>
+      <LocationChoice locations={locations} selected={selected} onChange={setSelected} />
     </FormDialog>
   )
 }
@@ -267,6 +355,7 @@ function ActivateDialog({ teacher, onClose, onDone }: DialogProps & { teacher: T
 export function TeachersPage() {
   const teachers = useTeachers()
   const subjects = useSubjects()
+  const locations = useLocations()
   const { roles } = useMember()
   const [dialog, setDialog] = useState<Dialog>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -283,7 +372,12 @@ export function TeachersPage() {
         <button
           type="button"
           className="button"
-          disabled={!subjects.data || subjects.data.length === 0}
+          disabled={
+            !subjects.data ||
+            subjects.data.length === 0 ||
+            !locations.data ||
+            locations.data.length === 0
+          }
           onClick={() => {
             setNotice(null)
             setDialog({ kind: 'add' })
@@ -296,136 +390,182 @@ export function TeachersPage() {
       {subjects.data?.length === 0 && (
         <p className="muted">Pre nego što dodate nastavnika, dodajte bar jedan predmet.</p>
       )}
+      {locations.data?.length === 0 && (
+        <p className="muted">Pre nego što dodate nastavnika, dodajte bar jednu lokaciju.</p>
+      )}
 
       <Loaded query={subjects}>
         {(subjectRows) => (
-          <Loaded query={teachers}>
-            {(allRows) => {
-              const rows = allRows.filter((teacher) => !teacher.erased)
-              const erased = allRows.filter((teacher) => teacher.erased)
-              const subjectName = new Map(subjectRows.map((subject) => [subject.id, subject.name]))
-              const subjectsOf = (teacher: TeacherRow) =>
-                teacher.subjectIds
-                  .map((id) => subjectName.get(id))
-                  .filter((name): name is string => Boolean(name))
-                  .sort((a, b) => a.localeCompare(b, 'sr'))
-                  .join(', ')
+          <Loaded query={locations}>
+            {(locationRows) => (
+              <Loaded query={teachers}>
+                {(allRows) => {
+                  const rows = allRows.filter((teacher) => !teacher.erased)
+                  const erased = allRows.filter((teacher) => teacher.erased)
+                  const subjectName = new Map(
+                    subjectRows.map((subject) => [subject.id, subject.name]),
+                  )
+                  const subjectsOf = (teacher: TeacherRow) =>
+                    teacher.subjectIds
+                      .map((id) => subjectName.get(id))
+                      .filter((name): name is string => Boolean(name))
+                      .sort((a, b) => a.localeCompare(b, 'sr'))
+                      .join(', ')
+                  const locationName = new Map(
+                    locationRows.map((location) => [location.id, location.name]),
+                  )
+                  const locationsOf = (teacher: TeacherRow) =>
+                    teacher.locationIds
+                      .map((id) => locationName.get(id))
+                      .filter((name): name is string => Boolean(name))
+                      .sort((a, b) => a.localeCompare(b, 'sr'))
+                      .join(', ')
 
-              const list =
-                rows.length === 0 ? (
-                  <p className="empty-note">Još nema nastavnika. Dodajte prvog.</p>
-                ) : (
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Ime i prezime</th>
-                        <th>Email</th>
-                        <th>Predmeti</th>
-                        <th>Status</th>
-                        <th>
-                          <span className="visually-hidden">Radnje</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((teacher) => {
-                        const own = teacher.id === roles.profileId
-                        const open = (
-                          kind: 'subjects' | 'email' | 'deactivate' | 'activate' | 'erase',
-                        ) => {
-                          setNotice(null)
-                          setDialog({ kind, teacher })
-                        }
-                        return (
-                          <tr key={teacher.id}>
-                            <td>
-                              {fullName(teacher)}
-                              {own && <span className="muted"> (vi)</span>}
-                            </td>
-                            <td>
-                              <span>{teacher.email}</span>
-                              {!teacher.hasSignedIn && (
-                                <span className="badge">Još se nije prijavio</span>
-                              )}
-                            </td>
-                            <td>{subjectsOf(teacher)}</td>
-                            <td>{teacher.isActive ? 'Aktivan' : 'Deaktiviran'}</td>
-                            <td className="table__actions">
-                              <button
-                                type="button"
-                                className="button button--small button--secondary"
-                                onClick={() => open('subjects')}
-                              >
-                                Predmeti
-                              </button>
-                              {!own && (
-                                <button
-                                  type="button"
-                                  className="button button--small button--secondary"
-                                  onClick={() => open('email')}
-                                >
-                                  Promeni email
-                                </button>
-                              )}
-                              {teacher.isActive ? (
-                                <button
-                                  type="button"
-                                  className="button button--small button--secondary"
-                                  onClick={() => open('deactivate')}
-                                >
-                                  Deaktiviraj
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="button button--small button--secondary"
-                                  onClick={() => open('activate')}
-                                >
-                                  Aktiviraj
-                                </button>
-                              )}
-                              {!own && !teacher.isAdmin && (
-                                <button
-                                  type="button"
-                                  className="button button--small button--secondary button--danger-text"
-                                  onClick={() => open('erase')}
-                                >
-                                  Obriši nalog
-                                </button>
-                              )}
-                            </td>
+                  const list =
+                    rows.length === 0 ? (
+                      <p className="empty-note">Još nema nastavnika. Dodajte prvog.</p>
+                    ) : (
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Ime i prezime</th>
+                            <th>Email</th>
+                            <th>Predmeti</th>
+                            <th>Lokacije</th>
+                            <th>Status</th>
+                            <th>
+                              <span className="visually-hidden">Radnje</span>
+                            </th>
                           </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                )
-              return (
-                <>
-                  {list}
-                  {erased.length > 0 && (
-                    <section aria-labelledby="erased-heading" className="erased">
-                      <h2 id="erased-heading">Obrisani nalozi</h2>
-                      <p className="muted">
-                        Podaci ovih osoba su obrisani. Časovi koji su održani su sačuvani i vidljivi
-                        su administratoru.
-                      </p>
-                      <ul>
-                        {erased.map((teacher) => (
-                          <li key={teacher.id}>{fullName(teacher)}</li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-                </>
-              )
-            }}
+                        </thead>
+                        <tbody>
+                          {rows.map((teacher) => {
+                            const own = teacher.id === roles.profileId
+                            const open = (
+                              kind:
+                                | 'subjects'
+                                | 'locations'
+                                | 'email'
+                                | 'deactivate'
+                                | 'activate'
+                                | 'erase',
+                            ) => {
+                              setNotice(null)
+                              setDialog({ kind, teacher })
+                            }
+                            return (
+                              <tr key={teacher.id}>
+                                <td>
+                                  {fullName(teacher)}
+                                  {own && <span className="muted"> (vi)</span>}
+                                </td>
+                                <td>
+                                  <span>{teacher.email}</span>
+                                  {!teacher.hasSignedIn && (
+                                    <span className="badge">Još se nije prijavio</span>
+                                  )}
+                                </td>
+                                <td>{subjectsOf(teacher)}</td>
+                                <td>{locationsOf(teacher)}</td>
+                                <td>{teacher.isActive ? 'Aktivan' : 'Deaktiviran'}</td>
+                                <td className="table__actions">
+                                  <button
+                                    type="button"
+                                    className="button button--small button--secondary"
+                                    onClick={() => open('subjects')}
+                                  >
+                                    Predmeti
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="button button--small button--secondary"
+                                    onClick={() => open('locations')}
+                                  >
+                                    Lokacije
+                                  </button>
+                                  {!own && (
+                                    <button
+                                      type="button"
+                                      className="button button--small button--secondary"
+                                      onClick={() => open('email')}
+                                    >
+                                      Promeni email
+                                    </button>
+                                  )}
+                                  {teacher.isActive ? (
+                                    <button
+                                      type="button"
+                                      className="button button--small button--secondary"
+                                      onClick={() => open('deactivate')}
+                                    >
+                                      Deaktiviraj
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="button button--small button--secondary"
+                                      onClick={() => open('activate')}
+                                    >
+                                      Aktiviraj
+                                    </button>
+                                  )}
+                                  {!own && !teacher.isAdmin && (
+                                    <button
+                                      type="button"
+                                      className="button button--small button--secondary button--danger-text"
+                                      onClick={() => open('erase')}
+                                    >
+                                      Obriši nalog
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    )
+                  return (
+                    <>
+                      {list}
+                      {erased.length > 0 && (
+                        <section aria-labelledby="erased-heading" className="erased">
+                          <h2 id="erased-heading">Obrisani nalozi</h2>
+                          <p className="muted">
+                            Podaci ovih osoba su obrisani. Časovi koji su održani su sačuvani i
+                            vidljivi su administratoru.
+                          </p>
+                          <ul>
+                            {erased.map((teacher) => (
+                              <li key={teacher.id}>{fullName(teacher)}</li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
+                    </>
+                  )
+                }}
+              </Loaded>
+            )}
           </Loaded>
         )}
       </Loaded>
 
-      {dialog?.kind === 'add' && subjects.data && (
-        <AddTeacherDialog subjects={subjects.data} onClose={close} onDone={done} />
+      {dialog?.kind === 'add' && subjects.data && locations.data && (
+        <AddTeacherDialog
+          subjects={subjects.data}
+          locations={locations.data}
+          onClose={close}
+          onDone={done}
+        />
+      )}
+      {dialog?.kind === 'locations' && locations.data && (
+        <LocationsDialog
+          teacher={dialog.teacher}
+          locations={locations.data}
+          onClose={close}
+          onDone={done}
+        />
       )}
       {dialog?.kind === 'subjects' && subjects.data && (
         <SubjectsDialog

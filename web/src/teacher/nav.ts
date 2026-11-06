@@ -6,4 +6,5 @@ const BASE = homePath('teacher')
 export const TEACHER_NAV: NavItem[] = [
   { to: BASE, label: 'Raspored', end: true },
   { to: `${BASE}/ucenici`, label: 'Učenici' },
+  { to: `${BASE}/podesavanja`, label: 'Podešavanja' },
 ]

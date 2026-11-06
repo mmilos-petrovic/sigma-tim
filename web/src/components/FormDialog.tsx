@@ -25,14 +25,14 @@ export function FormDialog({
   onSubmit: () => Promise<void>
   onClose: () => void
   validate?: () => string | null
-  /** Explains a failure in the dialog's own way, for when one dialog does several things. Falls back to the action's texts. */
-  explain?: (failure: unknown) => string | null
+  /** Explains a failure in the dialog's own way (text or a few lines), for when one dialog does several things. Falls back to the action's texts. */
+  explain?: (failure: unknown) => ReactNode | null
   /** Blocks sending, for example while the consequences are still being loaded. */
   disabled?: boolean
   danger?: boolean
   children?: ReactNode
 }) {
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<ReactNode>(null)
   const [busy, setBusy] = useState(false)
   const inFlight = useRef(false)
 
@@ -62,9 +62,9 @@ export function FormDialog({
       <form onSubmit={(event) => void submit(event)} noValidate>
         {children}
         {error && (
-          <p role="alert" className="form-error">
+          <div role="alert" className="form-error">
             {error}
-          </p>
+          </div>
         )}
         <div className="actions actions--end">
           <button type="button" className="button button--secondary" onClick={onClose}>
@@ -139,6 +139,38 @@ export function SelectField({
         {children}
       </select>
     </label>
+  )
+}
+
+export function LocationChoice({
+  locations,
+  selected,
+  onChange,
+}: {
+  locations: { id: string; name: string }[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+}) {
+  return (
+    <fieldset className="choice">
+      <legend>Lokacije</legend>
+      {locations.map((location) => (
+        <label key={location.id} className="check">
+          <input
+            type="checkbox"
+            checked={selected.includes(location.id)}
+            onChange={(event) =>
+              onChange(
+                event.target.checked
+                  ? [...selected, location.id]
+                  : selected.filter((id) => id !== location.id),
+              )
+            }
+          />
+          <span>{location.name}</span>
+        </label>
+      ))}
+    </fieldset>
   )
 }
 

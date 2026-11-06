@@ -24,6 +24,8 @@ export interface TeacherRow {
    */
   erased: boolean
   subjectIds: string[]
+  /** The locations where the teacher may hold lessons (a database rule). */
+  locationIds: string[]
 }
 
 export interface Room {
@@ -84,8 +86,14 @@ export interface AdminApi {
     firstName: string
     lastName: string
     subjectIds: string[]
+    locationIds: string[]
   }): Promise<void>
   setTeacherSubjects(teacherId: string, subjectIds: string[]): Promise<void>
+  /**
+   * Replaces the locations where the teacher may hold lessons. Refused with `PT409` (and the lessons in the error's
+   * `details`, see `locationBlockers.ts`) while they have a lesson or free slot to come at a location that would go.
+   */
+  setTeacherLocations(teacherId: string, locationIds: string[]): Promise<void>
   changeEmail(profileId: string, email: string): Promise<void>
   teacherImpact(teacherId: string): Promise<TeacherImpact>
   deactivateTeacher(teacherId: string): Promise<void>
@@ -116,11 +124,14 @@ export interface AdminApi {
  */
 export class AdminError extends Error {
   readonly code: string
+  /** The database's extra detail of the error, when it sent one (see `locationBlockers.ts`). */
+  readonly details?: string
 
-  constructor(code: string, message = code) {
+  constructor(code: string, message = code, details?: string) {
     super(message)
     this.name = 'AdminError'
     this.code = code
+    this.details = details
   }
 }
 
@@ -128,6 +139,7 @@ export type ActionKey =
   | 'load'
   | 'createTeacher'
   | 'setSubjects'
+  | 'setLocations'
   | 'changeEmail'
   | 'deactivateTeacher'
   | 'reactivateTeacher'
@@ -162,3 +174,4 @@ export type ActionKey =
   | 'declineBooking'
   | 'setNote'
   | 'setOutcome'
+  | 'setColor'

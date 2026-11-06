@@ -20,6 +20,17 @@ describe('toAdminError', () => {
     expect(toAdminError({ code: '42501', message: 'denied' }, 403).code).toBe('42501')
   })
 
+  it("keeps the database's detail, which names the lessons that stop a location from being taken away", () => {
+    const details = '{"total":1,"lessons":[]}'
+    expect(
+      toAdminError({ code: 'PT409', message: 'still has lessons', details }, 409).details,
+    ).toBe(details)
+    expect(toAdminError({ code: 'PT409', message: 'no detail' }, 409).details).toBeUndefined()
+    expect(
+      toAdminError({ code: 'PT409', message: 'empty', details: '' }, 409).details,
+    ).toBeUndefined()
+  })
+
   it('recognises a lost connection', () => {
     expect(toAdminError({ message: 'TypeError: Failed to fetch' }, 0).code).toBe('network')
     expect(toAdminError({ message: 'Failed to fetch', code: '' }, 0).code).toBe('network')
@@ -76,6 +87,7 @@ describe('row mappers', () => {
         erased_at: null,
       },
       subjects: [{ subject_id: 's1' }, { subject_id: 's2' }],
+      locations: [{ location_id: 'l1' }],
     }
     expect(mapTeacher(row)).toEqual({
       id: 't1',
@@ -87,6 +99,7 @@ describe('row mappers', () => {
       isAdmin: false,
       erased: false,
       subjectIds: ['s1', 's2'],
+      locationIds: ['l1'],
     })
     expect(mapTeacher({ ...row, profile: { ...row.profile, user_id: 'u1' } }).hasSignedIn).toBe(
       true,
@@ -102,7 +115,7 @@ describe('row mappers', () => {
       is_admin: false,
       erased_at: null,
     }
-    const row = { profile_id: 't1', is_active: false, profile, subjects: [] }
+    const row = { profile_id: 't1', is_active: false, profile, subjects: [], locations: [] }
     expect(mapTeacher({ ...row, profile: { ...profile, is_admin: true } })).toMatchObject({
       isAdmin: true,
       erased: false,

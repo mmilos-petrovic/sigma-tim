@@ -19,6 +19,11 @@ export interface FakeState {
   impact: Record<string, TeacherImpact>
   /** Teachers who have a lesson that already started: erasing them leaves a record. */
   history: Record<string, boolean>
+  /** Lessons, bookings and free slots still to come, per teacher: they stop a location from being taken away. */
+  blockers: Record<
+    string,
+    { id: string; locationId: string; start: string; end: string; status: string }[]
+  >
 }
 
 type Methods = keyof AdminApi
@@ -49,6 +54,7 @@ export const seed = (): FakeState => ({
       isAdmin: false,
       erased: false,
       subjectIds: ['s-mat', 's-fiz'],
+      locationIds: ['l-main', 'l-second'],
     },
     {
       id: 't-marko',
@@ -60,6 +66,7 @@ export const seed = (): FakeState => ({
       isAdmin: false,
       erased: false,
       subjectIds: ['s-hem'],
+      locationIds: ['l-main'],
     },
     {
       id: 't-gone',
@@ -71,6 +78,7 @@ export const seed = (): FakeState => ({
       isAdmin: false,
       erased: false,
       subjectIds: ['s-mat'],
+      locationIds: ['l-main'],
     },
   ],
   locations: [
@@ -116,6 +124,7 @@ export const seed = (): FakeState => ({
   ],
   impact: { 't-ana': { futureLessons: 3, students: 2, pendingRequests: 1 } },
   history: { 't-ana': true },
+  blockers: {},
 })
 
 /** An in-memory backend that follows the same rules as the database, for the screen tests. */
@@ -134,6 +143,14 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       failures.delete(method)
       throw error
     }
+  }
+
+  /** What create_teacher and set_teacher_locations check: at least one, and all of them exist. */
+  const checkLocations = (ids: string[] | null) => {
+    if (!ids || ids.length === 0)
+      throw new AdminError('PT400', 'a teacher needs at least one location')
+    if (ids.some((id) => !state.locations.some((l) => l.id === id)))
+      throw new AdminError('PT400', 'unknown location')
   }
 
   const room = (id: string) => state.locations.flatMap((l) => l.rooms).find((r) => r.id === id)
@@ -177,6 +194,7 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       if (state.teachers.some((t) => t.email === input.email)) {
         throw new AdminError('PT409', 'this person is already a teacher')
       }
+      checkLocations(input.locationIds)
       state.teachers.push({
         id: nextId('t'),
         email: input.email,
@@ -187,7 +205,37 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
         isAdmin: false,
         erased: false,
         subjectIds: [...input.subjectIds],
+        locationIds: [...new Set(input.locationIds)],
       })
+    },
+    async setTeacherLocations(teacherId, locationIds) {
+      await gate('setTeacherLocations')
+      const teacher = state.teachers.find((t) => t.id === teacherId)
+      if (!teacher) throw new AdminError('PT404', 'teacher not found')
+      if (teacher.erased) throw new AdminError('PT409', 'this teacher was erased')
+      checkLocations(locationIds)
+      const wanted = new Set(locationIds)
+      const removed = teacher.locationIds.filter((id) => !wanted.has(id))
+      const blocking = (state.blockers[teacherId] ?? []).filter((b) =>
+        removed.includes(b.locationId),
+      )
+      if (blocking.length > 0) {
+        throw new AdminError(
+          'PT409',
+          'this teacher still has lessons or free slots at this location',
+          JSON.stringify({
+            total: blocking.length,
+            lessons: blocking.slice(0, 20).map((b) => ({
+              id: b.id,
+              location_id: b.locationId,
+              start_at: b.start,
+              end_at: b.end,
+              status: b.status,
+            })),
+          }),
+        )
+      }
+      teacher.locationIds = [...wanted]
     },
     async setTeacherSubjects(teacherId, subjectIds) {
       await gate('setTeacherSubjects')
@@ -272,6 +320,13 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       await gate('deleteLocation')
       const location = state.locations.find((l) => l.id === id)
       if (location && location.rooms.length > 0) throw new AdminError('23503')
+      // a location is taken from the teachers who may use it, unless it is the only one of somebody
+      const stranded = state.teachers.some(
+        (t) => !t.erased && t.locationIds.length === 1 && t.locationIds[0] === id,
+      )
+      if (stranded) throw new AdminError('PT409', 'a teacher needs at least one location')
+      for (const teacher of state.teachers)
+        teacher.locationIds = teacher.locationIds.filter((l) => l !== id)
       state.locations = state.locations.filter((l) => l.id !== id)
     },
     async addRoom(locationId, name) {

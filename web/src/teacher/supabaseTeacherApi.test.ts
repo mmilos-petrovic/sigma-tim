@@ -4,6 +4,7 @@ import {
   mapConflict,
   mapLesson,
   mapLocation,
+  mapReference,
   mapStudent,
   mapUnassigned,
 } from './supabaseTeacherApi'
@@ -195,5 +196,63 @@ describe('mapLocation', () => {
       ],
     })
     expect(mapped.rooms.map((room) => room.name)).toEqual(['Učionica 2', 'Učionica 10'])
+  })
+})
+
+describe('mapReference', () => {
+  const teachers = [
+    { profile_id: 't-me', color: 'teal', profile: { first_name: 'Ana', last_name: 'Nikolić' } },
+    { profile_id: 't-b', color: 'wine', profile: { first_name: 'Marko', last_name: 'Jovanović' } },
+    { profile_id: 't-a', color: null, profile: { first_name: 'Dragan', last_name: 'Adamović' } },
+  ]
+  const input = {
+    teacherId: 't-me',
+    subjects: [
+      { subject: { id: 's-2', name: 'Fizika' } },
+      { subject: { id: 's-1', name: 'Hemija' } },
+    ],
+    locations: [
+      { id: 'l-2', name: 'Zemun', rooms: [] },
+      { id: 'l-1', name: 'Glavna', rooms: [{ id: 'r-1', name: 'Učionica 1' }] },
+    ],
+    ownLocationIds: ['l-2'],
+    teachers,
+  }
+
+  it('keeps every location, and says which of them the teacher may use', () => {
+    const mapped = mapReference(input)
+    expect(mapped.locations.map((l) => l.id)).toEqual(['l-1', 'l-2'])
+    expect(mapped.ownLocationIds).toEqual(['l-2'])
+  })
+
+  it('takes the colour of the teacher from their own row, and the colleagues’ from theirs', () => {
+    const mapped = mapReference(input)
+    expect(mapped.color).toBe('teal')
+    expect(mapped.colleagues.map((c) => [c.id, c.color])).toEqual([
+      ['t-a', null],
+      ['t-b', 'wine'],
+    ])
+  })
+
+  it('lists the colleagues by name, without the teacher themselves', () => {
+    expect(mapReference(input).colleagues.map((c) => c.lastName)).toEqual(['Adamović', 'Jovanović'])
+  })
+
+  it('treats a colour it does not know as no choice', () => {
+    const odd = teachers.map((t) => ({
+      ...t,
+      color: t.profile_id === 't-b' ? 'chartreuse' : t.color,
+    }))
+    expect(
+      mapReference({ ...input, teachers: odd }).colleagues.find((c) => c.id === 't-b')?.color,
+    ).toBeNull()
+    expect(
+      mapReference({ ...input, teachers: odd.map((t) => ({ ...t, color: 'chartreuse' })) }).color,
+    ).toBeNull()
+  })
+
+  it('sorts the subjects by name and keeps what the teacher has no subjects for empty', () => {
+    expect(mapReference(input).subjects.map((s) => s.name)).toEqual(['Fizika', 'Hemija'])
+    expect(mapReference({ ...input, subjects: [] }).subjects).toEqual([])
   })
 })
