@@ -113,6 +113,13 @@ language sql stable as $$
     from public.lessons l where l.id = any(tests.ids('les:'))
 $$;
 
+-- The location keys ('L1', ...) a teacher may use, sorted, as the current role sees them.
+create or replace function tests.locations_of(p_teacher_key text) returns text[]
+language sql stable as $$
+  select coalesce(array_agg(substr(tests.key_of(tl.location_id), 5) order by tests.key_of(tl.location_id)), '{}')
+    from public.teacher_locations tl where tl.teacher_id = tests.id('p:' || p_teacher_key)
+$$;
+
 -- Who was queued a cancellation notice for the lesson (sorted keys). Only meaningful as postgres:
 -- clients never see the outbox.
 create or replace function tests.notified(p_lesson_key text, p_reason text default null) returns text[]
@@ -180,6 +187,9 @@ begin
   foreach v_subject in array p_subject_keys loop
     insert into public.teacher_subjects (teacher_id, subject_id) values (v_profile, tests.id('subj:' || v_subject));
   end loop;
+  -- like the teachers that existed when locations became a rule: every location of the fixture school
+  insert into public.teacher_locations (teacher_id, location_id)
+  select v_profile, l from unnest(tests.ids('loc:')) as l;
   return v_profile;
 end $$;
 

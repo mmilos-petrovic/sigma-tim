@@ -62,3 +62,7 @@ select pa.id, st.id
   join public.profiles sp on sp.email in ('ucenik1@example.test', 'ucenik2@example.test')
   join public.students st on st.profile_id = sp.id
  where pa.email = 'roditelj1@example.test';
+
+-- Every teacher may use every location (the administrator narrows this down per teacher in the app).
+insert into public.teacher_locations (teacher_id, location_id)
+select t.profile_id, l.id from public.teachers t cross join public.locations l;

@@ -28,6 +28,7 @@ delete from public.lesson_students where lesson_id in
   (select id from public.lessons where teacher_id in (select id from public.profiles where first_name = 'EraseRace'));
 delete from public.lessons where teacher_id in (select id from public.profiles where first_name = 'EraseRace');
 delete from public.teacher_subjects where teacher_id in (select id from public.profiles where first_name = 'EraseRace');
+delete from public.teacher_locations where teacher_id in (select id from public.profiles where first_name = 'EraseRace');
 delete from public.teachers where profile_id in (select id from public.profiles where first_name = 'EraseRace');
 delete from public.profiles where first_name = 'EraseRace';
 delete from auth.users where email like '%@erase.test';
@@ -50,6 +51,9 @@ insert into public.teachers (profile_id, is_active)
 insert into public.teacher_subjects (teacher_id, subject_id)
   select p.id, s.id from public.profiles p, public.subjects s
    where p.email like 't_@erase.test' and s.name = 'Erase Race Subject';
+insert into public.teacher_locations (teacher_id, location_id)
+  select p.id, l.id from public.profiles p, public.locations l
+   where p.email like 't_@erase.test' and l.name = 'Erase Race Location';
 -- a lesson that already started keeps each teacher's profile as a record, which is the case with something to race over
 insert into public.lessons (teacher_id, subject_id, location_id, start_at, end_at, status, origin, confirmed_at)
   select p.id, s.id, l.id,

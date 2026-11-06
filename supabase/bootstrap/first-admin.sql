@@ -5,6 +5,8 @@
 --   * nothing is deleted, and nothing that exists is renamed or overwritten;
 --   * the starting subjects are only created while the school has no subjects at all, so a later rename or delete
 --     in the admin screens is not undone;
+--   * the teacher gets every existing location only while they have none (a teacher always has at least one once the
+--     school has any), so a later choice in the admin screens is not undone;
 --   * the profile is created without an account. The first Google sign-in with this email links it
 --     (see 20261026100000_link_account_on_update.sql), and so does running this script after that sign-in.
 --
@@ -32,4 +34,9 @@ begin
     from public.subjects s
    where s.name in ('Matematika', 'Fizika', 'Hemija', 'Srpski jezik')
   on conflict do nothing;
+
+  if not exists (select 1 from public.teacher_locations where teacher_id = v_profile) then
+    insert into public.teacher_locations (teacher_id, location_id)
+    select v_profile, l.id from public.locations l;
+  end if;
 end $$;

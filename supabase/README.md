@@ -8,7 +8,7 @@ Postgres schema, access rules (RLS) and booking logic for the school. All author
 npm run db:start              # local stack in Docker
 npm run db:reset              # re-apply migrations and seed.sql
 npm run db:test               # pgTAP suite
-npm run db:test:concurrency   # real parallel sessions against claim_slot(), remove_parent_from_student() and erase_teacher() (needs bash and docker)
+npm run db:test:concurrency   # real parallel sessions against claim_slot(), remove_parent_from_student(), erase_teacher() and taking a location away (needs bash and docker)
 ```
 
 `seed.sql` is development data only (and the first admin, `petrovicmilos@gmail.com`, who is also a teacher). There is no Google account behind the seeded people, so `npm run dev:setup` (also run by `npm run dev` and `npm run db:reset`) creates local auth users for the test accounts listed in `web/src/dev/personas.ts` (admin, admin and teacher, teacher, student, parent, and a stranger without a profile). They get a random password that is written to `web/.env.local`; the app's development sign-in panel uses it. The users are made like a Google sign-in (provider `google`, confirmed email), so the real linking trigger attaches them to their profiles. This exists only locally: hosted projects have the email provider switched off and never run the script.
@@ -37,7 +37,8 @@ The script is idempotent: it never deletes or renames anything, and it only crea
 
 | Function | Who | What |
 | --- | --- | --- |
-| `create_teacher(email, first, last, subject_ids)` | admin | pre-approve a teacher |
+| `create_teacher(email, first, last, subject_ids, location_ids)` | admin | pre-approve a teacher with their subjects and the locations where they may teach (at least one of each) |
+| `set_teacher_locations(teacher_id, location_ids)` | admin | replaces the locations where a teacher may hold lessons (at least one). Refused with `PT409` while the teacher has a lesson or free slot that has not ended yet at a location that would go; the error `detail` is JSON, `{"total": n, "lessons": [{id, location_id, start_at, end_at, status}]}` with the first twenty, never who attends. Nothing is changed then |
 | `add_student(email, first, last, school, grade, section, teacher_id)` | teacher, admin | pre-approve a student (admin may pick the teacher or leave them unassigned) |
 | `add_parent_to_student(student_id, email, first, last)` | the student's teacher, admin | link a parent by email (max 2 per student); an existing parent is reused |
 | `schedule_lesson(subject, location, room, start, end, student_ids)` | teacher | confirmed lesson for their own students. It may start earlier today (to enter a lesson afterwards), not on a day that has passed (`PT400`) |
@@ -73,6 +74,14 @@ Errors use PostgREST's custom codes, so they arrive as HTTP statuses. The messag
 | `PT409` | 409 | conflict, for example `slot is already taken`, `lesson already started` |
 
 Table constraint violations keep their Postgres codes (`23514` check, `23503` foreign key, `23505` unique).
+
+## Teacher locations and colour
+
+- **Locations are a hard rule.** `teacher_locations` says where each teacher may teach. A lesson or free slot can only be created at one of those locations, and its teacher or location can only change to one (`PT400`); any other edit of a lesson, such as its outcome, is not checked, so a lesson at a location that was taken away later (it was over by then) stays editable. The rows are written only by `create_teacher` and `set_teacher_locations`; a teacher reads their own rows, the administrator all.
+- **Taking a location away** is refused while the teacher has a lesson, booking or free slot there that has not ended (one that is going on counts). Lessons that are over never block it. The rule is a trigger on the table, so it holds for every writer; `set_teacher_locations` checks first only to list the lessons of all the locations at once. Lessons being written and a location being removed at the same moment are serialised by a row lock (`location_removal_race.sh`).
+- **At least one location** for every teacher, deactivated ones too, so reactivating is always safe; the record of an erased teacher is exempt. Deleting a location removes it from the teachers who may use it, unless that would leave a teacher without any (`PT409`); a location with lessons or rooms is refused by those foreign keys as before. A location created later is not given to existing teachers: the administrator chooses.
+- **Colour.** `teachers.color` is one of twelve names (`red`, `orange`, `brown`, `olive`, `green`, `teal`, `blue`, `indigo`, `purple`, `magenta`, `wine`, `slate`) or null (no choice: the calendar keeps its default colours). The app decides the shades. A teacher updates only their own row; everybody who can read a teacher reads the colour. Because it belongs to the teacher, it applies to all their lessons, past and future.
+- The first administrator's bootstrap script gives them every existing location, but only while they have none.
 
 ## Editing lessons
 
