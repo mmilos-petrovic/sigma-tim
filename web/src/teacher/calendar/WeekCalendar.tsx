@@ -7,24 +7,9 @@ import '@fullcalendar/react/themes/classic/theme.css'
 import '@fullcalendar/react/themes/classic/palette.css'
 import { useMemo } from 'react'
 import { schoolDayStart, SCHOOL_TIME_ZONE } from '../schoolDay'
+import { toEventInput } from './eventInput'
+import type { CalendarItem } from './items'
 import { srLatn } from './locale'
-
-/** What the calendar shows: one block of time. The page decides what each block means and whether it may be moved. */
-export interface CalendarItem {
-  id: string
-  /** ISO 8601 instants. */
-  start: string
-  end: string
-  title: string
-  /** A second line, for example the students or the teacher. */
-  detail?: string
-  /** Background of the block. */
-  color: string
-  /** Style hook: `own`, `busy` (a colleague's lesson, no details), `slot`, `pending`... */
-  variant: string
-  movable: boolean
-  resizable: boolean
-}
 
 export interface TimeRange {
   start: string
@@ -57,22 +42,7 @@ export function WeekCalendar({
   onChangeTime,
   now,
 }: WeekCalendarProps) {
-  const events = useMemo(
-    () =>
-      items.map((item) => ({
-        id: item.id,
-        start: item.start,
-        end: item.end,
-        title: item.title,
-        backgroundColor: item.color,
-        borderColor: item.color,
-        className: `cal-item cal-item--${item.variant}`,
-        startEditable: item.movable,
-        durationEditable: item.resizable,
-        extendedProps: { detail: item.detail, variant: item.variant },
-      })),
-    [items],
-  )
+  const events = useMemo(() => items.map(toEventInput), [items])
 
   // Nothing may be moved or created onto a day that is over (the database refuses it anyway).
   const startsToday = (startStr: string) =>

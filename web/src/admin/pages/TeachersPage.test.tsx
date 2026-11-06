@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { personas } from '../../test/fixtures'
@@ -24,9 +24,17 @@ describe('teachers list', () => {
     const ana = within(await row('Ana Nikolić'))
     expect(ana.getByText('ana.nikolic@example.test')).toBeInTheDocument()
     expect(ana.getByText('Fizika, Matematika')).toBeInTheDocument()
+    expect(ana.getByText('Glavna lokacija, Zemun')).toBeInTheDocument()
     expect(ana.getByText('Aktivan')).toBeInTheDocument()
 
     expect(within(await row('Goran Savić')).getByText('Deaktiviran')).toBeInTheDocument()
+  })
+
+  it('shows where each teacher may teach, in a column of its own', async () => {
+    await open()
+    expect(screen.getByRole('columnheader', { name: 'Lokacije' })).toBeInTheDocument()
+    expect(within(await row('Marko Jovanović')).getByText('Glavna lokacija')).toBeInTheDocument()
+    expect(within(await row('Marko Jovanović')).queryByText(/Zemun/)).not.toBeInTheDocument()
   })
 
   it('marks a teacher who has not signed in yet', async () => {
@@ -71,6 +79,7 @@ describe('adding a teacher', () => {
     const dialog = await inDialog('Dodaj nastavnika')
     await fill(dialog)
     await userEvent.click(dialog.getByRole('checkbox', { name: 'Fizika' }))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
 
     expect(adminApi.createTeacher).toHaveBeenCalledWith({
@@ -78,6 +87,7 @@ describe('adding a teacher', () => {
       firstName: 'Novi',
       lastName: 'Nastavnik',
       subjectIds: ['s-fiz'],
+      locationIds: ['l-second'],
     })
     expect(await row('Novi Nastavnik')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -106,6 +116,10 @@ describe('adding a teacher', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
     expect(dialog.getByText('Izaberite bar jedan predmet.')).toBeInTheDocument()
 
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Fizika' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
+    expect(dialog.getByText('Izaberite bar jednu lokaciju.')).toBeInTheDocument()
+
     expect(adminApi.createTeacher).not.toHaveBeenCalled()
   })
 
@@ -116,12 +130,67 @@ describe('adding a teacher', () => {
 
     await fill(dialog, 'ana.nikolic@example.test')
     await userEvent.click(dialog.getByRole('checkbox', { name: 'Fizika' }))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Glavna lokacija' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
 
     expect(await dialog.findByRole('alert')).toHaveTextContent('Ova osoba je već nastavnik.')
     expect(dialog.getByLabelText('Email')).toHaveValue('ana.nikolic@example.test')
     expect(dialog.getByRole('checkbox', { name: 'Fizika' })).toBeChecked()
+    expect(dialog.getByRole('checkbox', { name: 'Glavna lokacija' })).toBeChecked()
     expect(adminApi.createTeacher).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers the locations of the school, none chosen to begin with', async () => {
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Dodaj nastavnika' }))
+    const dialog = await inDialog('Dodaj nastavnika')
+    const boxes = within(dialog.getByRole('group', { name: 'Lokacije' })).getAllByRole('checkbox')
+    expect(boxes.map((c) => (c as HTMLInputElement).labels?.[0].textContent)).toEqual([
+      'Glavna lokacija',
+      'Zemun',
+    ])
+    expect(boxes.every((c) => !(c as HTMLInputElement).checked)).toBe(true)
+  })
+
+  it('sends several locations, and the new teacher shows with all of them', async () => {
+    const { adminApi } = await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Dodaj nastavnika' }))
+    const dialog = await inDialog('Dodaj nastavnika')
+    await fill(dialog)
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Fizika' }))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Glavna lokacija' }))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
+    expect(adminApi.createTeacher).toHaveBeenCalledWith(
+      expect.objectContaining({ locationIds: ['l-main', 'l-second'] }),
+    )
+    expect(
+      await within(await row('Novi Nastavnik')).findByText('Glavna lokacija, Zemun'),
+    ).toBeInTheDocument()
+  })
+
+  it('cannot add a teacher before the school has a location', async () => {
+    renderAdmin('/administracija/nastavnici', { api: createFakeAdminApi({ locations: [] }) })
+    await page('Nastavnici')
+    expect(
+      await screen.findByText('Pre nego što dodate nastavnika, dodajte bar jednu lokaciju.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Dodaj nastavnika' })).toBeDisabled()
+  })
+
+  it('explains the database refusing a location that is gone', async () => {
+    const api = createFakeAdminApi()
+    await open('/administracija/nastavnici', { api })
+    await userEvent.click(screen.getByRole('button', { name: 'Dodaj nastavnika' }))
+    const dialog = await inDialog('Dodaj nastavnika')
+    await fill(dialog)
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Fizika' }))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Glavna lokacija' }))
+    api.failNext('createTeacher', new AdminError('PT400', 'unknown location'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Lokacija više ne postoji. Osvežite stranicu.',
+    )
   })
 
   it('does not submit twice while the first request is running', async () => {
@@ -132,6 +201,7 @@ describe('adding a teacher', () => {
     const dialog = await inDialog('Dodaj nastavnika')
     await fill(dialog)
     await userEvent.click(dialog.getByRole('checkbox', { name: 'Fizika' }))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Glavna lokacija' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
     release()
@@ -173,6 +243,162 @@ describe("editing a teacher's subjects", () => {
 
     expect(dialog.getByText('Izaberite bar jedan predmet.')).toBeInTheDocument()
     expect(adminApi.setTeacherSubjects).not.toHaveBeenCalled()
+  })
+})
+
+describe("editing a teacher's locations", () => {
+  const openLocations = async (name: string) => {
+    const view = await open()
+    await userEvent.click(within(await row(name)).getByRole('button', { name: 'Lokacije' }))
+    return { ...view, dialog: await inDialog(`Lokacije nastavnika ${name}`) }
+  }
+  const lessonAt = (id: string, locationId: string, day: number, status = 'confirmed') => ({
+    id,
+    locationId,
+    start: `2026-11-${10 + day}T15:00:00Z`,
+    end: `2026-11-${10 + day}T16:00:00Z`,
+    status,
+  })
+
+  it('starts from the current locations and saves the new selection', async () => {
+    const { adminApi, dialog } = await openLocations('Ana Nikolić')
+    expect(dialog.getByRole('checkbox', { name: 'Glavna lokacija' })).toBeChecked()
+    expect(dialog.getByRole('checkbox', { name: 'Zemun' })).toBeChecked()
+
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+
+    expect(adminApi.setTeacherLocations).toHaveBeenCalledWith('t-ana', ['l-main'])
+    expect(await screen.findByRole('status')).toHaveTextContent('Lokacije su sačuvane.')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(await within(await row('Ana Nikolić')).findByText('Glavna lokacija')).toBeInTheDocument()
+  })
+
+  it('adds a location', async () => {
+    const { adminApi, dialog } = await openLocations('Marko Jovanović')
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    expect(adminApi.setTeacherLocations).toHaveBeenCalledWith('t-marko', ['l-main', 'l-second'])
+    expect(
+      await within(await row('Marko Jovanović')).findByText('Glavna lokacija, Zemun'),
+    ).toBeInTheDocument()
+  })
+
+  it('refuses to leave a teacher without a location, without asking the backend', async () => {
+    const { adminApi, dialog } = await openLocations('Marko Jovanović')
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Glavna lokacija' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    expect(dialog.getByRole('alert')).toHaveTextContent('Izaberite bar jednu lokaciju.')
+    expect(adminApi.setTeacherLocations).not.toHaveBeenCalled()
+  })
+
+  it('is offered for a deactivated teacher too, so that they can be reactivated safely', async () => {
+    await open()
+    expect(
+      within(await row('Goran Savić')).getByRole('button', { name: 'Lokacije' }),
+    ).toBeInTheDocument()
+  })
+
+  it('lists the lessons that stop a location from being taken away, and changes nothing', async () => {
+    const api = createFakeAdminApi({
+      blockers: {
+        't-ana': [
+          lessonAt('b1', 'l-second', 1),
+          lessonAt('b2', 'l-second', 2, 'open'),
+          lessonAt('b3', 'l-second', 3, 'pending'),
+        ],
+      },
+    })
+    const view = await open('/administracija/nastavnici', { api })
+    await userEvent.click(
+      within(await row('Ana Nikolić')).getByRole('button', { name: 'Lokacije' }),
+    )
+    const dialog = await inDialog('Lokacije nastavnika Ana Nikolić')
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+
+    const alert = await dialog.findByRole('alert')
+    expect(alert).toHaveTextContent(
+      /na lokaciji koja se uklanja nastavnik još ima buduće časove i slobodne termine/i,
+    )
+    const items = within(alert)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent)
+    expect(items).toEqual([
+      'sre, 11. novembar, 16:00–17:00 · Zemun · čas',
+      'čet, 12. novembar, 16:00–17:00 · Zemun · slobodan termin',
+      'pet, 13. novembar, 16:00–17:00 · Zemun · zahtev na čekanju',
+    ])
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(view.adminApi.state.teachers.find((t) => t.id === 't-ana')?.locationIds).toEqual([
+      'l-main',
+      'l-second',
+    ])
+    expect(dialog.getByRole('checkbox', { name: 'Zemun' })).not.toBeChecked() // the choice stays, to be changed
+  })
+
+  it('says how many more there are than it lists', async () => {
+    const api = createFakeAdminApi({
+      blockers: {
+        't-ana': Array.from({ length: 20 }, (_, i) => lessonAt(`b${i}`, 'l-second', 1)),
+      },
+    })
+    // the database lists the first twenty and says the total
+    const original = api.setTeacherLocations
+    api.setTeacherLocations = async (id, ids) => {
+      try {
+        await original(id, ids)
+      } catch (failure) {
+        const error = failure as AdminError
+        const data = JSON.parse(error.details ?? '{}')
+        throw new AdminError(error.code, error.message, JSON.stringify({ ...data, total: 25 }))
+      }
+    }
+    await open('/administracija/nastavnici', { api })
+    await userEvent.click(
+      within(await row('Ana Nikolić')).getByRole('button', { name: 'Lokacije' }),
+    )
+    const dialog = await inDialog('Lokacije nastavnika Ana Nikolić')
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    const alert = await dialog.findByRole('alert')
+    expect(within(alert).getAllByRole('listitem')).toHaveLength(20)
+    expect(alert).toHaveTextContent('i još 5')
+  })
+
+  it('falls back to a plain sentence when the detail is missing', async () => {
+    const { adminApi, dialog } = await openLocations('Ana Nikolić')
+    adminApi.failNext('setTeacherLocations', new AdminError('PT409', 'still has lessons'))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Nastavnik još ima buduće časove ili slobodne termine na lokaciji koja se uklanja.',
+    )
+  })
+
+  it('explains an erased account and a location that is gone', async () => {
+    const { adminApi, dialog } = await openLocations('Ana Nikolić')
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
+    adminApi.failNext('setTeacherLocations', new AdminError('PT409', 'this teacher was erased'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Nalog je obrisan. Osvežite stranicu.',
+    )
+    adminApi.failNext('setTeacherLocations', new AdminError('PT400', 'unknown location'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    await waitFor(() =>
+      expect(dialog.getByRole('alert')).toHaveTextContent(
+        'Lokacija više ne postoji. Osvežite stranicu.',
+      ),
+    )
+  })
+
+  it('leaves the teacher alone when cancelled', async () => {
+    const { adminApi, dialog } = await openLocations('Ana Nikolić')
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Zemun' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Odustani' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(adminApi.setTeacherLocations).not.toHaveBeenCalled()
   })
 })
 

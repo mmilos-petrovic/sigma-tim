@@ -375,6 +375,32 @@ isOneToOne: true
       referencedColumns: ["profile_id"]
     }
                   ]
+                },"teacher_locations": {
+                  Row: {
+                    "location_id": string,"teacher_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "location_id": string,"teacher_id": string
+                  }
+                  Update: {
+                    "location_id"?: string,"teacher_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "teacher_locations_location_id_fkey"
+      columns: ["location_id"]
+isOneToOne: false
+      referencedRelation: "locations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "teacher_locations_teacher_id_fkey"
+      columns: ["teacher_id"]
+isOneToOne: false
+      referencedRelation: "teachers"
+      referencedColumns: ["profile_id"]
+    }
+                  ]
                 },"teacher_subjects": {
                   Row: {
                     "subject_id": string,"teacher_id": string
@@ -403,14 +429,14 @@ isOneToOne: false
                   ]
                 },"teachers": {
                   Row: {
-                    "bio": string | null,"created_at": string,"is_active": boolean,"photo_path": string | null,"profile_id": string
+                    "bio": string | null,"color": string | null,"created_at": string,"is_active": boolean,"photo_path": string | null,"profile_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "bio"?: string | null,"created_at"?: string,"is_active"?: boolean,"photo_path"?: string | null,"profile_id": string
+                    "bio"?: string | null,"color"?: string | null,"created_at"?: string,"is_active"?: boolean,"photo_path"?: string | null,"profile_id": string
                   }
                   Update: {
-                    "bio"?: string | null,"created_at"?: string,"is_active"?: boolean,"photo_path"?: string | null,"profile_id"?: string
+                    "bio"?: string | null,"color"?: string | null,"created_at"?: string,"is_active"?: boolean,"photo_path"?: string | null,"profile_id"?: string
                   }
                   Relationships: [
                     {
@@ -457,7 +483,7 @@ isOneToOne: true
 { Args: { "p_lesson_id": string }; Returns: undefined
                            },
 "create_teacher":
-{ Args: { "p_email": string,"p_first_name": string,"p_last_name": string,"p_subject_ids": (string)[] }; Returns: string
+{ Args: { "p_email": string,"p_first_name": string,"p_last_name": string,"p_location_ids": (string)[],"p_subject_ids": (string)[] }; Returns: string
                            },
 "deactivate_teacher":
 { Args: { "p_teacher_id": string }; Returns: undefined
@@ -517,6 +543,9 @@ isOneToOne: true
                            },
 "set_lesson_students":
 { Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: undefined
+                           },
+"set_teacher_locations":
+{ Args: { "p_location_ids": (string)[],"p_teacher_id": string }; Returns: undefined
                            }
           }
           Enums: {

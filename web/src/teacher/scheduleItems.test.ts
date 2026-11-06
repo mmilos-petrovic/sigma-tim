@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { seedTeacher, TEST_NOW } from '../test/fakeTeacherApi'
 import { formatDay, formatRange, formatTime } from './format'
-import { OWN_COLOR, teacherColor } from './colors'
+import { COLORS, OWN_COLOR, teacherColor } from './colors'
 import { buildItems, describeConflict, lessonState } from './scheduleItems'
 
 const seed = seedTeacher()
@@ -116,6 +116,89 @@ describe('what the calendar shows', () => {
       { ...byId('les-today'), roomId: 'r-gone', participants: [{ studentId: 'gone', note: null }] },
     ]
     expect(build({ lessons: odd })[0]).toMatchObject({ title: 'Nepoznat učenik', detail: '' })
+  })
+})
+
+describe("a teacher's colour", () => {
+  const withColor = (color: 'teal' | null) => ({ ...seed.reference, color })
+  const cards = (reference = seed.reference) =>
+    build({ reference, lessons: lessons.map((l) => ({ ...l, roomId: null })) }).filter(
+      (i) => i.variant !== 'busy',
+    )
+
+  it('colours every lesson of the teacher with the colour they chose', () => {
+    const own = cards(withColor('teal'))
+    expect(own.length).toBeGreaterThan(3)
+    for (const card of own) expect(card.color).toBe(COLORS.teal.hex)
+  })
+
+  it('keeps the blue of the owner while there is no choice', () => {
+    for (const card of cards(withColor(null))) expect(card.color).toBe(OWN_COLOR)
+  })
+
+  it('draws a colleague in the colour they chose, and in the colour of their id when they chose none', () => {
+    const chosen = {
+      ...seed.reference,
+      colleagues: [{ ...seed.reference.colleagues[0], color: 'wine' as const }],
+    }
+    const busy = (reference = seed.reference) =>
+      build({ reference }).find((i) => i.variant === 'busy')!
+    expect(busy(chosen).color).toBe(COLORS.wine.hex)
+    expect(busy().color).toBe(teacherColor('t-marko'))
+  })
+
+  it('lets two teachers share a colour', () => {
+    const same = {
+      ...seed.reference,
+      color: 'teal' as const,
+      colleagues: [{ ...seed.reference.colleagues[0], color: 'teal' as const }],
+    }
+    const items = build({ reference: same })
+    expect(new Set(items.map((i) => i.color))).toEqual(new Set([COLORS.teal.hex]))
+  })
+
+  it('draws the blocks of a colleague who is not in the list in the colour of their id', () => {
+    const stranger = build({ busy: [{ ...seed.busy[0], teacherId: 't-gone' }] }).find(
+      (i) => i.variant === 'busy',
+    )!
+    expect(stranger.color).toBe(teacherColor('t-gone'))
+  })
+})
+
+describe('the location filter', () => {
+  const atZemun = (id: string) => ({ ...byId(id), locationId: 'l-zemun', roomId: null })
+  const mixed = [byId('les-tomorrow'), atZemun('les-today')]
+  const busyMixed = [seed.busy[0], { ...seed.busy[0], locationId: 'l-zemun', roomId: null }]
+  const ids = (items: { id: string }[]) => items.map((i) => i.id).sort()
+
+  it('shows everything without a filter', () => {
+    const items = build({ lessons: mixed, busy: busyMixed, locationId: null })
+    expect(items).toHaveLength(4)
+    expect(build({ lessons: mixed, busy: busyMixed })).toHaveLength(4)
+  })
+
+  it('hides the own lessons and the colleagues’ blocks at the other locations', () => {
+    const items = build({ lessons: mixed, busy: busyMixed, locationId: 'l-zemun' })
+    expect(ids(items.filter((i) => i.variant !== 'busy'))).toEqual(['les-today'])
+    expect(items.filter((i) => i.variant === 'busy')).toHaveLength(1)
+    expect(items.filter((i) => i.variant === 'busy')[0].detail).toBe('')
+  })
+
+  it('hides free slots and bookings that wait as well', () => {
+    const slots = [
+      atZemun('slot-open'),
+      byId('slot-open'),
+      atZemun('booking-pending'),
+      byId('booking-pending'),
+    ].map((l, i) => ({ ...l, id: `${l.id}-${i}` }))
+    const items = build({ lessons: slots, busy: [], locationId: 'l-main' })
+    expect(ids(items)).toEqual(['booking-pending-3', 'slot-open-1'])
+  })
+
+  it('shows nothing when no lesson is at the chosen location', () => {
+    expect(
+      build({ lessons: [byId('les-tomorrow')], busy: seed.busy, locationId: 'l-zemun' }),
+    ).toEqual([])
   })
 })
 

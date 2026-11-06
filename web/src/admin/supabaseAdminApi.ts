@@ -18,20 +18,20 @@ const byName = (a: string, b: string) => a.localeCompare(b, 'sr')
 
 /** Keeps the PostgREST/Postgres code for the screens to translate; recognises a lost connection and a refused token. */
 export function toAdminError(
-  error: { code?: string; message?: string },
+  error: { code?: string; message?: string; details?: string },
   status?: number,
 ): AdminError {
   const message = error.message ?? ''
   if (status === 401 || error.code === 'PGRST301') return new AdminError('expired', message)
   if (status === 0 || /failed to fetch|networkerror|load failed/i.test(message))
     return new AdminError('network', message)
-  if (error.code) return new AdminError(error.code, message)
+  if (error.code) return new AdminError(error.code, message, error.details || undefined)
   return new AdminError('unknown', message)
 }
 
 export interface Result<T> {
   data: T
-  error: { code?: string; message?: string } | null
+  error: { code?: string; message?: string; details?: string } | null
   status: number
   count?: number | null
 }
@@ -87,6 +87,7 @@ export function mapTeacher(row: {
     erased_at: string | null
   }
   subjects: { subject_id: string }[]
+  locations: { location_id: string }[]
 }): TeacherRow {
   return {
     id: row.profile_id,
@@ -98,6 +99,7 @@ export function mapTeacher(row: {
     isAdmin: row.profile.is_admin,
     erased: row.profile.erased_at !== null,
     subjectIds: row.subjects.map((s) => s.subject_id),
+    locationIds: row.locations.map((l) => l.location_id),
   }
 }
 
@@ -194,20 +196,29 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
         client
           .from('teachers')
           .select(
-            'profile_id, is_active, profile:profiles(email, first_name, last_name, user_id, is_admin, erased_at), subjects:teacher_subjects(subject_id)',
+            'profile_id, is_active, profile:profiles(email, first_name, last_name, user_id, is_admin, erased_at), subjects:teacher_subjects(subject_id), locations:teacher_locations(location_id)',
           ),
       )
       return (data ?? [])
         .map((row) => mapTeacher(row as unknown as Parameters<typeof mapTeacher>[0]))
         .sort((a, b) => byName(`${a.lastName} ${a.firstName}`, `${b.lastName} ${b.firstName}`))
     },
-    async createTeacher({ email, firstName, lastName, subjectIds }) {
+    async createTeacher({ email, firstName, lastName, subjectIds, locationIds }) {
       await run(
         client.rpc('create_teacher', {
           p_email: email,
           p_first_name: firstName,
           p_last_name: lastName,
           p_subject_ids: subjectIds,
+          p_location_ids: locationIds,
+        }),
+      )
+    },
+    async setTeacherLocations(teacherId, locationIds) {
+      await run(
+        client.rpc('set_teacher_locations', {
+          p_teacher_id: teacherId,
+          p_location_ids: locationIds,
         }),
       )
     },

@@ -43,6 +43,11 @@ test.describe('erasing a teacher', () => {
       admin,
       'subjects?name=eq.Matematika&select=id',
     )
+    const [main] = await select<{ id: string }>(
+      request,
+      admin,
+      'locations?name=eq.Glavna lokacija&select=id',
+    )
 
     await openTeachers(page)
     await page.getByRole('button', { name: 'Dodaj nastavnika' }).click()
@@ -51,6 +56,7 @@ test.describe('erasing a teacher', () => {
     await add.getByLabel('Ime', { exact: true }).fill('E2E')
     await add.getByLabel('Prezime').fill(`Brisanje${run}`)
     await add.getByRole('checkbox', { name: 'Matematika' }).check()
+    await add.getByRole('checkbox', { name: 'Glavna lokacija' }).check()
     await add.getByRole('button', { name: 'Dodaj' }).click()
     await expect(row(page, email)).toBeVisible()
 
@@ -66,6 +72,7 @@ test.describe('erasing a teacher', () => {
       p_first_name: 'E2E',
       p_last_name: `Ponovo${run}`,
       p_subject_ids: [math.id],
+      p_location_ids: [main.id],
     })
     expect(await select(request, admin, `profiles?email=eq.${email}&select=id`)).toHaveLength(1)
 
@@ -87,11 +94,17 @@ test.describe('erasing a teacher', () => {
       admin,
       'subjects?name=eq.Matematika&select=id',
     )
+    const [main] = await select<{ id: string }>(
+      request,
+      admin,
+      'locations?name=eq.Glavna lokacija&select=id',
+    )
     const teacherId = await rpc<string>(request, admin, 'create_teacher', {
       p_email: email,
       p_first_name: 'E2E',
       p_last_name: `Evidencija${run}`,
       p_subject_ids: [math.id],
+      p_location_ids: [main.id],
     })
 
     try {

@@ -1,4 +1,5 @@
 /** Everything the teacher's screens need from the backend. The Supabase version is `supabaseTeacherApi.ts`; tests use a fake. */
+import type { ColorKey } from './colors'
 
 /** A student has at most two parents (a database rule, mirrored here to hide the button). */
 export const MAX_PARENTS = 2
@@ -77,16 +78,27 @@ export interface Colleague {
   id: string
   firstName: string
   lastName: string
+  /** The colour they chose, or null: then they are drawn in a colour derived from their id. */
+  color: ColorKey | null
 }
 
 /** What the lesson forms choose from. */
 export interface Reference {
   /** Only the subjects this teacher teaches. */
   subjects: Option[]
+  /** Every location of the school with its rooms: it also names the places of colleagues' blocks. */
   locations: LocationOption[]
+  /** The locations this teacher may use (a database rule): what the forms and the calendar filter offer. */
+  ownLocationIds: string[]
+  /** The colour this teacher chose, or null: then their own lessons are blue. */
+  color: ColorKey | null
   /** The other teachers, to name the blocks of their calendars. */
   colleagues: Colleague[]
 }
+
+/** The locations this teacher may hold lessons at, with their rooms. */
+export const ownLocations = (reference: Reference): LocationOption[] =>
+  reference.locations.filter((location) => reference.ownLocationIds.includes(location.id))
 
 /**
  * `open` is a free slot, `pending` a booking made less than 12 hours ahead that waits for the teacher, `confirmed` a
@@ -211,4 +223,7 @@ export interface TeacherApi {
   setNote(lessonId: string, studentId: string, note: string | null): Promise<void>
   /** Records what happened; only after a confirmed lesson has ended. `null` clears it. */
   setOutcome(lessonId: string, outcome: Outcome | null): Promise<void>
+
+  /** The teacher's own colour, on all their lessons (past and future) for everybody who sees them. `null` is no choice. */
+  setColor(teacherId: string, color: ColorKey | null): Promise<void>
 }

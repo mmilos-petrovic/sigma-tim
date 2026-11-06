@@ -117,7 +117,9 @@ export const seedTeacher = (): FakeTeacherState => ({
       },
       { id: 'l-zemun', name: 'Zemun', rooms: [] },
     ],
-    colleagues: [{ id: 't-marko', firstName: 'Marko', lastName: 'Jovanović' }],
+    ownLocationIds: ['l-main', 'l-zemun'],
+    color: null,
+    colleagues: [{ id: 't-marko', firstName: 'Marko', lastName: 'Jovanović', color: null }],
   },
   now: TEST_NOW,
   lessons: [
@@ -274,9 +276,15 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
     return distinct
   }
 
-  const checkPlace = (place: { subjectId: string; locationId: string; roomId: string | null }) => {
+  /** `current` is the location a lesson already has: only a new or changed location must be one the teacher may use. */
+  const checkPlace = (
+    place: { subjectId: string; locationId: string; roomId: string | null },
+    current?: string,
+  ) => {
     if (!state.reference.subjects.some((s) => s.id === place.subjectId))
       throw new AdminError('PT400', 'the teacher does not teach this subject')
+    if (place.locationId !== current && !state.reference.ownLocationIds.includes(place.locationId))
+      throw new AdminError('PT400', 'the teacher may not hold lessons at this location')
     const location = state.reference.locations.find((l) => l.id === place.locationId)
     if (!location || (place.roomId && !location.rooms.some((r) => r.id === place.roomId)))
       throw new AdminError('23503', 'the room must belong to the location')
@@ -491,7 +499,7 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
           throw new AdminError('PT409', 'the day of this lesson is over')
         if (new Date(next.start) < schoolDayStart(state.now))
           throw new AdminError('PT400', 'a lesson cannot be moved to a day that has passed')
-        checkPlace(next)
+        checkPlace(next, lesson.locationId)
         checkTimes(next)
         if (lesson.origin === 'slot') checkSlotLength(next)
         if (lesson.status === 'open' && new Date(next.start) <= state.now)
@@ -578,6 +586,10 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
           'an outcome can only be recorded once a confirmed lesson has ended',
         )
       lesson.outcome = outcome
+    },
+    async setColor(_teacherId, color) {
+      await gate('setColor')
+      state.reference.color = color
     },
   }
 

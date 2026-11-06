@@ -1,5 +1,5 @@
-import type { CalendarItem } from './calendar/WeekCalendar'
-import { OWN_COLOR, teacherColor } from './colors'
+import type { CalendarItem } from './calendar/items'
+import { chosenColor, OWN_COLOR, teacherColor } from './colors'
 import { formatRange } from './format'
 import { hasStarted, isDayLocked } from './schoolDay'
 import type { BusyRow, Conflict, LessonRow, Reference, StudentRow } from './teacherApi'
@@ -50,13 +50,25 @@ interface Inputs {
   reference: Reference
   teacherId: string
   now: Date
+  /** Only what is at this location (the calendar's filter); null or left out shows everything. */
+  locationId?: string | null
 }
 
 /** The blocks of the weekly calendar: the teacher's own lessons and slots, and the time colleagues are busy. */
-export function buildItems({ lessons, busy, students, reference, teacherId, now }: Inputs) {
+export function buildItems({
+  lessons,
+  busy,
+  students,
+  reference,
+  teacherId,
+  now,
+  locationId = null,
+}: Inputs) {
   const items: CalendarItem[] = []
+  const ownColor = chosenColor(reference.color) ?? OWN_COLOR
 
   for (const lesson of lessons) {
+    if (locationId && lesson.locationId !== locationId) continue
     // a free slot that has begun is of no use to anyone
     if (lesson.status === 'open' && new Date(lesson.start) <= now) continue
     const state = lessonState(lesson, now)
@@ -72,7 +84,7 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
         ...base,
         title: 'Slobodan termin',
         detail: room ?? '',
-        color: OWN_COLOR,
+        color: ownColor,
         variant: 'slot',
       })
     } else if (lesson.status === 'pending') {
@@ -80,7 +92,7 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
         ...base,
         title: 'Na čekanju',
         detail: [names, room].filter(Boolean).join(' · '),
-        color: OWN_COLOR,
+        color: ownColor,
         variant: 'pending',
       })
     } else {
@@ -88,7 +100,7 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
         ...base,
         title: names,
         detail: room ?? '',
-        color: OWN_COLOR,
+        color: ownColor,
         variant: state.locked ? 'own locked' : 'own',
       })
     }
@@ -96,6 +108,7 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
 
   for (const block of busy) {
     if (block.teacherId === teacherId) continue
+    if (locationId && block.locationId !== locationId) continue
     const colleague = reference.colleagues.find((c) => c.id === block.teacherId)
     const room = roomName(reference, block.locationId, block.roomId)
     items.push({
@@ -104,7 +117,7 @@ export function buildItems({ lessons, busy, students, reference, teacherId, now 
       end: block.end,
       title: colleague ? fullName(colleague) : 'Drugi nastavnik',
       detail: room ?? '',
-      color: teacherColor(block.teacherId),
+      color: chosenColor(colleague?.color) ?? teacherColor(block.teacherId),
       variant: 'busy',
       movable: false,
       resizable: false,

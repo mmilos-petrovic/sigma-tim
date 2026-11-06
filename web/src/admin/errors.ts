@@ -48,6 +48,7 @@ export function explainError(error: unknown, action: ActionKey): string {
         return 'Vreme mora biti na svakih 15 minuta, a kraj posle početka.'
       }
       if (action === 'setNote') return 'Napomena je predugačka (najviše 2000 znakova).'
+      if (action === 'setColor') return 'Ta boja nije na spisku. Izaberite drugu.'
       return 'Uneta vrednost nije ispravna.'
   }
 
@@ -58,6 +59,18 @@ export function explainError(error: unknown, action: ActionKey): string {
         if (/email/i.test(message)) return 'Email adresa nije ispravna.'
         if (/name/i.test(message)) return 'Ime i prezime su obavezni.'
         if (/subject/i.test(message)) return 'Izaberite bar jedan predmet.'
+        if (/at least one location/i.test(message)) return 'Izaberite bar jednu lokaciju.'
+        if (/location/i.test(message)) return 'Lokacija više ne postoji. Osvežite stranicu.'
+      }
+      break
+    case 'setLocations':
+      if (code === 'PT400') {
+        if (/at least one location/i.test(message)) return 'Izaberite bar jednu lokaciju.'
+        if (/location/i.test(message)) return 'Lokacija više ne postoji. Osvežite stranicu.'
+      }
+      if (code === 'PT409') {
+        if (/erased/i.test(message)) return 'Nalog je obrisan. Osvežite stranicu.'
+        return 'Nastavnik još ima buduće časove ili slobodne termine na lokaciji koja se uklanja.'
       }
       break
     case 'setSubjects':
@@ -103,6 +116,9 @@ export function explainError(error: unknown, action: ActionKey): string {
     case 'deleteLocation':
       if (code === '23503')
         return 'Lokacija ima učionice ili časove i ne može da se obriše. Prvo obrišite učionice.'
+      if (code === 'PT409') {
+        return 'Ovo je jedina lokacija nekog nastavnika. Prvo tom nastavniku dodajte drugu lokaciju (stranica Nastavnici).'
+      }
       break
     case 'addRoom':
     case 'renameRoom':
@@ -157,6 +173,10 @@ export function explainError(error: unknown, action: ActionKey): string {
           return action === 'updateLesson'
             ? 'Čas ne može da se pomeri na dan koji je prošao.'
             : 'Čas ne može da počne na dan koji je prošao.'
+        }
+        // before "teach": the message of the location rule says "the teacher may not hold lessons"
+        if (/location/i.test(message)) {
+          return 'Na toj lokaciji ne možete da držite časove. Izaberite drugu lokaciju.'
         }
         if (/teach/i.test(message)) return 'Ne predajete taj predmet.'
         if (/at least one student/i.test(message)) return 'Izaberite bar jednog učenika.'
