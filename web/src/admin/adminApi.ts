@@ -26,6 +26,8 @@ export interface TeacherRow {
   subjectIds: string[]
   /** The locations where the teacher may hold lessons (a database rule). */
   locationIds: string[]
+  /** In the international form; null for a teacher who has not given one yet. */
+  phone: string | null
 }
 
 export interface Room {
@@ -87,7 +89,10 @@ export interface AdminApi {
     lastName: string
     subjectIds: string[]
     locationIds: string[]
+    phone: string
   }): Promise<void>
+  /** Sets anybody's number. `null` takes it away, which the database refuses for a teacher. */
+  setPersonPhone(profileId: string, phone: string | null): Promise<void>
   setTeacherSubjects(teacherId: string, subjectIds: string[]): Promise<void>
   /**
    * Replaces the locations where the teacher may hold lessons. Refused with `PT409` (and the lessons in the error's
@@ -140,6 +145,7 @@ export type ActionKey =
   | 'createTeacher'
   | 'setSubjects'
   | 'setLocations'
+  | 'setPhone'
   | 'changeEmail'
   | 'deactivateTeacher'
   | 'reactivateTeacher'

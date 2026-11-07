@@ -2,7 +2,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { AdminError } from '../admin/adminApi'
 import { run, runOne } from '../admin/supabaseAdminApi'
 import type { Database } from '../lib/database.types'
+import { mapPhones } from '../lib/phone'
 import { isColorKey, type ColorKey } from './colors'
+
+export { mapPhones }
 import type {
   BusyRow,
   Conflict,
@@ -33,24 +36,28 @@ interface ProfileRow {
   user_id: string | null
 }
 
-function mapParent(profile: ProfileRow): ParentRow {
+function mapParent(profile: ProfileRow, phones: ReadonlyMap<string, string>): ParentRow {
   return {
     id: profile.id,
     email: profile.email,
     firstName: profile.first_name,
     lastName: profile.last_name,
     hasSignedIn: profile.user_id !== null,
+    phone: phones.get(profile.id) ?? null,
   }
 }
 
-export function mapStudent(row: {
-  id: string
-  school: string | null
-  grade: string | null
-  class_section: string | null
-  profile: ProfileRow
-  parent_links: { parent: { profile: ProfileRow } | null }[]
-}): StudentRow {
+export function mapStudent(
+  row: {
+    id: string
+    school: string | null
+    grade: string | null
+    class_section: string | null
+    profile: ProfileRow
+    parent_links: { parent: { profile: ProfileRow } | null }[]
+  },
+  phones: ReadonlyMap<string, string> = new Map(),
+): StudentRow {
   return {
     id: row.id,
     profileId: row.profile.id,
@@ -61,9 +68,12 @@ export function mapStudent(row: {
     school: row.school,
     grade: row.grade,
     section: row.class_section,
+    phone: phones.get(row.profile.id) ?? null,
     // a link the database did not show us (no access to that parent) simply is not listed
     parents: sortByName(
-      row.parent_links.flatMap((link) => (link.parent ? [mapParent(link.parent.profile)] : [])),
+      row.parent_links.flatMap((link) =>
+        link.parent ? [mapParent(link.parent.profile, phones)] : [],
+      ),
     ),
   }
 }
@@ -207,16 +217,23 @@ const LESSON =
 export function createSupabaseTeacherApi(client: SupabaseClient<Database>): TeacherApi {
   return {
     async listStudents(teacherId) {
-      const { data } = await run(
-        client
-          .from('students')
-          .select(
-            `id, school, grade, class_section, profile:profiles(${PROFILE}), parent_links:parent_students(parent:parents(profile:profiles(${PROFILE})))`,
-          )
-          .eq('teacher_id', teacherId),
-      )
+      // the numbers the database shows this teacher: those of their own students and those students' parents
+      const [students, numbers] = await Promise.all([
+        run(
+          client
+            .from('students')
+            .select(
+              `id, school, grade, class_section, profile:profiles(${PROFILE}), parent_links:parent_students(parent:parents(profile:profiles(${PROFILE})))`,
+            )
+            .eq('teacher_id', teacherId),
+        ),
+        run(client.from('person_phones').select('profile_id, phone')),
+      ])
+      const phones = mapPhones(numbers.data ?? [])
       return sortByName(
-        (data ?? []).map((row) => mapStudent(row as unknown as Parameters<typeof mapStudent>[0])),
+        (students.data ?? []).map((row) =>
+          mapStudent(row as unknown as Parameters<typeof mapStudent>[0], phones),
+        ),
       )
     },
     async listUnassigned(teacherId) {
@@ -245,7 +262,7 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
       )
     },
 
-    async addStudent({ email, firstName, lastName, school, grade, section }) {
+    async addStudent({ email, firstName, lastName, school, grade, section, phone }) {
       const { data } = await run(
         client.rpc('add_student', {
           p_email: email,
@@ -255,6 +272,7 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
           p_school: school ?? undefined,
           p_grade: grade ?? undefined,
           p_class_section: section ?? undefined,
+          p_phone: phone || undefined,
         }),
       )
       if (!data) throw new AdminError('unknown', 'add_student returned no id')
@@ -281,15 +299,26 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
     async changeStudentEmail(studentId, email) {
       await run(client.rpc('change_student_email', { p_student_id: studentId, p_new_email: email }))
     },
-    async addParent(studentId, { email, firstName, lastName }) {
+    async addParent(studentId, { email, firstName, lastName, phone }) {
       await run(
         client.rpc('add_parent_to_student', {
           p_student_id: studentId,
           p_email: email,
           p_first_name: firstName,
           p_last_name: lastName,
+          p_phone: phone,
         }),
       )
+    },
+    async setPhone(profileId, phone) {
+      // an empty number is how the function is told to take it away
+      await run(client.rpc('set_person_phone', { p_profile_id: profileId, p_phone: phone ?? '' }))
+    },
+    async myPhone(profileId) {
+      const { data } = await run(
+        client.from('person_phones').select('phone').eq('profile_id', profileId).maybeSingle(),
+      )
+      return data?.phone ?? null
     },
     async removeParent(studentId, parentId) {
       await run(

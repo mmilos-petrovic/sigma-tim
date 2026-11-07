@@ -75,6 +75,7 @@ test.describe('administration', () => {
       await add.getByLabel('Email').fill(email)
       await add.getByLabel('Ime', { exact: true }).fill('E2E')
       await add.getByLabel('Prezime').fill(`Nastavnik${run}`)
+      await add.getByLabel('Telefon').fill('+381 64 999 1111')
       await add.getByRole('checkbox', { name: renamed }).check()
 
       // a teacher needs a location too
@@ -88,6 +89,7 @@ test.describe('administration', () => {
       await expect(row(page, email)).toContainText(renamed)
       await expect(row(page, email)).toContainText('Glavna lokacija')
       await expect(row(page, email)).toContainText(location)
+      await expect(row(page, email)).toContainText('+381649991111')
 
       // the subject is in use now
       await section(page, 'Predmeti')
@@ -106,6 +108,17 @@ test.describe('administration', () => {
       await subjects.getByRole('button', { name: 'Sačuvaj' }).click()
       await expect(row(page, email)).toContainText('Matematika')
       await expect(row(page, email)).not.toContainText(renamed)
+
+      // the teacher's number: it cannot be emptied, and a new one replaces it
+      await row(page, email).getByRole('button', { name: 'Telefon' }).click()
+      const phone = dialog(page, 'Broj telefona')
+      await phone.getByLabel('Broj telefona').fill('')
+      await phone.getByRole('button', { name: 'Sačuvaj' }).click()
+      await expect(phone.getByRole('alert')).toHaveText('Unesite broj telefona.')
+      await phone.getByLabel('Broj telefona').fill('00 381 65 888 7777')
+      await phone.getByRole('button', { name: 'Sačuvaj' }).click()
+      await expect(page.getByRole('status')).toHaveText('Broj telefona je sačuvan.')
+      await expect(row(page, email)).toContainText('+381658887777')
 
       // where the teacher may teach: take a location away, and give it back
       await row(page, email).getByRole('button', { name: 'Lokacije' }).click()

@@ -3,6 +3,8 @@ import { AdminError } from '../../admin/adminApi'
 import { explainError } from '../../admin/errors'
 import { Field, FormDialog } from '../../components/FormDialog'
 import { Loaded, Notice, PageHeader } from '../../components/Loaded'
+import { PhoneDialog, PhoneLine } from '../../components/PhoneDialog'
+import { normalizePhone, phoneProblem } from '../../lib/phone'
 import { useTeacherApi } from '../TeacherApiProvider'
 import { useRefresh, useStudents, useUnassigned } from '../queries'
 import { MAX_PARENTS, type ParentRow, type StudentRow, type UnassignedStudent } from '../teacherApi'
@@ -29,6 +31,7 @@ type Dialog =
   | { kind: 'addParent'; student: StudentRow }
   | { kind: 'editParent'; parent: ParentRow }
   | { kind: 'removeParent'; student: StudentRow; parent: ParentRow }
+  | { kind: 'phone'; profileId: string; name: string; phone: string | null; required: boolean }
   | null
 
 interface DialogProps {
@@ -59,6 +62,7 @@ function AddStudentDialog({
   const [school, setSchool] = useState('')
   const [grade, setGrade] = useState('')
   const [section, setSection] = useState('')
+  const [phone, setPhone] = useState('')
 
   return (
     <FormDialog
@@ -67,7 +71,7 @@ function AddStudentDialog({
       submitLabel="Dodaj"
       onClose={onClose}
       validate={() => {
-        const problem = personProblem(email, firstName, lastName)
+        const problem = personProblem(email, firstName, lastName) ?? phoneProblem(phone, false)
         if (problem) return problem
         const lower = normalizeEmail(email)
         if (students.some((student) => student.email === lower)) {
@@ -87,6 +91,7 @@ function AddStudentDialog({
           school: orNull(school),
           grade: orNull(grade),
           section: orNull(section),
+          phone: normalizePhone(phone),
         })
         await refresh()
         onDone('Učenik je dodat.')
@@ -104,6 +109,13 @@ function AddStudentDialog({
       <Field label="Škola" value={school} onChange={setSchool} maxLength={200} />
       <Field label="Razred" value={grade} onChange={setGrade} maxLength={50} />
       <Field label="Odeljenje" value={section} onChange={setSection} maxLength={50} />
+      <Field
+        label="Telefon učenika (nije obavezan)"
+        type="tel"
+        value={phone}
+        onChange={setPhone}
+        maxLength={30}
+      />
     </FormDialog>
   )
 }
@@ -204,6 +216,7 @@ function AddParentDialog({ student, onClose, onDone }: DialogProps & { student: 
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [phone, setPhone] = useState('')
 
   return (
     <FormDialog
@@ -211,12 +224,13 @@ function AddParentDialog({ student, onClose, onDone }: DialogProps & { student: 
       action="addParent"
       submitLabel="Dodaj"
       onClose={onClose}
-      validate={() => personProblem(email, firstName, lastName)}
+      validate={() => personProblem(email, firstName, lastName) ?? phoneProblem(phone, true)}
       onSubmit={async () => {
         await api.addParent(student.id, {
           email: normalizeEmail(email),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          phone: normalizePhone(phone) ?? '',
         })
         await refresh()
         onDone('Roditelj je dodat.')
@@ -235,6 +249,13 @@ function AddParentDialog({ student, onClose, onDone }: DialogProps & { student: 
       />
       <Field label="Ime" value={firstName} onChange={setFirstName} maxLength={100} />
       <Field label="Prezime" value={lastName} onChange={setLastName} maxLength={100} />
+      <Field
+        label="Telefon roditelja"
+        type="tel"
+        value={phone}
+        onChange={setPhone}
+        maxLength={30}
+      />
     </FormDialog>
   )
 }
@@ -302,6 +323,32 @@ function RemoveParentDialog({
   )
 }
 
+/** The number of a student (optional) or of a parent (required). */
+function PersonPhoneDialog({
+  profileId,
+  name,
+  phone,
+  required,
+  onClose,
+  onDone,
+}: DialogProps & { profileId: string; name: string; phone: string | null; required: boolean }) {
+  const api = useTeacherApi()
+  const refresh = useRefresh()
+  return (
+    <PhoneDialog
+      personName={name}
+      current={phone}
+      required={required}
+      save={async (next) => {
+        await api.setPhone(profileId, next)
+        await refresh()
+      }}
+      onClose={onClose}
+      onDone={onDone}
+    />
+  )
+}
+
 function ClassCell({ grade, section }: { grade: string | null; section: string | null }) {
   const text = [grade, section].filter(Boolean).join(' ')
   return <>{text || '—'}</>
@@ -333,6 +380,7 @@ function StudentsTable({
             <td>
               <strong>{fullName(student)}</strong>
               <div className="muted">{student.email}</div>
+              <PhoneLine phone={student.phone} required={false} />
             </td>
             <td>{student.school ?? '—'}</td>
             <td>
@@ -347,6 +395,23 @@ function StudentsTable({
                     <li key={parent.id}>
                       <span>{fullName(parent)}</span>
                       <div className="muted">{parent.email}</div>
+                      <PhoneLine phone={parent.phone} required />
+                      <button
+                        type="button"
+                        className="button button--small button--secondary"
+                        aria-label={`Telefon roditelja ${fullName(parent)}`}
+                        onClick={() =>
+                          onDialog({
+                            kind: 'phone',
+                            profileId: parent.id,
+                            name: fullName(parent),
+                            phone: parent.phone,
+                            required: true,
+                          })
+                        }
+                      >
+                        Telefon
+                      </button>
                       <button
                         type="button"
                         className="button button--small button--secondary"
@@ -384,6 +449,22 @@ function StudentsTable({
                 onClick={() => onDialog({ kind: 'changeEmail', student })}
               >
                 Promeni email
+              </button>
+              <button
+                type="button"
+                className="button button--small button--secondary"
+                aria-label={`Telefon učenika ${fullName(student)}`}
+                onClick={() =>
+                  onDialog({
+                    kind: 'phone',
+                    profileId: student.profileId,
+                    name: fullName(student),
+                    phone: student.phone,
+                    required: false,
+                  })
+                }
+              >
+                Telefon
               </button>
               {student.parents.length < MAX_PARENTS && (
                 <button
@@ -547,6 +628,16 @@ export function StudentsPage() {
       )}
       {dialog?.kind === 'editParent' && (
         <EditParentDialog parent={dialog.parent} onClose={() => setDialog(null)} onDone={done} />
+      )}
+      {dialog?.kind === 'phone' && (
+        <PersonPhoneDialog
+          profileId={dialog.profileId}
+          name={dialog.name}
+          phone={dialog.phone}
+          required={dialog.required}
+          onClose={() => setDialog(null)}
+          onDone={done}
+        />
       )}
       {dialog?.kind === 'removeParent' && (
         <RemoveParentDialog

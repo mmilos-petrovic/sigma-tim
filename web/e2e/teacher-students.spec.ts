@@ -41,9 +41,12 @@ test.describe("the teacher's students and parents", () => {
       await form.getByLabel('Prezime').fill(`Učenik${run}`)
       await form.getByLabel('Škola').fill('OŠ Test')
       await form.getByLabel('Razred').fill('6')
+      // the student's number is optional, and is kept in the international form whatever way it is typed
+      await form.getByLabel('Telefon učenika (nije obavezan)').fill('00 381 65 111 2222')
       await form.getByRole('button', { name: 'Dodaj' }).click()
       await expect(page.getByRole('status')).toHaveText('Učenik je dodat.')
       await expect(row(page, student)).toContainText('OŠ Test')
+      await expect(row(page, student)).toContainText('+381651112222')
       await expect(row(page, student)).toContainText(studentEmail) // stored in lower case
     })
 
@@ -55,10 +58,14 @@ test.describe("the teacher's students and parents", () => {
       await form.getByLabel(EMAIL).fill(sharedParent)
       await form.getByLabel('Ime', { exact: true }).fill('Pogrešno')
       await form.getByLabel('Prezime').fill('Ime')
+      await form.getByLabel('Telefon roditelja').fill('+381 63 999 0000')
       await form.getByRole('button', { name: 'Dodaj' }).click()
       await expect(page.getByRole('status')).toHaveText('Roditelj je dodat.')
       await expect(row(page, student)).toContainText('Jelena Ilić')
       await expect(row(page, student)).not.toContainText('Pogrešno')
+      // like the name, the number the parent already has is kept
+      await expect(row(page, student)).toContainText('+381600000005')
+      await expect(row(page, student)).not.toContainText('+381639990000')
 
       const profiles = await select<{ id: string }>(
         request,
@@ -74,6 +81,10 @@ test.describe("the teacher's students and parents", () => {
       await form.getByLabel(EMAIL).fill(parentEmail)
       await form.getByLabel('Ime', { exact: true }).fill('Pogrešna')
       await form.getByLabel('Prezime').fill(`Adresa${run}`)
+      // a parent needs a number: without one the form does not go
+      await form.getByRole('button', { name: 'Dodaj' }).click()
+      await expect(form.getByRole('alert')).toHaveText('Unesite broj telefona.')
+      await form.getByLabel('Telefon roditelja').fill('+381 63 111 3333')
       await form.getByRole('button', { name: 'Dodaj' }).click()
       await expect(row(page, student)).toContainText(`Pogrešna Adresa${run}`)
       await expect(
@@ -93,6 +104,7 @@ test.describe("the teacher's students and parents", () => {
       await form.getByLabel(EMAIL).fill(`ispravna.${parentEmail}`)
       await form.getByLabel('Ime', { exact: true }).fill('Ispravna')
       await form.getByLabel('Prezime').fill(`Adresa${run}`)
+      await form.getByLabel('Telefon roditelja').fill('+381 63 111 3333')
       await form.getByRole('button', { name: 'Dodaj' }).click()
       await expect(row(page, student)).toContainText(`Ispravna Adresa${run}`)
     })

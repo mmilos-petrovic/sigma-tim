@@ -1,7 +1,8 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { AdminError } from '../../admin/adminApi'
+import { INVALID_PHONE } from '../../lib/phone'
 import { createFakeTeacherApi, seedTeacher } from '../../test/fakeTeacherApi'
 import { page, renderTeacher } from '../../test/renderTeacher'
 import { COLOR_KEYS, COLORS } from '../colors'
@@ -60,6 +61,100 @@ describe('the settings page', () => {
   it('starts with "no choice" when the teacher never chose', async () => {
     await open()
     expect(await radio('Bez izbora (podrazumevana boja)')).toBeChecked()
+  })
+})
+
+describe("the teacher's own phone number", () => {
+  const field = () => screen.findByLabelText('Broj telefona')
+  const save = () => screen.getByRole('button', { name: 'Sačuvaj broj' })
+
+  it('shows the number the teacher has, and asks what it is for', async () => {
+    await open()
+    expect(await field()).toHaveValue('+381641110099')
+    expect(screen.getByText(/obaveštenja i poziv u vezi sa časovima/)).toBeInTheDocument()
+    expect(screen.queryByText(/Nemate upisan broj telefona/)).not.toBeInTheDocument()
+  })
+
+  it('says so when there is none yet, and saves the first one', async () => {
+    const { teacherApi } = await open(createFakeTeacherApi({ myPhone: null }))
+    expect(await field()).toHaveValue('')
+    expect(screen.getByText(/Nemate upisan broj telefona/)).toBeInTheDocument()
+    await userEvent.type(await field(), '00 381 64 555 0001')
+    await userEvent.click(save())
+
+    expect(teacherApi.setPhone).toHaveBeenCalledWith('p-teacher', '+381645550001')
+    expect(await screen.findByText('Broj telefona je sačuvan.')).toBeInTheDocument()
+    expect(teacherApi.state.myPhone).toBe('+381645550001')
+    await waitFor(() =>
+      expect(screen.queryByText(/Nemate upisan broj telefona/)).not.toBeInTheDocument(),
+    )
+  })
+
+  it('changes the number, written however the teacher likes', async () => {
+    const { teacherApi } = await open()
+    await userEvent.clear(await field())
+    await userEvent.type(await field(), '+1 (415) 555-2671')
+    await userEvent.click(save())
+    expect(teacherApi.setPhone).toHaveBeenCalledWith('p-teacher', '+14155552671')
+    expect(await screen.findByText('Broj telefona je sačuvan.')).toBeInTheDocument()
+  })
+
+  it('has nothing to save until the number changes', async () => {
+    await open()
+    await field()
+    expect(save()).toBeDisabled()
+    await userEvent.type(await field(), '1')
+    expect(save()).toBeEnabled()
+  })
+
+  it('requires a number: it cannot be emptied', async () => {
+    const { teacherApi } = await open()
+    await userEvent.clear(await field())
+    await userEvent.click(save())
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unesite broj telefona.')
+    expect(teacherApi.setPhone).not.toHaveBeenCalled()
+  })
+
+  it('wants the international form', async () => {
+    const { teacherApi } = await open()
+    await userEvent.clear(await field())
+    await userEvent.type(await field(), '064 555 0001')
+    await userEvent.click(save())
+    expect(await screen.findByRole('alert')).toHaveTextContent(INVALID_PHONE)
+    expect(teacherApi.setPhone).not.toHaveBeenCalled()
+  })
+
+  it('explains a failure and keeps what was typed', async () => {
+    const api = createFakeTeacherApi()
+    api.failNext('setPhone', new AdminError('network'))
+    await open(api)
+    await userEvent.clear(await field())
+    await userEvent.type(await field(), '+381645550001')
+    await userEvent.click(save())
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nema veze sa serverom.')
+    expect(await field()).toHaveValue('+381645550001')
+    expect(screen.queryByText('Broj telefona je sačuvan.')).not.toBeInTheDocument()
+  })
+
+  it('does not save twice while the first request runs', async () => {
+    const api = createFakeTeacherApi()
+    await open(api)
+    const release = api.hold('setPhone')
+    await userEvent.clear(await field())
+    await userEvent.type(await field(), '+381645550001')
+    await userEvent.click(save())
+    expect(save()).toBeDisabled()
+    release()
+    expect(await screen.findByText('Broj telefona je sačuvan.')).toBeInTheDocument()
+    expect(api.calls.setPhone).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not stop the colours from loading when the number cannot be read, and the other way round', async () => {
+    const api = createFakeTeacherApi()
+    api.failNext('myPhone', new AdminError('network'))
+    renderTeacher(PATH, { api })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nema veze sa serverom.')
+    expect(await radio('Bez izbora (podrazumevana boja)')).toBeInTheDocument()
   })
 })
 

@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { INVALID_PHONE } from '../../lib/phone'
 import { personas } from '../../test/fixtures'
 import { createFakeAdminApi, seed } from '../../test/fakeAdminApi'
 import { inDialog, page, renderAdmin } from '../../test/renderAdmin'
@@ -37,6 +38,15 @@ describe('teachers list', () => {
     expect(within(await row('Marko Jovanović')).queryByText(/Zemun/)).not.toBeInTheDocument()
   })
 
+  it("shows every teacher's number, and marks one who has none", async () => {
+    await open()
+    expect(screen.getByRole('columnheader', { name: 'Telefon' })).toBeInTheDocument()
+    expect(within(await row('Ana Nikolić')).getByText('+381641110003')).toBeInTheDocument()
+    expect(within(await row('Marko Jovanović')).getByText('+381641110004')).toBeInTheDocument()
+    expect(within(await row('Goran Savić')).getByText('nedostaje broj')).toBeInTheDocument()
+    expect(within(await row('Ana Nikolić')).queryByText('nedostaje broj')).not.toBeInTheDocument()
+  })
+
   it('marks a teacher who has not signed in yet', async () => {
     await open()
     expect(
@@ -70,6 +80,7 @@ describe('adding a teacher', () => {
     await userEvent.type(dialog.getByLabelText('Email'), email)
     await userEvent.type(dialog.getByLabelText('Ime'), ' Novi ')
     await userEvent.type(dialog.getByLabelText('Prezime'), 'Nastavnik')
+    await userEvent.type(dialog.getByLabelText('Telefon'), '+381 64 123 4567')
   }
 
   it('creates the teacher with a trimmed, lower-case email and the chosen subjects', async () => {
@@ -88,6 +99,7 @@ describe('adding a teacher', () => {
       lastName: 'Nastavnik',
       subjectIds: ['s-fiz'],
       locationIds: ['l-second'],
+      phone: '+381641234567',
     })
     expect(await row('Novi Nastavnik')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -113,6 +125,15 @@ describe('adding a teacher', () => {
 
     await userEvent.type(dialog.getByLabelText('Ime'), 'Ime')
     await userEvent.type(dialog.getByLabelText('Prezime'), 'Prezime')
+    await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
+    expect(dialog.getByText('Unesite broj telefona.')).toBeInTheDocument()
+
+    await userEvent.type(dialog.getByLabelText('Telefon'), '064 123 4567')
+    await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
+    expect(dialog.getByText(INVALID_PHONE)).toBeInTheDocument()
+
+    await userEvent.clear(dialog.getByLabelText('Telefon'))
+    await userEvent.type(dialog.getByLabelText('Telefon'), '+381 64 123 4567')
     await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
     expect(dialog.getByText('Izaberite bar jedan predmet.')).toBeInTheDocument()
 
@@ -176,6 +197,22 @@ describe('adding a teacher', () => {
       await screen.findByText('Pre nego što dodate nastavnika, dodajte bar jednu lokaciju.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Dodaj nastavnika' })).toBeDisabled()
+  })
+
+  it("explains the database's refusal of the number", async () => {
+    const api = createFakeAdminApi()
+    await open('/administracija/nastavnici', { api })
+    await userEvent.click(screen.getByRole('button', { name: 'Dodaj nastavnika' }))
+    const dialog = await inDialog('Dodaj nastavnika')
+    await fill(dialog)
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Fizika' }))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Glavna lokacija' }))
+    api.failNext('createTeacher', new AdminError('PT400', 'a teacher needs a phone number'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Unesite broj telefona nastavnika.')
+    api.failNext('createTeacher', new AdminError('PT400', 'invalid phone number'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
+    await waitFor(() => expect(dialog.getByRole('alert')).toHaveTextContent(INVALID_PHONE))
   })
 
   it('explains the database refusing a location that is gone', async () => {
@@ -243,6 +280,86 @@ describe("editing a teacher's subjects", () => {
 
     expect(dialog.getByText('Izaberite bar jedan predmet.')).toBeInTheDocument()
     expect(adminApi.setTeacherSubjects).not.toHaveBeenCalled()
+  })
+})
+
+describe("editing a teacher's phone number", () => {
+  const openPhone = async (name: string) => {
+    const view = await open()
+    await userEvent.click(within(await row(name)).getByRole('button', { name: 'Telefon' }))
+    return { ...view, dialog: await inDialog('Broj telefona') }
+  }
+
+  it('starts from the number there is, and saves the new one in the usual form', async () => {
+    const { adminApi, dialog } = await openPhone('Ana Nikolić')
+    expect(dialog.getByLabelText('Broj telefona')).toHaveValue('+381641110003')
+    expect(dialog.getByText('Ana Nikolić')).toBeInTheDocument()
+    await userEvent.clear(dialog.getByLabelText('Broj telefona'))
+    await userEvent.type(dialog.getByLabelText('Broj telefona'), '00 381 65 999 8888')
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+
+    expect(adminApi.setPersonPhone).toHaveBeenCalledWith('t-ana', '+381659998888')
+    expect(await screen.findByRole('status')).toHaveTextContent('Broj telefona je sačuvan.')
+    expect(await within(await row('Ana Nikolić')).findByText('+381659998888')).toBeInTheDocument()
+  })
+
+  it('gives a teacher who has none a number, also a deactivated one', async () => {
+    const { adminApi, dialog } = await openPhone('Goran Savić')
+    expect(dialog.getByLabelText('Broj telefona')).toHaveValue('')
+    await userEvent.type(dialog.getByLabelText('Broj telefona'), '+381 66 111 2222')
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    expect(adminApi.setPersonPhone).toHaveBeenCalledWith('t-gone', '+381661112222')
+    const goran = within(await row('Goran Savić'))
+    expect(await goran.findByText('+381661112222')).toBeInTheDocument()
+    expect(goran.queryByText('nedostaje broj')).not.toBeInTheDocument()
+  })
+
+  it('does not let a teacher be left without one, or accept what is not a number', async () => {
+    const { adminApi, dialog } = await openPhone('Ana Nikolić')
+    await userEvent.clear(dialog.getByLabelText('Broj telefona'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    expect(dialog.getByRole('alert')).toHaveTextContent('Unesite broj telefona.')
+    await userEvent.type(dialog.getByLabelText('Broj telefona'), '065 111 2222')
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    expect(dialog.getByRole('alert')).toHaveTextContent(INVALID_PHONE)
+    expect(adminApi.setPersonPhone).not.toHaveBeenCalled()
+  })
+
+  it('closes without asking the backend when the number is the same, however it is written', async () => {
+    const { adminApi, dialog } = await openPhone('Ana Nikolić')
+    await userEvent.clear(dialog.getByLabelText('Broj telefona'))
+    await userEvent.type(dialog.getByLabelText('Broj telefona'), '+381 64 111 0003')
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(adminApi.setPersonPhone).not.toHaveBeenCalled()
+  })
+
+  it("explains the database's refusals", async () => {
+    const { adminApi, dialog } = await openPhone('Ana Nikolić')
+    await userEvent.clear(dialog.getByLabelText('Broj telefona'))
+    await userEvent.type(dialog.getByLabelText('Broj telefona'), '+381651112222')
+    adminApi.failNext('setPersonPhone', new AdminError('PT409', 'this person was erased'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Nalog je obrisan. Osvežite stranicu.',
+    )
+    adminApi.failNext(
+      'setPersonPhone',
+      new AdminError('PT409', 'a teacher or parent needs a phone number'),
+    )
+    await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
+    await waitFor(() =>
+      expect(dialog.getByRole('alert')).toHaveTextContent(
+        'Nastavnik i roditelj moraju da imaju broj telefona.',
+      ),
+    )
+  })
+
+  it('leaves everything alone when cancelled', async () => {
+    const { adminApi, dialog } = await openPhone('Ana Nikolić')
+    await userEvent.click(dialog.getByRole('button', { name: 'Odustani' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(adminApi.setPersonPhone).not.toHaveBeenCalled()
   })
 })
 

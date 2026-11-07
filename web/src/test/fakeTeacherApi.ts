@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 import { AdminError } from '../admin/adminApi'
+import { normalizePhone } from '../lib/phone'
 import { isDayLocked, schoolDayStart } from '../teacher/schoolDay'
 import {
   MAX_LESSON_STUDENTS,
@@ -16,6 +17,9 @@ import {
 } from '../teacher/teacherApi'
 
 /** Wednesday 4 November 2026, 11:00 in Belgrade: the "now" of the lesson tests. */
+/** The profile id of the signed-in teacher (the `teacher` persona). */
+export const OWN_PROFILE = 'p-teacher'
+
 export const TEST_NOW = new Date('2026-11-04T10:00:00Z')
 
 export interface FakeTeacherState {
@@ -25,6 +29,8 @@ export interface FakeTeacherState {
   lessons: LessonRow[]
   busy: BusyRow[]
   now: Date
+  /** The signed-in teacher's own number; null when they have not given one. */
+  myPhone: string | null
 }
 
 type Methods = keyof TeacherApi
@@ -41,12 +47,19 @@ export interface FakeTeacherApi extends TeacherApi {
 /** "Petrović" -> "petrovic": the seed emails are plain ASCII, like the ones typed in the tests. */
 const ascii = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-const parent = (id: string, first: string, last: string, signedIn = false): ParentRow => ({
+const parent = (
+  id: string,
+  first: string,
+  last: string,
+  signedIn = false,
+  phone: string | null = null,
+): ParentRow => ({
   id,
   email: `${ascii(first)}.${ascii(last)}@example.test`,
   firstName: first,
   lastName: last,
   hasSignedIn: signedIn,
+  phone,
 })
 
 export const seedTeacher = (): FakeTeacherState => ({
@@ -61,8 +74,9 @@ export const seedTeacher = (): FakeTeacherState => ({
       school: 'OŠ Vuk Karadžić',
       grade: '7',
       section: 'a',
+      phone: '+381641110001',
       parents: [
-        parent('pr-mira', 'Mira', 'Petrović', true),
+        parent('pr-mira', 'Mira', 'Petrović', true, '+381641110002'),
         parent('pr-zoran', 'Zoran', 'Petrović'),
       ],
     },
@@ -76,6 +90,7 @@ export const seedTeacher = (): FakeTeacherState => ({
       school: null,
       grade: null,
       section: null,
+      phone: null,
       parents: [],
     },
   ],
@@ -122,6 +137,7 @@ export const seedTeacher = (): FakeTeacherState => ({
     colleagues: [{ id: 't-marko', firstName: 'Marko', lastName: 'Jovanović', color: null }],
   },
   now: TEST_NOW,
+  myPhone: '+381641110099',
   lessons: [
     {
       // earlier today: over, still open to changes, no outcome yet
@@ -302,6 +318,14 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
       throw new AdminError('23514', 'slot length')
   }
 
+  /** What a number has to be, as the database decides it: null for none, a message for one that is not a number. */
+  const checkPhone = (phone: string | null | undefined): string | null => {
+    if (!phone || phone.trim() === '') return null
+    const normal = normalizePhone(phone)
+    if (!normal) throw new AdminError('PT400', 'invalid phone number')
+    return normal
+  }
+
   const impl: TeacherApi = {
     async listStudents() {
       await gate('listStudents')
@@ -315,6 +339,7 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
     async addStudent(input) {
       await gate('addStudent')
       checkPerson(input)
+      const phone = checkPhone(input.phone)
       const email = input.email.trim().toLowerCase()
       if (state.students.some((s) => s.email === email))
         throw new AdminError('PT409', 'this person is already a student of this teacher')
@@ -331,6 +356,8 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
         school: input.school?.trim() || null,
         grade: input.grade?.trim() || null,
         section: input.section?.trim() || null,
+        // a person who is known keeps the number they have
+        phone: person ? person.phone : phone,
         parents: [],
       })
       return id
@@ -379,6 +406,9 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
     async addParent(studentId, input) {
       await gate('addParent')
       checkPerson(input)
+      if (!input.phone || input.phone.trim() === '')
+        throw new AdminError('PT400', 'a parent needs a phone number')
+      const phone = checkPhone(input.phone)
       const student = state.students.find((s) => s.id === studentId)
       if (!student) throw new AdminError('PT403', 'not allowed')
       const email = input.email.trim().toLowerCase()
@@ -393,7 +423,32 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
         firstName: existing ? existing.firstName : input.firstName.trim(),
         lastName: existing ? existing.lastName : input.lastName.trim(),
         hasSignedIn: false,
+        phone: existing ? existing.phone : phone,
       })
+    },
+    async setPhone(profileId, phone) {
+      await gate('setPhone')
+      const blank = !phone || phone.trim() === ''
+      if (profileId === OWN_PROFILE) {
+        if (blank) throw new AdminError('PT409', 'a teacher or parent needs a phone number')
+        state.myPhone = checkPhone(phone)
+        return
+      }
+      const isStudent = state.students.some((s) => s.profileId === profileId)
+      const isParent = state.students.some((s) => s.parents.some((p) => p.id === profileId))
+      if (!isStudent && !isParent) throw new AdminError('PT403', 'not allowed')
+      if (blank && isParent)
+        throw new AdminError('PT409', 'a teacher or parent needs a phone number')
+      const normal = blank ? null : checkPhone(phone)
+      // a number belongs to the person, wherever they appear
+      for (const student of state.students) {
+        if (student.profileId === profileId) student.phone = normal
+        for (const p of student.parents) if (p.id === profileId) p.phone = normal
+      }
+    },
+    async myPhone() {
+      await gate('myPhone')
+      return state.myPhone
     },
     async removeParent(studentId, parentId) {
       await gate('removeParent')

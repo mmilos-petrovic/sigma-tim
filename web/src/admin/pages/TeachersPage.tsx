@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useMember } from '../../components/guards'
 import { Field, FormDialog, LocationChoice, SubjectChoice } from '../../components/FormDialog'
 import { LoadError, Loaded, Loading, Notice, PageHeader } from '../../components/Loaded'
+import { PhoneDialog, PhoneLine } from '../../components/PhoneDialog'
+import { normalizePhone, phoneProblem } from '../../lib/phone'
+
 import { formatDay, formatRange } from '../../teacher/format'
 import { useAdminApi } from '../AdminApiProvider'
 import { AdminError, type LocationRow, type Subject, type TeacherRow } from '../adminApi'
@@ -20,7 +23,7 @@ const sameName = (typed: string, name: string) => squash(typed) === squash(name)
 type Dialog =
   | { kind: 'add' }
   | {
-      kind: 'subjects' | 'locations' | 'email' | 'deactivate' | 'activate' | 'erase'
+      kind: 'subjects' | 'locations' | 'phone' | 'email' | 'deactivate' | 'activate' | 'erase'
       teacher: TeacherRow
     }
   | null
@@ -43,6 +46,7 @@ function AddTeacherDialog({
   const [lastName, setLastName] = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [selectedLocations, setSelectedLocations] = useState<string[]>([])
+  const [phone, setPhone] = useState('')
 
   return (
     <FormDialog
@@ -53,6 +57,8 @@ function AddTeacherDialog({
       validate={() => {
         if (!EMAIL.test(normaliseEmail(email))) return 'Unesite ispravnu email adresu.'
         if (!firstName.trim() || !lastName.trim()) return 'Unesite ime i prezime.'
+        const phoneIssue = phoneProblem(phone, true)
+        if (phoneIssue) return phoneIssue
         if (selected.length === 0) return 'Izaberite bar jedan predmet.'
         if (selectedLocations.length === 0) return 'Izaberite bar jednu lokaciju.'
         return null
@@ -64,6 +70,7 @@ function AddTeacherDialog({
           lastName: lastName.trim(),
           subjectIds: selected,
           locationIds: selectedLocations,
+          phone: normalizePhone(phone) ?? '',
         })
         await refresh()
         onDone('Nastavnik je dodat.')
@@ -87,6 +94,7 @@ function AddTeacherDialog({
         maxLength={100}
         autoComplete="family-name"
       />
+      <Field label="Telefon" type="tel" value={phone} onChange={setPhone} maxLength={30} />
       <SubjectChoice subjects={subjects} selected={selected} onChange={setSelected} />
       <LocationChoice
         locations={locations}
@@ -192,6 +200,25 @@ function LocationsDialog({
       </p>
       <LocationChoice locations={locations} selected={selected} onChange={setSelected} />
     </FormDialog>
+  )
+}
+
+function TeacherPhoneDialog({ teacher, onClose, onDone }: DialogProps & { teacher: TeacherRow }) {
+  const api = useAdminApi()
+  const refresh = useRefresh()
+  return (
+    <PhoneDialog
+      personName={fullName(teacher)}
+      current={teacher.phone}
+      required
+      save={async (next) => {
+        await api.setPersonPhone(teacher.id, next)
+        await refresh()
+      }}
+      onClose={onClose}
+      // null: nothing changed, so there is nothing to report
+      onDone={(message) => (message ? onDone(message) : onClose())}
+    />
   )
 }
 
@@ -432,6 +459,7 @@ export function TeachersPage() {
                             <th>Email</th>
                             <th>Predmeti</th>
                             <th>Lokacije</th>
+                            <th>Telefon</th>
                             <th>Status</th>
                             <th>
                               <span className="visually-hidden">Radnje</span>
@@ -445,6 +473,7 @@ export function TeachersPage() {
                               kind:
                                 | 'subjects'
                                 | 'locations'
+                                | 'phone'
                                 | 'email'
                                 | 'deactivate'
                                 | 'activate'
@@ -467,6 +496,7 @@ export function TeachersPage() {
                                 </td>
                                 <td>{subjectsOf(teacher)}</td>
                                 <td>{locationsOf(teacher)}</td>
+                                <td>{teacher.phone ?? <PhoneLine phone={null} required />}</td>
                                 <td>{teacher.isActive ? 'Aktivan' : 'Deaktiviran'}</td>
                                 <td className="table__actions">
                                   <button
@@ -483,6 +513,14 @@ export function TeachersPage() {
                                   >
                                     Lokacije
                                   </button>
+                                  <button
+                                    type="button"
+                                    className="button button--small button--secondary"
+                                    onClick={() => open('phone')}
+                                  >
+                                    Telefon
+                                  </button>
+
                                   {!own && (
                                     <button
                                       type="button"
@@ -574,6 +612,9 @@ export function TeachersPage() {
           onClose={close}
           onDone={done}
         />
+      )}
+      {dialog?.kind === 'phone' && (
+        <TeacherPhoneDialog teacher={dialog.teacher} onClose={close} onDone={done} />
       )}
       {dialog?.kind === 'email' && (
         <EmailDialog teacher={dialog.teacher} onClose={close} onDone={done} />

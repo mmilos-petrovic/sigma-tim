@@ -2,7 +2,8 @@ import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { explainError } from '../../admin/errors'
 import { SelectField } from '../../components/FormDialog'
 import { Loaded, Loading, LoadError, Notice, PageHeader } from '../../components/Loaded'
-import { CONTEXT_LABEL } from '../../auth/roles'
+import { Link } from 'react-router'
+import { CONTEXT_LABEL, homePath } from '../../auth/roles'
 import { useNow } from '../clock'
 import { ConflictDialog } from '../lessons/ConflictDialog'
 import { LessonDialog } from '../lessons/LessonDialog'
@@ -12,6 +13,7 @@ import { SlotDialog } from '../lessons/SlotDialog'
 import {
   useBusy,
   useLessons,
+  useMyPhone,
   usePending,
   useReference,
   useRefresh,
@@ -43,6 +45,7 @@ export function SchedulePage() {
   const reference = useReference()
   const students = useStudents()
   const pending = usePending()
+  const myPhone = useMyPhone()
 
   const [range, setRange] = useState<TimeRange | null>(null)
   const lessons = useLessons(range)
@@ -157,6 +160,12 @@ export function SchedulePage() {
       {error && (
         <p role="alert" className="form-error">
           {error}
+        </p>
+      )}
+      {myPhone.isSuccess && myPhone.data === null && (
+        <p role="note" className="warning">
+          <strong>Nemate upisan broj telefona.</strong> Potreban je za obaveštenja. Upišite ga u{' '}
+          <Link to={`${homePath('teacher')}/podesavanja`}>Podešavanja</Link>.
         </p>
       )}
       {noLocation && (
