@@ -139,13 +139,15 @@ select is(
   tests.affected($$ update public.lessons set start_at = start_at + interval '1 day', end_at = end_at + interval '1 day' where id = tests.id('les:slot') $$),
   1, 'a free slot can be moved to another time ahead'
 );
+-- (Within the first hours of a Belgrade day "an hour ago" is yesterday, and the rule about days that have passed answers
+-- before the rule about free slots does; both refuse, so the test expects whichever applies at this moment.)
 select throws_ok(
   $$ update public.lessons set start_at = tests.at(-60), end_at = tests.at(0) where id = tests.id('les:slot') $$,
-  '42501', null, 'but not into the past'
+  case when tests.at(-60) >= tests.today_start() then '42501' else 'PT400' end, null, 'but not into the past'
 );
 select throws_ok(
   $$ update public.lessons set room_id = tests.id('room:R1') where id = tests.id('les:slot_past') $$,
-  '42501', null, 'an expired free slot is left alone'
+  case when tests.at(-120) >= tests.today_start() then '42501' else 'PT409' end, null, 'an expired free slot is left alone'
 );
 
 -- the subject is frozen like the rest (boss teaches two subjects, so the change itself is valid)
