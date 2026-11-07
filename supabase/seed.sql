@@ -66,3 +66,16 @@ select pa.id, st.id
 -- Every teacher may use every location (the administrator narrows this down per teacher in the app).
 insert into public.teacher_locations (teacher_id, location_id)
 select t.profile_id, l.id from public.teachers t cross join public.locations l;
+
+-- Phone numbers (clearly made up): required for teachers and parents, optional for students, so one student has one.
+insert into public.person_phones (profile_id, phone)
+select p.id, v.phone
+  from (values
+    ('petrovicmilos@gmail.com', '+381600000001'),
+    ('admin.nastavnik@example.test', '+381600000002'),
+    ('ana.nikolic@example.test', '+381600000003'),
+    ('marko.jovanovic@example.test', '+381600000004'),
+    ('roditelj1@example.test', '+381600000005'),
+    ('ucenik1@example.test', '+381600000006')
+  ) as v (email, phone)
+  join public.profiles p on p.email = v.email;

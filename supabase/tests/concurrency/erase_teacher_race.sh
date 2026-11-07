@@ -7,6 +7,8 @@
 #      for A and then be refused, because the teacher is erased: an erased record must never become active again.
 #   2. A erases a teacher, B erases the same teacher. B must wait for A and then be refused ("already erased"), not run
 #      the whole erase a second time.
+#   3. A erases a teacher, B sets that teacher's phone number. B must wait for A and then be refused, and no number may
+#      be left on the erased record.
 #
 # Needs the local stack (`npm run db:start`) and docker. It commits real rows and removes them again on exit.
 set -euo pipefail
@@ -29,6 +31,7 @@ delete from public.lesson_students where lesson_id in
 delete from public.lessons where teacher_id in (select id from public.profiles where first_name = 'EraseRace');
 delete from public.teacher_subjects where teacher_id in (select id from public.profiles where first_name = 'EraseRace');
 delete from public.teacher_locations where teacher_id in (select id from public.profiles where first_name = 'EraseRace');
+delete from public.person_phones where profile_id in (select id from public.profiles where first_name = 'EraseRace');
 delete from public.teachers where profile_id in (select id from public.profiles where first_name = 'EraseRace');
 delete from public.profiles where first_name = 'EraseRace';
 delete from auth.users where email like '%@erase.test';
@@ -45,7 +48,8 @@ insert into public.locations (name, address) values ('Erase Race Location', 'Str
 insert into public.profiles (email, first_name, last_name, is_admin) values
   ('admin@erase.test', 'EraseRace', 'Admin', true),
   ('t1@erase.test', 'EraseRace', 'One', false),
-  ('t2@erase.test', 'EraseRace', 'Two', false);
+  ('t2@erase.test', 'EraseRace', 'Two', false),
+  ('t3@erase.test', 'EraseRace', 'Three', false);
 insert into public.teachers (profile_id, is_active)
   select id, email <> 't1@erase.test' from public.profiles where first_name = 'EraseRace' and email like 't_@erase.test';
 insert into public.teacher_subjects (teacher_id, subject_id)
@@ -70,6 +74,9 @@ SQL
 admin_user=$(psql_ -c "select id from auth.users where email = 'admin@erase.test'")
 t1=$(psql_ -c "select id from public.profiles where email = 't1@erase.test'")
 t2=$(psql_ -c "select id from public.profiles where email = 't2@erase.test'")
+t3=$(psql_ -c "select id from public.profiles where email = 't3@erase.test'")
+psql_ -c "insert into public.person_phones (profile_id, phone) values ('$t3', '+381641234567')"
+
 
 as_admin() { # a statement, run in the administrator's session, followed by $2 seconds with the transaction still open
   psql_ 2>&1 <<SQL || true
@@ -108,6 +115,10 @@ check "the erased teacher stays inactive" "f" "$(psql_ -c "select is_active from
 
 race "erase against erase" "select public.erase_teacher('$t2');" "select public.erase_teacher('$t2');" "this person was already erased"
 check "the profile was erased once" "1" "$(psql_ -c "select count(*) from public.profiles where id = '$t2' and erased_at is not null")"
+
+# a number must not be written for somebody who is being erased: the erase clears it, and a late write is refused
+race "erase against setting a number" "select public.erase_teacher('$t3');" "select public.set_person_phone('$t3', '+381641111111');" "this person was erased"
+check "the erased teacher has no number" "0" "$(psql_ -c "select count(*) from public.person_phones where profile_id = '$t3'")"
 
 if [ "$failures" -ne 0 ]; then echo "$failures check(s) failed"; exit 1; fi
 echo "all concurrency checks passed"

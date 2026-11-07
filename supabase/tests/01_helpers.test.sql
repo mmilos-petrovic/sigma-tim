@@ -120,6 +120,13 @@ language sql stable as $$
     from public.teacher_locations tl where tl.teacher_id = tests.id('p:' || p_teacher_key)
 $$;
 
+-- Whose phone number the current role can read, as a sorted key list ('p:ta', ...), among the fixture people.
+create or replace function tests.phones_seen() returns text[]
+language sql stable as $$
+  select coalesce(array_agg(tests.key_of(pp.profile_id) order by tests.key_of(pp.profile_id)), '{}')
+    from public.person_phones pp where pp.profile_id = any(tests.ids('p:'))
+$$;
+
 -- Who was queued a cancellation notice for the lesson (sorted keys). Only meaningful as postgres:
 -- clients never see the outbox.
 create or replace function tests.notified(p_lesson_key text, p_reason text default null) returns text[]

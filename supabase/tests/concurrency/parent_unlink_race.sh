@@ -67,7 +67,7 @@ SQL
 }
 
 link_out=$(mktemp)
-as_teacher "select public.add_parent_to_student('$student_2', 'parent@unlink.test', 'Unlink', 'Parent');" 3 >"$link_out" &
+as_teacher "select public.add_parent_to_student('$student_2', 'parent@unlink.test', 'Unlink', 'Parent', '+381641234567');" 3 >"$link_out" &
 pid_a=$!
 sleep 1 # A has added the link and holds its transaction open
 
