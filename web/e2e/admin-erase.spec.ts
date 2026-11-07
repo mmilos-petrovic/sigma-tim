@@ -55,6 +55,7 @@ test.describe('erasing a teacher', () => {
     await add.getByLabel('Email').fill(email)
     await add.getByLabel('Ime', { exact: true }).fill('E2E')
     await add.getByLabel('Prezime').fill(`Brisanje${run}`)
+    await add.getByLabel('Telefon').fill('+381 64 123 4567')
     await add.getByRole('checkbox', { name: 'Matematika' }).check()
     await add.getByRole('checkbox', { name: 'Glavna lokacija' }).check()
     await add.getByRole('button', { name: 'Dodaj' }).click()
@@ -73,6 +74,7 @@ test.describe('erasing a teacher', () => {
       p_last_name: `Ponovo${run}`,
       p_subject_ids: [math.id],
       p_location_ids: [main.id],
+      p_phone: '+381641234567',
     })
     expect(await select(request, admin, `profiles?email=eq.${email}&select=id`)).toHaveLength(1)
 
@@ -105,6 +107,7 @@ test.describe('erasing a teacher', () => {
       p_last_name: `Evidencija${run}`,
       p_subject_ids: [math.id],
       p_location_ids: [main.id],
+      p_phone: '+381641234567',
     })
 
     try {

@@ -12,6 +12,8 @@ export interface ParentRow {
   lastName: string
   /** False until the person has signed in with Google for the first time. */
   hasSignedIn: boolean
+  /** In the international form; null when none is known (a parent is meant to have one). */
+  phone: string | null
 }
 
 export interface StudentRow {
@@ -26,6 +28,8 @@ export interface StudentRow {
   school: string | null
   grade: string | null
   section: string | null
+  /** In the international form; a student's number is optional. */
+  phone: string | null
   parents: ParentRow[]
 }
 
@@ -54,7 +58,15 @@ export interface StudentDetails {
   section: string | null
 }
 
-export interface StudentInput extends PersonInput, StudentDetails {}
+export interface StudentInput extends PersonInput, StudentDetails {
+  /** Optional; as typed (the database normalises it). */
+  phone?: string | null
+}
+
+/** A parent is added with a phone number. */
+export interface ParentInput extends PersonInput {
+  phone: string
+}
 
 // Lessons ---------------------------------------------------------------------------------------------------------
 
@@ -196,7 +208,14 @@ export interface TeacherApi {
    */
   changeStudentEmail(studentId: string, email: string): Promise<void>
   /** Links a parent by email; an existing parent is reused. */
-  addParent(studentId: string, input: PersonInput): Promise<void>
+  addParent(studentId: string, input: ParentInput): Promise<void>
+  /**
+   * Sets the phone number of one of the teacher's students or of a parent of one, or the teacher's own. `null` takes it
+   * away, which the database refuses for a teacher and a parent (`PT409`).
+   */
+  setPhone(profileId: string, phone: string | null): Promise<void>
+  /** The teacher's own number, or null when they have not given one yet. */
+  myPhone(profileId: string): Promise<string | null>
   removeParent(studentId: string, parentId: string): Promise<void>
   requestTakeover(studentId: string): Promise<void>
 

@@ -4,6 +4,7 @@ import {
   mapConflict,
   mapLesson,
   mapLocation,
+  mapPhones,
   mapReference,
   mapStudent,
   mapUnassigned,
@@ -59,6 +60,41 @@ describe('mapStudent', () => {
   it('keeps missing school details as null', () => {
     const mapped = mapStudent({ ...row, school: null, grade: null, class_section: null })
     expect([mapped.school, mapped.grade, mapped.section]).toEqual([null, null, null])
+  })
+
+  it('gives the student and the parents the numbers the database showed, and null for the rest', () => {
+    const phones = mapPhones([
+      { profile_id: 'pr-1', phone: '+381641234567' },
+      { profile_id: 'pr-2', phone: '+381651234567' },
+    ])
+    const mapped = mapStudent(row, phones)
+    expect(mapped.phone).toBe('+381641234567')
+    expect(mapped.parents.map((p) => [p.id, p.phone])).toEqual([
+      ['pr-2', '+381651234567'],
+      ['pr-3', null],
+    ])
+  })
+
+  it('has no number for anybody when the database showed none', () => {
+    const mapped = mapStudent(row)
+    expect(mapped.phone).toBeNull()
+    expect(mapped.parents.every((p) => p.phone === null)).toBe(true)
+  })
+})
+
+describe('mapPhones', () => {
+  it('maps the rows by the profile they belong to', () => {
+    const phones = mapPhones([
+      { profile_id: 'a', phone: '+381641111111' },
+      { profile_id: 'b', phone: '+381642222222' },
+    ])
+    expect(phones.get('a')).toBe('+381641111111')
+    expect(phones.get('b')).toBe('+381642222222')
+    expect(phones.get('c')).toBeUndefined()
+  })
+
+  it('copes with no rows', () => {
+    expect(mapPhones([]).size).toBe(0)
   })
 })
 

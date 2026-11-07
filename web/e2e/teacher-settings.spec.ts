@@ -72,9 +72,9 @@ test.describe("a teacher's colour", () => {
       await expect(
         page.getByRole('radio', { name: 'Bez izbora (podrazumevana boja)' }),
       ).toBeChecked()
-      await expect(page.getByRole('button', { name: 'Sačuvaj' })).toBeDisabled()
+      await expect(page.getByRole('button', { name: 'Sačuvaj', exact: true })).toBeDisabled()
       await page.getByRole('radio', { name: 'Tirkizna' }).check()
-      await page.getByRole('button', { name: 'Sačuvaj' }).click()
+      await page.getByRole('button', { name: 'Sačuvaj', exact: true }).click()
       await expect(page.getByRole('status')).toHaveText('Boja je sačuvana.')
       expect(await colorOf()).toBe('teal')
 
@@ -104,7 +104,7 @@ test.describe("a teacher's colour", () => {
         .getByRole('link', { name: 'Podešavanja' })
         .click()
       await page.getByRole('radio', { name: 'Bez izbora (podrazumevana boja)' }).check()
-      await page.getByRole('button', { name: 'Sačuvaj' }).click()
+      await page.getByRole('button', { name: 'Sačuvaj', exact: true }).click()
       await expect(page.getByRole('status')).toHaveText('Boja je sačuvana.')
       expect(await colorOf()).toBeNull()
     } finally {

@@ -1,7 +1,12 @@
+import { INVALID_PHONE } from '../lib/phone'
 import { AdminError, type ActionKey } from './adminApi'
 
 const GENERIC = 'Došlo je do greške. Pokušajte ponovo.'
 const FORBIDDEN = 'Nemate dozvolu za ovu radnju.'
+
+/** A refused phone number: not a number, or missing for somebody who needs one (`who`: "nastavnika", "roditelja"). */
+const phoneMessage = (message: string, who: string) =>
+  /invalid/i.test(message) ? INVALID_PHONE : `Unesite broj telefona ${who}.`
 
 /** The Serbian message for a failed action. The database's own messages are for developers and never shown. */
 export function explainError(error: unknown, action: ActionKey): string {
@@ -56,6 +61,7 @@ export function explainError(error: unknown, action: ActionKey): string {
     case 'createTeacher':
       if (code === 'PT409') return 'Ova osoba je već nastavnik.'
       if (code === 'PT400') {
+        if (/phone/i.test(message)) return phoneMessage(message, 'nastavnika')
         if (/email/i.test(message)) return 'Email adresa nije ispravna.'
         if (/name/i.test(message)) return 'Ime i prezime su obavezni.'
         if (/subject/i.test(message)) return 'Izaberite bar jedan predmet.'
@@ -130,6 +136,7 @@ export function explainError(error: unknown, action: ActionKey): string {
     case 'addStudent':
       if (code === 'PT409') return 'Ovaj učenik je već među vašim učenicima.'
       if (code === 'PT400') {
+        if (/phone/i.test(message)) return INVALID_PHONE
         if (/email/i.test(message)) return 'Email adresa nije ispravna.'
         if (/name/i.test(message)) return 'Ime i prezime su obavezni.'
       }
@@ -143,12 +150,20 @@ export function explainError(error: unknown, action: ActionKey): string {
         return 'Ova adresa već pripada drugoj osobi.'
       }
       break
+    case 'setPhone':
+      if (code === 'PT400') return INVALID_PHONE
+      if (code === 'PT409') {
+        if (/erased/i.test(message)) return 'Nalog je obrisan. Osvežite stranicu.'
+        return 'Nastavnik i roditelj moraju da imaju broj telefona.'
+      }
+      break
     case 'renamePerson':
       if (code === 'PT400') return 'Ime i prezime su obavezni (najviše 100 znakova).'
       break
     case 'addParent':
       if (code === 'PT409') return 'Učenik već ima dva roditelja.'
       if (code === 'PT400') {
+        if (/phone/i.test(message)) return phoneMessage(message, 'roditelja')
         if (/email/i.test(message)) return 'Email adresa nije ispravna.'
         if (/name/i.test(message)) return 'Ime i prezime su obavezni.'
       }

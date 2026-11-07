@@ -21,6 +21,49 @@ async function openNewLesson() {
   return inDialog('Novi čas')
 }
 
+describe('the reminder about a missing phone number', () => {
+  it('asks a teacher who has no number to give one, and links to where', async () => {
+    renderTeacher(PATH, { api: createFakeTeacherApi({ myPhone: null }) })
+    await page('Moj raspored')
+    const note = await screen.findByRole('note')
+    expect(note).toHaveTextContent('Nemate upisan broj telefona.')
+    expect(within(note).getByRole('link', { name: 'Podešavanja' })).toHaveAttribute(
+      'href',
+      '/moj-raspored/podesavanja',
+    )
+  })
+
+  it('is not there for a teacher who has one', async () => {
+    renderTeacher(PATH)
+    await page('Moj raspored')
+    await block('Ana Petrović, Luka Ilić – Učionica 1')
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
+  it('does not stop the schedule when the number cannot be read, and does not nag about it', async () => {
+    const api = createFakeTeacherApi()
+    api.failNext('myPhone', new AdminError('network'))
+    renderTeacher(PATH, { api })
+    expect(await block('Ana Petrović, Luka Ilić – Učionica 1')).toBeInTheDocument()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
+  it('goes away once the number is given', async () => {
+    renderTeacher(PATH, { api: createFakeTeacherApi({ myPhone: null }) })
+    await userEvent.click(
+      within(await screen.findByRole('note')).getByRole('link', { name: 'Podešavanja' }),
+    )
+    await page('Podešavanja')
+    await userEvent.type(await screen.findByLabelText('Broj telefona'), '+381645550001')
+    await userEvent.click(screen.getByRole('button', { name: 'Sačuvaj broj' }))
+    await screen.findByText('Broj telefona je sačuvan.')
+    await userEvent.click(screen.getByRole('link', { name: 'Raspored' }))
+    await page('Moj raspored')
+    await block('Ana Petrović, Luka Ilić – Učionica 1')
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+})
+
 describe('the weekly schedule', () => {
   it('shows own lessons, slots and bookings, and colleagues as busy time', async () => {
     renderTeacher(PATH)

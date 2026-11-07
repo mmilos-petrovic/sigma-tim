@@ -48,6 +48,16 @@ export function useReference() {
   })
 }
 
+/** The teacher's own phone number, or null when they have not given one. */
+export function useMyPhone() {
+  const api = useTeacherApi()
+  const teacherId = useTeacherId()
+  return useQuery({
+    queryKey: [...teacher, 'myPhone', teacherId],
+    queryFn: () => api.myPhone(teacherId),
+  })
+}
+
 /** The teacher's lessons and slots in the visible week. The previous week stays on screen while the next one loads. */
 export function useLessons(range: TimeRange | null) {
   const api = useTeacherApi()

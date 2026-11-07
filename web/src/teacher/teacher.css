@@ -189,3 +189,24 @@
   max-width: 16rem;
   margin: 0 0 0.75rem;
 }
+
+/* A person who should have a phone number and has none */
+.badge--warn {
+  margin-left: 0;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* A reminder that does not stop anything */
+.warning {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.warning a {
+  color: inherit;
+  font-weight: 600;
+}

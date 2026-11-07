@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../lib/database.types'
+import { mapPhones } from '../lib/phone'
 import {
   AdminError,
   MAX_LOCATION_PHOTOS,
@@ -75,20 +76,23 @@ export function mapSubject(row: {
   return { id: row.id, name: row.name, teacherCount: row.teachers[0]?.count ?? 0 }
 }
 
-export function mapTeacher(row: {
-  profile_id: string
-  is_active: boolean
-  profile: {
-    email: string
-    first_name: string
-    last_name: string
-    user_id: string | null
-    is_admin: boolean
-    erased_at: string | null
-  }
-  subjects: { subject_id: string }[]
-  locations: { location_id: string }[]
-}): TeacherRow {
+export function mapTeacher(
+  row: {
+    profile_id: string
+    is_active: boolean
+    profile: {
+      email: string
+      first_name: string
+      last_name: string
+      user_id: string | null
+      is_admin: boolean
+      erased_at: string | null
+    }
+    subjects: { subject_id: string }[]
+    locations: { location_id: string }[]
+  },
+  phones: ReadonlyMap<string, string> = new Map(),
+): TeacherRow {
   return {
     id: row.profile_id,
     email: row.profile.email,
@@ -100,6 +104,7 @@ export function mapTeacher(row: {
     erased: row.profile.erased_at !== null,
     subjectIds: row.subjects.map((s) => s.subject_id),
     locationIds: row.locations.map((l) => l.location_id),
+    phone: phones.get(row.profile_id) ?? null,
   }
 }
 
@@ -192,18 +197,23 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
     },
 
     async listTeachers() {
-      const { data } = await run(
-        client
-          .from('teachers')
-          .select(
-            'profile_id, is_active, profile:profiles(email, first_name, last_name, user_id, is_admin, erased_at), subjects:teacher_subjects(subject_id), locations:teacher_locations(location_id)',
-          ),
-      )
-      return (data ?? [])
-        .map((row) => mapTeacher(row as unknown as Parameters<typeof mapTeacher>[0]))
+      // the administrator reads every number
+      const [teachers, numbers] = await Promise.all([
+        run(
+          client
+            .from('teachers')
+            .select(
+              'profile_id, is_active, profile:profiles(email, first_name, last_name, user_id, is_admin, erased_at), subjects:teacher_subjects(subject_id), locations:teacher_locations(location_id)',
+            ),
+        ),
+        run(client.from('person_phones').select('profile_id, phone')),
+      ])
+      const phones = mapPhones(numbers.data ?? [])
+      return (teachers.data ?? [])
+        .map((row) => mapTeacher(row as unknown as Parameters<typeof mapTeacher>[0], phones))
         .sort((a, b) => byName(`${a.lastName} ${a.firstName}`, `${b.lastName} ${b.firstName}`))
     },
-    async createTeacher({ email, firstName, lastName, subjectIds, locationIds }) {
+    async createTeacher({ email, firstName, lastName, subjectIds, locationIds, phone }) {
       await run(
         client.rpc('create_teacher', {
           p_email: email,
@@ -211,8 +221,13 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
           p_last_name: lastName,
           p_subject_ids: subjectIds,
           p_location_ids: locationIds,
+          p_phone: phone,
         }),
       )
+    },
+    async setPersonPhone(profileId, phone) {
+      // an empty number is how the function is told to take it away
+      await run(client.rpc('set_person_phone', { p_profile_id: profileId, p_phone: phone ?? '' }))
     },
     async setTeacherLocations(teacherId, locationIds) {
       await run(

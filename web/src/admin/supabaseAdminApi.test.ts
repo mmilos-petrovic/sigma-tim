@@ -100,7 +100,10 @@ describe('row mappers', () => {
       erased: false,
       subjectIds: ['s1', 's2'],
       locationIds: ['l1'],
+      phone: null,
     })
+    expect(mapTeacher(row, new Map([['t1', '+381641234567']])).phone).toBe('+381641234567')
+    expect(mapTeacher(row, new Map([['other', '+381641234567']])).phone).toBeNull()
     expect(mapTeacher({ ...row, profile: { ...row.profile, user_id: 'u1' } }).hasSignedIn).toBe(
       true,
     )

@@ -229,6 +229,26 @@ isOneToOne: true
       referencedColumns: ["id"]
     }
                   ]
+                },"person_phones": {
+                  Row: {
+                    "phone": string,"profile_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "phone": string,"profile_id": string
+                  }
+                  Update: {
+                    "phone"?: string,"profile_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "person_phones_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"profiles": {
                   Row: {
                     "avatar_url": string | null,"created_at": string,"email": string,"erased_at": string | null,"first_name": string,"id": string,"is_admin": boolean,"last_name": string,"user_id": string | null
@@ -454,10 +474,10 @@ isOneToOne: true
           }
           Functions: {
             "add_parent_to_student":
-{ Args: { "p_email": string,"p_first_name": string,"p_last_name": string,"p_student_id": string }; Returns: string
+{ Args: { "p_email": string,"p_first_name": string,"p_last_name": string,"p_phone": string,"p_student_id": string }; Returns: string
                            },
 "add_student":
-{ Args: { "p_class_section"?: string,"p_email": string,"p_first_name": string,"p_grade"?: string,"p_last_name": string,"p_school"?: string,"p_teacher_id"?: string }; Returns: string
+{ Args: { "p_class_section"?: string,"p_email": string,"p_first_name": string,"p_grade"?: string,"p_last_name": string,"p_phone"?: string,"p_school"?: string,"p_teacher_id"?: string }; Returns: string
                            },
 "approve_takeover":
 { Args: { "p_request_id": string }; Returns: undefined
@@ -483,7 +503,7 @@ isOneToOne: true
 { Args: { "p_lesson_id": string }; Returns: undefined
                            },
 "create_teacher":
-{ Args: { "p_email": string,"p_first_name": string,"p_last_name": string,"p_location_ids": (string)[],"p_subject_ids": (string)[] }; Returns: string
+{ Args: { "p_email": string,"p_first_name": string,"p_last_name": string,"p_location_ids": (string)[],"p_phone": string,"p_subject_ids": (string)[] }; Returns: string
                            },
 "deactivate_teacher":
 { Args: { "p_teacher_id": string }; Returns: undefined
@@ -543,6 +563,9 @@ isOneToOne: true
                            },
 "set_lesson_students":
 { Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: undefined
+                           },
+"set_person_phone":
+{ Args: { "p_phone": string,"p_profile_id": string }; Returns: undefined
                            },
 "set_teacher_locations":
 { Args: { "p_location_ids": (string)[],"p_teacher_id": string }; Returns: undefined

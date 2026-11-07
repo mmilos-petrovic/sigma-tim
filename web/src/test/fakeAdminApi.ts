@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { normalizePhone } from '../lib/phone'
 import {
   AdminError,
   type AdminApi,
@@ -55,6 +56,7 @@ export const seed = (): FakeState => ({
       erased: false,
       subjectIds: ['s-mat', 's-fiz'],
       locationIds: ['l-main', 'l-second'],
+      phone: '+381641110003',
     },
     {
       id: 't-marko',
@@ -67,6 +69,7 @@ export const seed = (): FakeState => ({
       erased: false,
       subjectIds: ['s-hem'],
       locationIds: ['l-main'],
+      phone: '+381641110004',
     },
     {
       id: 't-gone',
@@ -79,6 +82,7 @@ export const seed = (): FakeState => ({
       erased: false,
       subjectIds: ['s-mat'],
       locationIds: ['l-main'],
+      phone: null,
     },
   ],
   locations: [
@@ -195,6 +199,10 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
         throw new AdminError('PT409', 'this person is already a teacher')
       }
       checkLocations(input.locationIds)
+      if (!input.phone || input.phone.trim() === '')
+        throw new AdminError('PT400', 'a teacher needs a phone number')
+      const phone = normalizePhone(input.phone)
+      if (!phone) throw new AdminError('PT400', 'invalid phone number')
       state.teachers.push({
         id: nextId('t'),
         email: input.email,
@@ -206,7 +214,19 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
         erased: false,
         subjectIds: [...input.subjectIds],
         locationIds: [...new Set(input.locationIds)],
+        phone,
       })
+    },
+    async setPersonPhone(profileId, phone) {
+      await gate('setPersonPhone')
+      const teacher = state.teachers.find((t) => t.id === profileId)
+      if (!teacher) throw new AdminError('PT404', 'person not found')
+      if (teacher.erased) throw new AdminError('PT409', 'this person was erased')
+      if (!phone || phone.trim() === '')
+        throw new AdminError('PT409', 'a teacher or parent needs a phone number')
+      const normal = normalizePhone(phone)
+      if (!normal) throw new AdminError('PT400', 'invalid phone number')
+      teacher.phone = normal
     },
     async setTeacherLocations(teacherId, locationIds) {
       await gate('setTeacherLocations')
@@ -286,6 +306,7 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
           isActive: false,
           hasSignedIn: false,
           erased: true,
+          phone: null,
           subjectIds: [],
         })
         return 'kept_history'
