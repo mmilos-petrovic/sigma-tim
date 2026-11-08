@@ -11,7 +11,9 @@ import { readLastContext, writeLastContext } from './auth/lastContext'
 import { saveReturnTo } from './auth/returnTo'
 import type { MyRoles } from './auth/roles'
 import { createFakeAdminApi } from './test/fakeAdminApi'
+import { createFakeStudentApi } from './test/fakeStudentApi'
 import { createFakeTeacherApi } from './test/fakeTeacherApi'
+import { StudentApiProvider } from './student/StudentApiProvider'
 import { TeacherApiProvider } from './teacher/TeacherApiProvider'
 import { createFakeAuthApi, sessionFor, type FakeAuthApi } from './test/fakeAuthApi'
 import { personas } from './test/fixtures'
@@ -31,12 +33,14 @@ function renderApp(api: FakeAuthApi, path = '/') {
     <QueryClientProvider client={queryClient}>
       <AdminApiProvider api={createFakeAdminApi()}>
         <TeacherApiProvider api={createFakeTeacherApi()}>
-          <AuthProvider api={api}>
-            <MemoryRouter initialEntries={[path]}>
-              <Where />
-              <AppRoutes />
-            </MemoryRouter>
-          </AuthProvider>
+          <StudentApiProvider api={createFakeStudentApi()}>
+            <AuthProvider api={api}>
+              <MemoryRouter initialEntries={[path]}>
+                <Where />
+                <AppRoutes />
+              </MemoryRouter>
+            </AuthProvider>
+          </StudentApiProvider>
         </TeacherApiProvider>
       </AdminApiProvider>
     </QueryClientProvider>,
@@ -307,9 +311,16 @@ describe('layout', () => {
     expect(screen.queryByRole('navigation', { name: 'Izbor prikaza' })).not.toBeInTheDocument()
   })
 
-  it('shows an empty state on each home page, until the later phases fill it', async () => {
+  it('opens the list of lessons on the home page of a student and of a parent', async () => {
     renderApp(signedInAs(personas.student), '/ucenik')
-    expect(await screen.findByText(/Ovde će se pojaviti vaši časovi/)).toBeInTheDocument()
+    expect(await heading('Moji časovi')).toBeInTheDocument()
+    expect(await heading('Predstojeći časovi', 2)).toBeInTheDocument()
+  })
+
+  it('does the same for a parent', async () => {
+    renderApp(signedInAs(personas.parent), '/roditelj')
+    expect(await heading('Časovi dece')).toBeInTheDocument()
+    expect(await heading('Predstojeći časovi', 2)).toBeInTheDocument()
   })
 })
 

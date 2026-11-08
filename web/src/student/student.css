@@ -1,0 +1,192 @@
+/* Student and parent screens: made for a phone first, with touch targets of at least 44px. */
+
+.student__choice select {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 0 1rem;
+  padding: 0.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.tabs a {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  text-align: center;
+}
+
+.tabs a[aria-current='page'] {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.tabs__count {
+  min-width: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-text);
+  font-size: 0.75rem;
+  line-height: 1.4rem;
+}
+
+.student__section {
+  margin-bottom: 1.5rem;
+}
+
+.student__section > h2 {
+  margin: 0 0 0.5rem;
+}
+
+.callout {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--primary-soft);
+}
+
+/* The lessons: an accordion list */
+
+.lessons,
+.slots {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.lesson,
+.slot {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lesson__head {
+  display: grid;
+  gap: 0.15rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lesson__head:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.lesson__when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+}
+
+.lesson__what {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lesson__marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.lesson__marks:empty {
+  display: none;
+}
+
+.lesson__marks .badge {
+  margin-left: 0;
+}
+
+.badge--new {
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+.lesson__body {
+  padding: 0 0.9rem 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.lesson__body dl {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.lesson__body dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.lesson__body dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.lesson__note h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.lesson__note p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Links and buttons inside a lesson are easy to hit with a thumb. */
+.lesson__body a {
+  display: inline-block;
+  padding: 0.25rem 0;
+}
+
+/* The free slots */
+
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.slot__info {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.slot .button {
+  flex: 0 0 auto;
+}

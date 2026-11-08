@@ -175,6 +175,7 @@ export type ActionKey =
   | 'updateLesson'
   | 'setLessonStudents'
   | 'cancelLesson'
+  | 'claimSlot'
   | 'publishSlot'
   | 'confirmBooking'
   | 'declineBooking'

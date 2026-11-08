@@ -12,10 +12,32 @@ export default defineConfig({
     trace: 'retain-on-failure',
     channel: process.env.E2E_CHANNEL ?? 'msedge',
   },
+  // The student and parent screens are made for a phone: their specs (student-*.spec.ts) run on two phone-sized
+  // screens, everything else on a desktop. Phones are emulated with the installed Chromium-based browser (viewport,
+  // touch, mobile user agent), not with a real iOS or Android engine.
   projects: [
     {
       name: 'desktop',
+      testIgnore: /student-.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], channel: process.env.E2E_CHANNEL ?? 'msedge' },
+    },
+    {
+      name: 'phone-small',
+      testMatch: /student-.*\.spec\.ts/,
+      use: {
+        ...devices['iPhone 13'],
+        defaultBrowserType: 'chromium',
+        channel: process.env.E2E_CHANNEL ?? 'msedge',
+      },
+    },
+    {
+      name: 'phone-android',
+      testMatch: /student-.*\.spec\.ts/,
+      use: {
+        ...devices['Pixel 7'],
+        defaultBrowserType: 'chromium',
+        channel: process.env.E2E_CHANNEL ?? 'msedge',
+      },
     },
   ],
   webServer: {
