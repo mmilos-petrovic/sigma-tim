@@ -33,6 +33,12 @@ describe('looking at a lesson', () => {
     expect(dialog.getByLabelText('Napomena za Ana Petrović')).toHaveValue('Radili razlomke')
   })
 
+  it('tells the teacher who reads the note: the student and the parents', async () => {
+    renderTeacher(PATH)
+    const dialog = await open(TODAY, 'Matematika')
+    expect(dialog.getByText('Napomenu vide učenik i njegovi roditelji.')).toBeInTheDocument()
+  })
+
   it('saves a note for one student, and clears it when emptied', async () => {
     const { teacherApi } = renderTeacher(PATH)
     const dialog = await open(TODAY, 'Matematika')

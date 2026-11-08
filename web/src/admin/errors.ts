@@ -34,6 +34,8 @@ export function explainError(error: unknown, action: ActionKey): string {
       if (action === 'removeParent') {
         return 'Roditelj više nije povezan sa ovim učenikom. Osvežite stranicu.'
       }
+      if (action === 'cancelLesson') return 'Čas više ne postoji. Osvežite stranicu.'
+      if (action === 'claimSlot') return 'Termin više ne postoji. Izaberite drugi.'
       return 'Podatak više ne postoji. Osvežite stranicu.'
     case 'PT403':
     case '42501':
@@ -208,6 +210,13 @@ export function explainError(error: unknown, action: ActionKey): string {
       break
     case 'cancelLesson':
       if (code === 'PT409') return 'Čas je već počeo i ne može da se otkaže.'
+      break
+    case 'claimSlot':
+      if (code === 'PT409') {
+        if (/started/i.test(message)) return 'Termin je već počeo. Izaberite drugi.'
+        return 'Termin je upravo zauzet. Izaberite drugi.'
+      }
+      if (code === 'PT400') return 'Izaberite učenika za koga zauzimate termin.'
       break
     case 'confirmBooking':
     case 'declineBooking':

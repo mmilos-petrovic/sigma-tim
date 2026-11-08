@@ -8,6 +8,8 @@ import { createSupabaseAuthApi } from './auth/supabaseAuthApi'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ConfigErrorScreen } from './components/Status'
 import { createAppClient } from './lib/supabase'
+import { StudentApiProvider } from './student/StudentApiProvider'
+import { createSupabaseStudentApi } from './student/supabaseStudentApi'
 import { TeacherApiProvider } from './teacher/TeacherApiProvider'
 import { createSupabaseTeacherApi } from './teacher/supabaseTeacherApi'
 
@@ -17,6 +19,7 @@ const services = client
       auth: createSupabaseAuthApi(client),
       admin: createSupabaseAdminApi(client),
       teacher: createSupabaseTeacherApi(client),
+      student: createSupabaseStudentApi(client),
     }
   : null
 
@@ -30,11 +33,13 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <AdminApiProvider api={services.admin}>
             <TeacherApiProvider api={services.teacher}>
-              <AuthProvider api={services.auth}>
-                <BrowserRouter>
-                  <AppRoutes />
-                </BrowserRouter>
-              </AuthProvider>
+              <StudentApiProvider api={services.student}>
+                <AuthProvider api={services.auth}>
+                  <BrowserRouter>
+                    <AppRoutes />
+                  </BrowserRouter>
+                </AuthProvider>
+              </StudentApiProvider>
             </TeacherApiProvider>
           </AdminApiProvider>
         </QueryClientProvider>

@@ -57,6 +57,7 @@ function NoteEditor({
           }}
         />
       </label>
+      <p className="muted">Napomenu vide učenik i njegovi roditelji.</p>
       <button
         type="button"
         className="button button--small button--secondary"
