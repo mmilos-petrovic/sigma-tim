@@ -76,6 +76,10 @@ Errors use PostgREST's custom codes, so they arrive as HTTP statuses. The messag
 
 Table constraint violations keep their Postgres codes (`23514` check, `23503` foreign key, `23505` unique).
 
+## Who reads a teacher's name
+
+A student, and a parent through their children, reads the profile (the name) of the current teacher **and of every teacher the student has a lesson with**, past or still to come (`private.can_see_profile`). So after a takeover or a deactivation the lessons list can still say who taught an old lesson. Only a lesson the student takes part in counts: a free slot never does, and cancelling a lesson (or being the last to leave it) ends the link when no other lesson with that teacher remains. Only the profile opens up: the `teachers` row, the phone number (`person_phones`: current teacher only) and the classmates stay hidden.
+
 ## Teacher locations and colour
 
 - **Locations are a hard rule.** `teacher_locations` says where each teacher may teach. A lesson or free slot can only be created at one of those locations, and its teacher or location can only change to one (`PT400`); any other edit of a lesson, such as its outcome, is not checked, so a lesson at a location that was taken away later (it was over by then) stays editable. The rows are written only by `create_teacher` and `set_teacher_locations`; a teacher reads their own rows, the administrator all.
