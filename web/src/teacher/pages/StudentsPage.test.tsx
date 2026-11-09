@@ -31,8 +31,8 @@ describe("the teacher's students", () => {
     renderTeacher(PATH)
     await page('Učenici')
     const ana = within(await row('Ana Petrović'))
-    expect(ana.getByText('+381641110001')).toBeInTheDocument() // the student's
-    expect(ana.getByText('+381641110002')).toBeInTheDocument() // Mira's
+    expect(ana.getByText('064 1110 001')).toBeInTheDocument() // the student's
+    expect(ana.getByText('064 1110 002')).toBeInTheDocument() // Mira's
     // Zoran has none: a parent is meant to have one
     expect(ana.getAllByText('nedostaje broj')).toHaveLength(1)
     // a student without one is not a problem
@@ -112,7 +112,7 @@ describe("the teacher's students", () => {
       expect(teacherApi.addStudent).toHaveBeenCalledWith(
         expect.objectContaining({ phone: '+381651112222' }),
       )
-      expect(await within(await row('Novi Učenik')).findByText('+381651112222')).toBeInTheDocument()
+      expect(await within(await row('Novi Učenik')).findByText('065 1112 222')).toBeInTheDocument()
     })
 
     it('does not accept something that is not a phone number, even though it is optional', async () => {
@@ -121,7 +121,10 @@ describe("the teacher's students", () => {
       await userEvent.type(form.getByLabelText(EMAIL), 'novi@example.test')
       await userEvent.type(form.getByLabelText('Ime'), 'Novi')
       await userEvent.type(form.getByLabelText('Prezime'), 'Učenik')
-      await userEvent.type(form.getByLabelText('Telefon učenika (nije obavezan)'), '064 123 4567')
+      await userEvent.type(
+        form.getByLabelText('Telefon učenika (nije obavezan)'),
+        '381 64 123 4567',
+      )
       await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
       expect(form.getByRole('alert')).toHaveTextContent(INVALID_PHONE)
       expect(teacherApi.addStudent).not.toHaveBeenCalled()
@@ -215,7 +218,7 @@ describe("the teacher's students", () => {
       await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
       expect(form.getByRole('alert')).toHaveTextContent('Unesite broj telefona.')
 
-      await userEvent.type(form.getByLabelText('Telefon roditelja'), '064 123 4567')
+      await userEvent.type(form.getByLabelText('Telefon roditelja'), '381 64 123 4567')
       await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
       expect(form.getByRole('alert')).toHaveTextContent(INVALID_PHONE)
       expect(teacherApi.addParent).not.toHaveBeenCalled()
@@ -367,15 +370,13 @@ describe("the teacher's students", () => {
       await page('Učenici')
       await userEvent.click(await button('Telefon učenika Ana Petrović'))
       const form = await inDialog('Broj telefona')
-      expect(form.getByLabelText('Broj telefona (nije obavezan)')).toHaveValue('+381641110001')
+      expect(form.getByLabelText('Broj telefona (nije obavezan)')).toHaveValue('064 1110 001')
       await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
       await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '+381 65 222 3333')
       await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
 
       expect(teacherApi.setPhone).toHaveBeenCalledWith('pr-ana', '+381652223333')
-      expect(
-        await within(await row('Ana Petrović')).findByText('+381652223333'),
-      ).toBeInTheDocument()
+      expect(await within(await row('Ana Petrović')).findByText('065 2223 333')).toBeInTheDocument()
       expect(screen.getByRole('status')).toHaveTextContent('Broj telefona je sačuvan.')
     })
 
@@ -387,7 +388,7 @@ describe("the teacher's students", () => {
       expect(form.getByLabelText('Broj telefona (nije obavezan)')).toHaveValue('')
       await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '+381654445555')
       await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      expect(await within(await row('Luka Ilić')).findByText('+381654445555')).toBeInTheDocument()
+      expect(await within(await row('Luka Ilić')).findByText('065 4445 555')).toBeInTheDocument()
 
       await userEvent.click(await button('Telefon učenika Luka Ilić'))
       form = await inDialog('Broj telefona')
@@ -397,7 +398,7 @@ describe("the teacher's students", () => {
       expect(screen.getByRole('status')).toHaveTextContent('Broj telefona je uklonjen.')
       await waitFor(() =>
         expect(
-          within(screen.getByRole('row', { name: /Luka Ilić/ })).queryByText('+381654445555'),
+          within(screen.getByRole('row', { name: /Luka Ilić/ })).queryByText('065 4445 555'),
         ).not.toBeInTheDocument(),
       )
     })
@@ -408,11 +409,11 @@ describe("the teacher's students", () => {
       await userEvent.click(await button('Telefon roditelja Zoran Petrović'))
       const form = await inDialog('Broj telefona')
       expect(form.getByLabelText('Broj telefona')).toHaveValue('')
-      await userEvent.type(form.getByLabelText('Broj telefona'), '+381 63 777 8888')
+      await userEvent.type(form.getByLabelText('Broj telefona'), '063 777 8888')
       await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
       expect(teacherApi.setPhone).toHaveBeenCalledWith('pr-zoran', '+381637778888')
       const ana = within(await row('Ana Petrović'))
-      expect(await ana.findByText('+381637778888')).toBeInTheDocument()
+      expect(await ana.findByText('063 7778 888')).toBeInTheDocument()
       expect(ana.queryByText('nedostaje broj')).not.toBeInTheDocument()
     })
 
@@ -433,7 +434,7 @@ describe("the teacher's students", () => {
       await userEvent.click(await button('Telefon učenika Ana Petrović'))
       const form = await inDialog('Broj telefona')
       await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
-      await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '065 222 3333')
+      await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '381 65 222 3333')
       await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
       expect(form.getByRole('alert')).toHaveTextContent(INVALID_PHONE)
 

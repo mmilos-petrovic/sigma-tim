@@ -62,6 +62,23 @@
   filter: saturate(0.6);
 }
 
+/*
+ * A lesson that is over: the colour of its teacher mixed with white, with dark text, as Google Calendar draws the past.
+ * FullCalendar sets the colour on the block itself, so only !important wins.
+ */
+.cal-item--past {
+  background-color: color-mix(in srgb, var(--fc-event-color) 35%, white) !important;
+  border-color: color-mix(in srgb, var(--fc-event-color) 55%, white) !important;
+}
+
+.cal-item--past .cal-item__body {
+  color: #1f2430;
+}
+
+.cal-item--not-held .cal-item__title {
+  text-decoration: line-through;
+}
+
 /* Students and parents */
 
 .muted {

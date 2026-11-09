@@ -41,8 +41,8 @@ describe('teachers list', () => {
   it("shows every teacher's number, and marks one who has none", async () => {
     await open()
     expect(screen.getByRole('columnheader', { name: 'Telefon' })).toBeInTheDocument()
-    expect(within(await row('Ana Nikolić')).getByText('+381641110003')).toBeInTheDocument()
-    expect(within(await row('Marko Jovanović')).getByText('+381641110004')).toBeInTheDocument()
+    expect(within(await row('Ana Nikolić')).getByText('064 1110 003')).toBeInTheDocument()
+    expect(within(await row('Marko Jovanović')).getByText('064 1110 004')).toBeInTheDocument()
     expect(within(await row('Goran Savić')).getByText('nedostaje broj')).toBeInTheDocument()
     expect(within(await row('Ana Nikolić')).queryByText('nedostaje broj')).not.toBeInTheDocument()
   })
@@ -128,7 +128,7 @@ describe('adding a teacher', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
     expect(dialog.getByText('Unesite broj telefona.')).toBeInTheDocument()
 
-    await userEvent.type(dialog.getByLabelText('Telefon'), '064 123 4567')
+    await userEvent.type(dialog.getByLabelText('Telefon'), '381 64 123 4567')
     await userEvent.click(dialog.getByRole('button', { name: 'Dodaj' }))
     expect(dialog.getByText(INVALID_PHONE)).toBeInTheDocument()
 
@@ -292,7 +292,7 @@ describe("editing a teacher's phone number", () => {
 
   it('starts from the number there is, and saves the new one in the usual form', async () => {
     const { adminApi, dialog } = await openPhone('Ana Nikolić')
-    expect(dialog.getByLabelText('Broj telefona')).toHaveValue('+381641110003')
+    expect(dialog.getByLabelText('Broj telefona')).toHaveValue('064 1110 003')
     expect(dialog.getByText('Ana Nikolić')).toBeInTheDocument()
     await userEvent.clear(dialog.getByLabelText('Broj telefona'))
     await userEvent.type(dialog.getByLabelText('Broj telefona'), '00 381 65 999 8888')
@@ -300,17 +300,17 @@ describe("editing a teacher's phone number", () => {
 
     expect(adminApi.setPersonPhone).toHaveBeenCalledWith('t-ana', '+381659998888')
     expect(await screen.findByRole('status')).toHaveTextContent('Broj telefona je sačuvan.')
-    expect(await within(await row('Ana Nikolić')).findByText('+381659998888')).toBeInTheDocument()
+    expect(await within(await row('Ana Nikolić')).findByText('065 9998 888')).toBeInTheDocument()
   })
 
   it('gives a teacher who has none a number, also a deactivated one', async () => {
     const { adminApi, dialog } = await openPhone('Goran Savić')
     expect(dialog.getByLabelText('Broj telefona')).toHaveValue('')
-    await userEvent.type(dialog.getByLabelText('Broj telefona'), '+381 66 111 2222')
+    await userEvent.type(dialog.getByLabelText('Broj telefona'), '066 111 2222')
     await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
     expect(adminApi.setPersonPhone).toHaveBeenCalledWith('t-gone', '+381661112222')
     const goran = within(await row('Goran Savić'))
-    expect(await goran.findByText('+381661112222')).toBeInTheDocument()
+    expect(await goran.findByText('066 1112 222')).toBeInTheDocument()
     expect(goran.queryByText('nedostaje broj')).not.toBeInTheDocument()
   })
 
@@ -319,7 +319,7 @@ describe("editing a teacher's phone number", () => {
     await userEvent.clear(dialog.getByLabelText('Broj telefona'))
     await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
     expect(dialog.getByRole('alert')).toHaveTextContent('Unesite broj telefona.')
-    await userEvent.type(dialog.getByLabelText('Broj telefona'), '065 111 2222')
+    await userEvent.type(dialog.getByLabelText('Broj telefona'), '381 65 111 2222')
     await userEvent.click(dialog.getByRole('button', { name: 'Sačuvaj' }))
     expect(dialog.getByRole('alert')).toHaveTextContent(INVALID_PHONE)
     expect(adminApi.setPersonPhone).not.toHaveBeenCalled()

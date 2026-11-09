@@ -10,6 +10,7 @@ const ANA = 'ana.nikolic@example.test'
 const LUKA = 'ucenik1@example.test'
 const JELENA = 'roditelj1@example.test'
 const ANA_PHONE = '+381600000003'
+const ANA_PHONE_SHOWN = '060 0000 003'
 
 /** The page does not scroll sideways: nothing is wider than the screen. */
 async function fitsTheScreen(page: Page) {
@@ -101,13 +102,15 @@ test.describe('student and parent on a phone', () => {
       await page.getByRole('button', { name: new RegExp(`Zauzmi termin.*${range(near)}`) }).click()
       const nearDialog = page.getByRole('dialog', { name: 'Zauzmi termin' })
       await expect(nearDialog.getByText(/Nastavnik mora da ga potvrdi/)).toBeVisible()
-      await expect(nearDialog.getByRole('link', { name: ANA_PHONE })).toHaveAttribute(
+      await expect(nearDialog.getByRole('link', { name: ANA_PHONE_SHOWN })).toHaveAttribute(
         'href',
         `tel:${ANA_PHONE}`,
       )
       await nearDialog.getByRole('button', { name: 'Zauzmi termin' }).click()
       await expect(page.locator('.notice')).toContainText('Zahtev je poslat.')
-      await expect(page.locator('.notice').getByRole('link', { name: ANA_PHONE })).toBeVisible()
+      await expect(
+        page.locator('.notice').getByRole('link', { name: ANA_PHONE_SHOWN }),
+      ).toBeVisible()
 
       // 4. both are among the lessons, the late one waiting for the teacher
       await page.getByRole('link', { name: 'Časovi', exact: true }).click()
@@ -122,7 +125,7 @@ test.describe('student and parent on a phone', () => {
       await nearRow.click()
       const body = page.getByRole('region', { name: 'Podaci o času' })
       await expect(body.getByText('Ana Nikolić')).toBeVisible()
-      await expect(body.getByRole('link', { name: ANA_PHONE })).toBeVisible()
+      await expect(body.getByRole('link', { name: ANA_PHONE_SHOWN })).toBeVisible()
       await expect(body.locator('a[href*="google.com/maps"]')).toBeVisible()
       await fitsTheScreen(page)
 
@@ -180,7 +183,7 @@ test.describe('student and parent on a phone', () => {
       await page.getByRole('button', { name: 'Otkaži rezervaciju' }).click()
       const cancelNear = page.getByRole('dialog', { name: 'Otkaži rezervaciju' })
       await expect(cancelNear.getByText(/manje od 12 sati/)).toBeVisible()
-      await expect(cancelNear.getByRole('link', { name: ANA_PHONE })).toBeVisible()
+      await expect(cancelNear.getByRole('link', { name: ANA_PHONE_SHOWN })).toBeVisible()
       await cancelNear.getByRole('button', { name: 'Otkaži rezervaciju' }).click()
       await expect(page.locator('.notice')).toHaveText('Rezervacija je otkazana.')
       await expect(page.getByRole('button', { name: new RegExp(range(near)) })).toHaveCount(0)

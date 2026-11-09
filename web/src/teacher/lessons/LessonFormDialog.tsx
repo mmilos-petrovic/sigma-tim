@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { Field, FormDialog } from '../../components/FormDialog'
+import { DateField, TimeField } from '../../components/DateTimeFields'
+import { FormDialog } from '../../components/FormDialog'
 import { explainError } from '../../admin/errors'
 import { useNow } from '../clock'
 import { useRefresh, useTeacherId } from '../queries'
@@ -17,7 +18,6 @@ import {
 import { PlaceFields } from './PlaceFields'
 import { usePlace } from './usePlace'
 
-const QUARTER_MS = 15 * 60_000
 const HOUR_MS = 60 * 60_000
 const fullName = (student: StudentRow) => `${student.firstName} ${student.lastName}`
 
@@ -81,9 +81,6 @@ export function LessonFormDialog({ lesson, initial, reference, students, onClose
     if (!placeLocked) {
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
         return 'Unesite datum i vreme časa.'
-      }
-      if (start.getTime() % QUARTER_MS !== 0 || end.getTime() % QUARTER_MS !== 0) {
-        return 'Vreme mora biti na svakih 15 minuta.'
       }
       if (end.getTime() <= start.getTime()) return 'Kraj časa mora biti posle početka.'
       const movedToThePast =
@@ -200,19 +197,10 @@ export function LessonFormDialog({ lesson, initial, reference, students, onClose
         </p>
       )}
       <PlaceFields reference={reference} place={place} disabled={placeLocked} />
-      <Field label="Datum" type="date" value={date} onChange={setDate} disabled={placeLocked} />
-      <Field
-        label="Početak"
-        type="time"
-        step={900}
-        value={startTime}
-        onChange={setStartTime}
-        disabled={placeLocked}
-      />
-      <Field
+      <DateField label="Datum" value={date} onChange={setDate} disabled={placeLocked} />
+      <TimeField label="Početak" value={startTime} onChange={setStartTime} disabled={placeLocked} />
+      <TimeField
         label="Kraj"
-        type="time"
-        step={900}
         value={fixedLength ? toWallClock(end).time : endTime}
         onChange={setEndTime}
         disabled={placeLocked || fixedLength}
@@ -223,7 +211,6 @@ export function LessonFormDialog({ lesson, initial, reference, students, onClose
 
       <fieldset className="choice">
         <legend>Učenici</legend>
-        <p className="muted">Najviše {MAX_LESSON_STUDENTS} učenika.</p>
         {students.length === 0 && <p className="muted">Još nemate učenika.</p>}
         {students.map((student) => {
           const checked = studentIds.includes(student.id)

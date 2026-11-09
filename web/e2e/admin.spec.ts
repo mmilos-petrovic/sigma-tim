@@ -89,7 +89,7 @@ test.describe('administration', () => {
       await expect(row(page, email)).toContainText(renamed)
       await expect(row(page, email)).toContainText('Glavna lokacija')
       await expect(row(page, email)).toContainText(location)
-      await expect(row(page, email)).toContainText('+381649991111')
+      await expect(row(page, email)).toContainText('064 9991 111')
 
       // the subject is in use now
       await section(page, 'Predmeti')
@@ -118,7 +118,7 @@ test.describe('administration', () => {
       await phone.getByLabel('Broj telefona').fill('00 381 65 888 7777')
       await phone.getByRole('button', { name: 'Sačuvaj' }).click()
       await expect(page.getByRole('status')).toHaveText('Broj telefona je sačuvan.')
-      await expect(row(page, email)).toContainText('+381658887777')
+      await expect(row(page, email)).toContainText('065 8887 777')
 
       // where the teacher may teach: take a location away, and give it back
       await row(page, email).getByRole('button', { name: 'Lokacije' }).click()

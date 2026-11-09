@@ -46,7 +46,7 @@ test.describe("the teacher's students and parents", () => {
       await form.getByRole('button', { name: 'Dodaj' }).click()
       await expect(page.getByRole('status')).toHaveText('Učenik je dodat.')
       await expect(row(page, student)).toContainText('OŠ Test')
-      await expect(row(page, student)).toContainText('+381651112222')
+      await expect(row(page, student)).toContainText('065 1112 222')
       await expect(row(page, student)).toContainText(studentEmail) // stored in lower case
     })
 
@@ -64,8 +64,8 @@ test.describe("the teacher's students and parents", () => {
       await expect(row(page, student)).toContainText('Jelena Ilić')
       await expect(row(page, student)).not.toContainText('Pogrešno')
       // like the name, the number the parent already has is kept
-      await expect(row(page, student)).toContainText('+381600000005')
-      await expect(row(page, student)).not.toContainText('+381639990000')
+      await expect(row(page, student)).toContainText('060 0000 005')
+      await expect(row(page, student)).not.toContainText('063 9990 000')
 
       const profiles = await select<{ id: string }>(
         request,

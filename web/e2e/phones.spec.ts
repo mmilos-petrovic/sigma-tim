@@ -42,17 +42,17 @@ test.describe('phone numbers', () => {
       await menu(page, 'Podešavanja')
       const field = page.getByLabel('Broj telefona')
       const save = page.getByRole('button', { name: 'Sačuvaj broj' })
-      await expect(field).toHaveValue(ANA_PHONE)
+      await expect(field).toHaveValue('060 0000 003') // the number as it is written at home
       await expect(save).toBeDisabled()
 
-      await field.fill('064 555 0001') // no country
+      await field.fill('381 64 555 0001') // no + and no 0: the country cannot be guessed
       await save.click()
       await expect(page.getByRole('alert')).toContainText('Broj telefona nije ispravan')
       await field.fill('')
       await save.click()
       await expect(page.getByRole('alert')).toHaveText('Unesite broj telefona.')
 
-      await field.fill('00 381 64 555 0001')
+      await field.fill('064 555 0001') // typed the way it is written at home
       await save.click()
       await expect(page.getByText('Broj telefona je sačuvan.')).toBeVisible()
       const [stored] = await select<{ phone: string }>(

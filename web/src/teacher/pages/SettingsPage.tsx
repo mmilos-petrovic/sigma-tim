@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { explainError } from '../../admin/errors'
 import { Field } from '../../components/FormDialog'
 import { Loaded, Notice, PageHeader } from '../../components/Loaded'
-import { normalizePhone, PHONE_EXAMPLE, phoneProblem } from '../../lib/phone'
+import { formatPhone, normalizePhone, PHONE_EXAMPLE, phoneProblem } from '../../lib/phone'
 import { COLOR_KEYS, COLORS, OWN_COLOR, type ColorKey } from '../colors'
 import { useMyPhone, useRefresh, useReference, useTeacherId } from '../queries'
 import { useTeacherApi } from '../TeacherApiProvider'
@@ -12,7 +12,7 @@ function PhoneForm({ saved }: { saved: string | null }) {
   const api = useTeacherApi()
   const refresh = useRefresh()
   const teacherId = useTeacherId()
-  const [typed, setTyped] = useState(saved ?? '')
+  const [typed, setTyped] = useState(saved ? formatPhone(saved) : '')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -58,8 +58,8 @@ function PhoneForm({ saved }: { saved: string | null }) {
       <fieldset className="choice">
         <legend>Moj broj telefona</legend>
         <p className="muted">
-          Potreban je za obaveštenja i poziv u vezi sa časovima. Upišite broj sa pozivnim brojem
-          države, na primer {PHONE_EXAMPLE}.
+          Potreban je za obaveštenja i poziv u vezi sa časovima. Upišite broj na primer ovako:{' '}
+          {PHONE_EXAMPLE}.
         </p>
         {saved === null && (
           <p>

@@ -30,6 +30,9 @@ export interface WeekCalendarProps {
 }
 
 const QUARTER = '00:15:00'
+// The week shows 06:00-23:00. A lesson outside that is scheduled all the same, it is only not drawn here.
+export const FIRST_HOUR = '06:00:00'
+export const LAST_HOUR = '23:00:00'
 // Long enough that scrolling the page does not start a drag, short enough to feel direct.
 const LONG_PRESS_MS = 400
 
@@ -62,8 +65,8 @@ export function WeekCalendar({
         nowIndicator
         slotDuration="00:30:00"
         snapDuration={QUARTER}
-        slotMinTime="00:00:00"
-        slotMaxTime="24:00:00"
+        slotMinTime={FIRST_HOUR}
+        slotMaxTime={LAST_HOUR}
         scrollTime="07:00:00"
         expandRows
         slotEventOverlap={false}

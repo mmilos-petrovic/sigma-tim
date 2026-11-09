@@ -12,6 +12,28 @@ import { useStudentView } from '../view'
 const minutes = (slot: OpenSlot) =>
   Math.round((new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 60_000)
 
+/**
+ * What to do when the slots do not do: call the teacher. Nothing is shown until the number is known, so the sentence
+ * does not change under the reader's eyes; a teacher without a number gets the sentence without it.
+ */
+function CallTeacher({ phone, more }: { phone: string | null | undefined; more: boolean }) {
+  const number = phone ? (
+    <>
+      {' '}
+      na broj <PhoneLink phone={phone} />
+    </>
+  ) : null
+  return (
+    <p className="muted">
+      {more ? (
+        <>Za dodatne termine pozvati nastavnika{number}.</>
+      ) : (
+        <>Pozvati nastavnika{number} kako bi zakazali čas.</>
+      )}
+    </p>
+  )
+}
+
 /** The teacher's free slots, the first one on top, each with a button to take it. */
 export function SlotsPanel() {
   const { context, record, home } = useStudentView()
@@ -46,42 +68,41 @@ export function SlotsPanel() {
 
       <Loaded query={slots}>
         {() =>
-          days.length === 0 ? (
-            <p className="muted">Nastavnik trenutno nema slobodnih termina.</p>
-          ) : (
-            days.map((day) => (
-              <section key={day.key} className="student__section">
-                <h2>{day.title}</h2>
-                <ul className="slots">
-                  {day.slots.map((slot) => (
-                    <li key={slot.id} className="slot">
-                      <div className="slot__info">
-                        <strong>{formatRange(slot.start, slot.end)}</strong>
-                        <span>
-                          {slot.subject} · {slot.location}
-                          {slot.room ? `, ${slot.room}` : ''}
-                        </span>
-                        <span className="muted">{minutes(slot)} min</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="button"
-                        aria-label={`Zauzmi termin ${formatDay(slot.start)} ${formatRange(slot.start, slot.end)}`}
-                        onClick={() => {
-                          setBooked(null)
-                          setBooking(slot)
-                        }}
-                      >
-                        Zauzmi
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))
-          )
+          days.length === 0
+            ? !phone.isPending && <CallTeacher phone={phone.data} more={false} />
+            : days.map((day) => (
+                <section key={day.key} className="student__section">
+                  <h2>{day.title}</h2>
+                  <ul className="slots">
+                    {day.slots.map((slot) => (
+                      <li key={slot.id} className="slot">
+                        <div className="slot__info">
+                          <strong>{formatRange(slot.start, slot.end)}</strong>
+                          <span>
+                            {slot.subject} · {slot.location}
+                            {slot.room ? `, ${slot.room}` : ''}
+                          </span>
+                          <span className="muted">{minutes(slot)} min</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="button"
+                          aria-label={`Zauzmi termin ${formatDay(slot.start)} ${formatRange(slot.start, slot.end)}`}
+                          onClick={() => {
+                            setBooked(null)
+                            setBooking(slot)
+                          }}
+                        >
+                          Zauzmi
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))
         }
       </Loaded>
+      {!phone.isPending && days.length > 0 && <CallTeacher phone={phone.data} more />}
 
       {booking && (
         <BookDialog

@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AdminError } from '../../admin/adminApi'
 import { createFakeTeacherApi, seedTeacher } from '../../test/fakeTeacherApi'
 import { calendar, TEST_WEEK } from '../../test/mockCalendar'
@@ -53,48 +53,45 @@ async function openSchedule(own?: string[]) {
 }
 
 describe('the location filter', () => {
-  it('offers all locations and the ones the teacher may use, and none of the others', async () => {
+  afterEach(() => window.localStorage.clear())
+
+  it('offers the locations the teacher may use, and none of the others, with no "all"', async () => {
     await openSchedule()
-    expect(optionNames(await screen.findByLabelText(FILTER))).toEqual([
-      'Sve lokacije',
-      'Glavna lokacija',
-      'Zemun',
-    ])
-    expect(screen.getByLabelText(FILTER)).toHaveValue('')
+    expect(optionNames(await screen.findByLabelText(FILTER))).toEqual(['Glavna lokacija', 'Zemun'])
   })
 
-  it('shows everything at first', async () => {
+  it('starts at the first location by name, and shows the colleagues there only', async () => {
     await openSchedule()
-    for (const name of [AT_ZEMUN, AT_MAIN, BUSY_ZEMUN, BUSY_MAIN]) {
-      expect(await block(name)).toBeInTheDocument()
+    expect(await screen.findByLabelText(FILTER)).toHaveValue('l-main')
+    expect(await block(BUSY_MAIN)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: BUSY_ZEMUN })).not.toBeInTheDocument()
+  })
+
+  it('always shows the own lessons, slots and bookings, whatever the location chosen', async () => {
+    await openSchedule()
+    for (const place of ['Glavna lokacija', 'Zemun']) {
+      await userEvent.selectOptions(await screen.findByLabelText(FILTER), place)
+      expect(await block(AT_ZEMUN)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: AT_MAIN })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^Slobodan termin/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^Na čekanju/ })).toBeInTheDocument()
     }
   })
 
-  it('hides the own lessons and the colleagues’ blocks at the other locations', async () => {
+  it('shows the colleagues of the chosen location and hides those of the other one', async () => {
     await openSchedule()
     await userEvent.selectOptions(await screen.findByLabelText(FILTER), 'Zemun')
-
-    expect(await block(AT_ZEMUN)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: BUSY_ZEMUN })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: AT_MAIN })).not.toBeInTheDocument()
+    expect(await block(BUSY_ZEMUN)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: BUSY_MAIN })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Slobodan termin/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Na čekanju/ })).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(screen.getByLabelText(FILTER), 'Glavna lokacija')
+    expect(await block(BUSY_MAIN)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: BUSY_ZEMUN })).not.toBeInTheDocument()
   })
 
-  it('shows the main location alone, and everything again on "Sve lokacije"', async () => {
+  it('says that only the colleagues are chosen here', async () => {
     await openSchedule()
-    const filter = await screen.findByLabelText(FILTER)
-    await userEvent.selectOptions(filter, 'Glavna lokacija')
-    expect(await block(AT_MAIN)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: BUSY_MAIN })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Slobodan termin/ })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: AT_ZEMUN })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: BUSY_ZEMUN })).not.toBeInTheDocument()
-
-    await userEvent.selectOptions(filter, 'Sve lokacije')
-    expect(await block(AT_ZEMUN)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: BUSY_MAIN })).toBeInTheDocument()
+    expect(await screen.findByText(/Svoje časove vidite uvek/)).toBeInTheDocument()
   })
 
   it('stays when the calendar moves to another week', async () => {
@@ -104,8 +101,25 @@ describe('the location filter', () => {
     act(() => calendar().onRangeChange(next))
     expect(screen.getByLabelText(FILTER)).toHaveValue('l-zemun')
     act(() => calendar().onRangeChange(TEST_WEEK))
-    expect(await block(AT_ZEMUN)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: AT_MAIN })).not.toBeInTheDocument()
+    expect(await block(BUSY_ZEMUN)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: BUSY_MAIN })).not.toBeInTheDocument()
+  })
+
+  it('is remembered by the browser for the next visit', async () => {
+    const first = await openSchedule()
+    await userEvent.selectOptions(await screen.findByLabelText(FILTER), 'Zemun')
+    first.unmount()
+
+    renderTeacher(PATH, { api: createFakeTeacherApi(school()) })
+    await page('Moj raspored')
+    expect(await screen.findByLabelText(FILTER)).toHaveValue('l-zemun')
+    expect(await block(BUSY_ZEMUN)).toBeInTheDocument()
+  })
+
+  it('starts from the first location again when the remembered one is no longer the teacher’s', async () => {
+    window.localStorage.setItem('sigma.scheduleLocation.p-teacher', 'l-novi')
+    await openSchedule()
+    expect(await screen.findByLabelText(FILTER)).toHaveValue('l-main')
   })
 
   it('leaves the list of bookings that wait for an answer alone', async () => {
@@ -114,10 +128,12 @@ describe('the location filter', () => {
     expect(screen.getByRole('heading', { name: 'Zahtevi na čekanju' })).toBeInTheDocument()
   })
 
-  it('is not there for a teacher with one location', async () => {
+  it('is not there for a teacher with one location, who sees the colleagues of that location only', async () => {
     await openSchedule(['l-main'])
     expect(screen.queryByLabelText(FILTER)).not.toBeInTheDocument()
-    // and nothing is hidden: a lesson at a location the teacher no longer has is still shown
+    expect(screen.getByRole('button', { name: BUSY_MAIN })).toBeInTheDocument()
+    // a colleague at a location that is not the teacher's is not shown, but the own lesson there is
+    expect(screen.queryByRole('button', { name: BUSY_ZEMUN })).not.toBeInTheDocument()
     expect(await block(AT_ZEMUN)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: AT_MAIN })).toBeInTheDocument()
   })
@@ -131,6 +147,7 @@ describe('a teacher with no location', () => {
     expect(screen.getByRole('button', { name: 'Novi čas' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Objavi slobodan termin' })).toBeDisabled()
     expect(screen.queryByLabelText(FILTER)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Marko Jovanović/ })).not.toBeInTheDocument()
   })
 
   it('is not told so when there are locations', async () => {

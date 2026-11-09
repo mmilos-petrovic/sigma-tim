@@ -5,6 +5,7 @@ import { Loaded, Loading, LoadError, Notice, PageHeader } from '../../components
 import { Link } from 'react-router'
 import { CONTEXT_LABEL, homePath } from '../../auth/roles'
 import { useNow } from '../clock'
+import { chooseLocation, readLastLocation, writeLastLocation } from '../locationFilter'
 import { ConflictDialog } from '../lessons/ConflictDialog'
 import { LessonDialog } from '../lessons/LessonDialog'
 import { LessonFormDialog } from '../lessons/LessonFormDialog'
@@ -55,8 +56,8 @@ export function SchedulePage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [conflicts, setConflicts] = useState<Conflict[] | null>(null)
-  // "" shows every location
-  const [locationFilter, setLocationFilter] = useState('')
+  // the location whose colleagues are shown; remembered by the browser
+  const [chosenLocation, setChosenLocation] = useState(() => readLastLocation(teacherId))
   const pendingAnswer = useRef<((save: boolean) => void) | null>(null)
 
   const onRangeChange = useCallback(
@@ -67,10 +68,14 @@ export function SchedulePage() {
     [],
   )
 
-  // the filter only makes sense with a choice to make; a location the teacher no longer has is not a filter any more
+  // the own lessons are always shown; the filter only makes sense with a choice to make, and a location the teacher no
+  // longer has is not a choice any more
   const myLocations = reference.data ? ownLocations(reference.data) : []
-  const activeLocation = myLocations.some((l) => l.id === locationFilter) ? locationFilter : ''
+  const activeLocation = chooseLocation(myLocations, chosenLocation)
   const noLocation = reference.data !== undefined && myLocations.length === 0
+  // known to be missing: a number that cannot be read does not stop the teacher
+  const noPhone = myPhone.isSuccess && myPhone.data === null
+  const cannotSchedule = noLocation || noPhone
 
   const items = useMemo(
     () =>
@@ -82,7 +87,7 @@ export function SchedulePage() {
             reference: reference.data,
             teacherId,
             now,
-            locationId: activeLocation || null,
+            colleaguesAt: activeLocation,
           })
         : [],
     [lessons.data, busy.data, students.data, reference.data, teacherId, now, activeLocation],
@@ -142,7 +147,7 @@ export function SchedulePage() {
         <button
           type="button"
           className="button"
-          disabled={noLocation}
+          disabled={cannotSchedule}
           onClick={() => setDialog({ kind: 'new' })}
         >
           Novi čas
@@ -150,7 +155,7 @@ export function SchedulePage() {
         <button
           type="button"
           className="button button--secondary"
-          disabled={noLocation}
+          disabled={cannotSchedule}
           onClick={() => setDialog({ kind: 'slot' })}
         >
           Objavi slobodan termin
@@ -162,10 +167,11 @@ export function SchedulePage() {
           {error}
         </p>
       )}
-      {myPhone.isSuccess && myPhone.data === null && (
+      {noPhone && (
         <p role="note" className="warning">
           <strong>Nemate upisan broj telefona.</strong> Potreban je za obaveštenja. Upišite ga u{' '}
-          <Link to={`${homePath('teacher')}/podesavanja`}>Podešavanja</Link>.
+          <Link to={`${homePath('teacher')}/podesavanja`}>Podešavanja</Link>. Dok ga ne upišete, ne
+          možete da zakazujete časove ni da objavljujete termine.
         </p>
       )}
       {noLocation && (
@@ -200,16 +206,21 @@ export function SchedulePage() {
                   <div className="schedule-filter">
                     <SelectField
                       label="Prikaz po lokaciji"
-                      value={activeLocation}
-                      onChange={setLocationFilter}
+                      value={activeLocation ?? ''}
+                      onChange={(id) => {
+                        setChosenLocation(id)
+                        writeLastLocation(teacherId, id)
+                      }}
                     >
-                      <option value="">Sve lokacije</option>
                       {myLocations.map((location) => (
                         <option key={location.id} value={location.id}>
                           {location.name}
                         </option>
                       ))}
                     </SelectField>
+                    <p className="muted">
+                      Svoje časove vidite uvek; ovde birate na kojoj lokaciji vidite kolege.
+                    </p>
                   </div>
                 )}
                 <div className="schedule">
@@ -221,7 +232,9 @@ export function SchedulePage() {
                         // a colleague's block is only a block: there is nothing to open
                         if (!id.startsWith('busy:')) setDialog({ kind: 'view', lessonId: id })
                       }}
-                      onCreate={(selected) => setDialog({ kind: 'new', initial: selected })}
+                      onCreate={(selected) => {
+                        if (!cannotSchedule) setDialog({ kind: 'new', initial: selected })
+                      }}
                       onChangeTime={changeTime}
                     />
                   </Suspense>

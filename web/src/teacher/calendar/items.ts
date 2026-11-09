@@ -13,4 +13,8 @@ export interface CalendarItem {
   variant: string
   movable: boolean
   resizable: boolean
+  /** A lesson that is over: drawn lighter than the ones still to come. */
+  past?: boolean
+  /** A lesson the teacher recorded as not held: crossed out. */
+  notHeld?: boolean
 }
