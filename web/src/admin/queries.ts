@@ -14,6 +14,11 @@ export function useTeachers() {
   return useQuery({ queryKey: [...admin, 'teachers'], queryFn: () => api.listTeachers() })
 }
 
+export function useStudentList() {
+  const api = useAdminApi()
+  return useQuery({ queryKey: [...admin, 'students'], queryFn: () => api.listStudents() })
+}
+
 export function useLocations() {
   const api = useAdminApi()
   return useQuery({ queryKey: [...admin, 'locations'], queryFn: () => api.listLocations() })

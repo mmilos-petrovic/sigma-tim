@@ -42,6 +42,13 @@ export function statusChip(lesson: MyLesson, now: Date): string | null {
   return lesson.status === 'pending' ? 'Čeka potvrdu' : 'Potvrđen'
 }
 
+/**
+ * Whether the row says that the lesson was paid for: only for a lesson that is over. A lesson that was not paid says
+ * nothing at all, and neither does one paid in advance before it has taken place.
+ */
+export const showsPaid = (lesson: Pick<MyLesson, 'paid' | 'end'>, now: Date): boolean =>
+  lesson.paid && isPast(lesson, now)
+
 /** Soonest first. */
 export const sortUpcoming = <T extends Pick<MyLesson, 'start'>>(lessons: readonly T[]): T[] =>
   [...lessons].sort((a, b) => time(a.start) - time(b.start))

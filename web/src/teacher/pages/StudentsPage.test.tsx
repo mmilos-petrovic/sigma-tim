@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { AdminError } from '../../admin/adminApi'
 import { INVALID_PHONE } from '../../lib/phone'
-import { createFakeTeacherApi } from '../../test/fakeTeacherApi'
+import { createFakeTeacherApi, seedTeacher } from '../../test/fakeTeacherApi'
 import { inDialog, page, renderTeacher } from '../../test/renderTeacher'
 
 const PATH = '/moj-raspored/ucenici'
@@ -576,5 +576,88 @@ describe("the teacher's students", () => {
       renderTeacher(PATH, { api: createFakeTeacherApi({ unassigned: [] }) })
       expect(await screen.findByText('Trenutno nema neraspoređenih učenika.')).toBeInTheDocument()
     })
+  })
+})
+
+describe('deleting a student', () => {
+  const del = (name: string) => screen.findByRole('button', { name: `Obriši učenika ${name}` })
+
+  it('is offered for a student who has no lesson that was held, and not for one who has', async () => {
+    renderTeacher(PATH)
+    await page('Učenici')
+    expect(await del('Luka Ilić')).toBeInTheDocument()
+    // Ana has a lesson that took place (on Monday), so she stays for good
+    expect(
+      screen.queryByRole('button', { name: 'Obriši učenika Ana Petrović' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('is not offered while the lessons of the students are not known', async () => {
+    const api = createFakeTeacherApi()
+    api.failNext('listStudentCounts', new AdminError('network'))
+    renderTeacher(PATH, { api })
+    await page('Učenici')
+    await row('Luka Ilić')
+    expect(screen.queryByRole('button', { name: /^Obriši učenika/ })).not.toBeInTheDocument()
+  })
+
+  it('asks first, and says what is lost and how many lessons are cancelled', async () => {
+    renderTeacher(PATH)
+    await page('Učenici')
+    await userEvent.click(await del('Luka Ilić'))
+    const dialog = await inDialog('Brisanje učenika')
+    expect(dialog.getByText('Luka Ilić')).toBeInTheDocument()
+    expect(dialog.getByText(/roditelji koji nemaju drugo dete/)).toBeInTheDocument()
+    expect(dialog.getByText(/Zakazani časovi koji će biti otkazani/)).toHaveTextContent(': 2')
+  })
+
+  it('does not mention lessons when there are none to cancel', async () => {
+    const state = seedTeacher()
+    state.lessons = []
+    renderTeacher(PATH, { api: createFakeTeacherApi(state) })
+    await page('Učenici')
+    await userEvent.click(await del('Luka Ilić'))
+    const dialog = await inDialog('Brisanje učenika')
+    expect(dialog.queryByText(/Zakazani časovi/)).not.toBeInTheDocument()
+  })
+
+  it('deletes the student and the row goes', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    await page('Učenici')
+    await userEvent.click(await del('Luka Ilić'))
+    await userEvent.click(
+      (await inDialog('Brisanje učenika')).getByRole('button', { name: 'Obriši' }),
+    )
+    expect(teacherApi.deleteStudent).toHaveBeenCalledWith('st-luka')
+    expect(await screen.findByRole('status')).toHaveTextContent('Učenik je obrisan.')
+    await waitFor(() =>
+      expect(screen.queryByRole('row', { name: /Luka Ilić/ })).not.toBeInTheDocument(),
+    )
+  })
+
+  it('changes nothing when the teacher backs out', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    await page('Učenici')
+    await userEvent.click(await del('Luka Ilić'))
+    await userEvent.click(
+      (await inDialog('Brisanje učenika')).getByRole('button', { name: 'Odustani' }),
+    )
+    expect(teacherApi.deleteStudent).not.toHaveBeenCalled()
+    expect(await row('Luka Ilić')).toBeInTheDocument()
+  })
+
+  it('explains it when the database refuses a student who has had a lesson since', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    await page('Učenici')
+    await userEvent.click(await del('Luka Ilić'))
+    const dialog = await inDialog('Brisanje učenika')
+    teacherApi.failNext(
+      'deleteStudent',
+      new AdminError('PT409', 'a student with a lesson that took place cannot be deleted'),
+    )
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Učenik ima održan čas i ne može da se obriše.',
+    )
   })
 })

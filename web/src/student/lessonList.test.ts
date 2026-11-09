@@ -9,6 +9,7 @@ import {
   pickRecord,
   recordLabel,
   sortPast,
+  showsPaid,
   sortUpcoming,
   statusChip,
   goneBookings,
@@ -35,6 +36,7 @@ function lesson(overrides: Partial<MyLesson> = {}): MyLesson {
     teacherId: 't1',
     teacherName: 'Ana Nikolić',
     note: null,
+    paid: false,
     ...overrides,
   }
 }
@@ -100,6 +102,24 @@ describe('statusChip', () => {
     expect(statusChip(lesson({ start: at(-3), end: at(-2), status: 'pending' }), NOW)).toBe(
       'Nije potvrđen',
     )
+  })
+})
+
+describe('showsPaid', () => {
+  it('is for a lesson that is over and was paid', () => {
+    expect(showsPaid(lesson({ start: at(-30), end: at(-29), paid: true }), NOW)).toBe(true)
+  })
+
+  it('never says that a lesson was not paid', () => {
+    expect(showsPaid(lesson({ start: at(-30), end: at(-29), paid: false }), NOW)).toBe(false)
+  })
+
+  it('is not for a lesson that is still to come, even when it was paid in advance', () => {
+    expect(showsPaid(lesson({ start: at(24), end: at(25), paid: true }), NOW)).toBe(false)
+  })
+
+  it('is not for a lesson that is going on', () => {
+    expect(showsPaid(lesson({ start: at(-0.5), end: at(0.5), paid: true }), NOW)).toBe(false)
   })
 })
 

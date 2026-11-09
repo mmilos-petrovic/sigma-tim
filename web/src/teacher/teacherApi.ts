@@ -123,6 +123,8 @@ export type Outcome = 'held' | 'not_held'
 export interface Participant {
   studentId: string
   note: string | null
+  /** The teacher marked that this student has paid for this lesson. Never shown in the calendar. */
+  paid: boolean
 }
 
 export interface LessonRow {
@@ -156,6 +158,21 @@ export interface Conflict {
   end: string
   sameTeacher: boolean
   sameRoom: boolean
+}
+
+/** A page of past lessons, the newest first; `hasMore` tells whether older ones exist. */
+export interface LessonPage {
+  lessons: LessonRow[]
+  hasMore: boolean
+}
+
+/** What a student record has in lessons: it decides whether the record can be deleted and what deleting costs. */
+export interface StudentCount {
+  studentId: string
+  /** Lessons recorded as held. With one, the student can never be deleted. */
+  heldLessons: number
+  /** Lessons that have not started yet (booked, or waiting for the teacher). */
+  upcomingLessons: number
 }
 
 export interface TimeRange {
@@ -224,6 +241,10 @@ export interface TeacherApi {
   listLessons(range: TimeRange, teacherId: string): Promise<LessonRow[]>
   /** Late bookings that wait for an answer, whenever they are. */
   listPending(teacherId: string): Promise<LessonRow[]>
+  /** Lessons and bookings that have not ended yet, the soonest first. Free slots are not lessons and are left out. */
+  listUpcoming(teacherId: string, now: string): Promise<LessonRow[]>
+  /** Lessons and bookings that have ended, the newest first, `limit` of them. */
+  listPast(teacherId: string, now: string, limit: number): Promise<LessonPage>
   /** Colleagues' lessons that overlap the range (the caller's own are left out). */
   listBusy(range: TimeRange, teacherId: string): Promise<BusyRow[]>
   findConflicts(query: ConflictQuery): Promise<Conflict[]>
@@ -234,14 +255,28 @@ export interface TeacherApi {
   updateLesson(lessonId: string, patch: Partial<LessonInput>): Promise<void>
   /** Replaces who attends (1 to 4 of the teacher's students). Notes of students who stay are kept. */
   setLessonStudents(lessonId: string, studentIds: string[]): Promise<void>
-  /** Deletes a lesson, removes a free slot, or frees a booked slot. Only before the start. */
-  cancelLesson(lessonId: string): Promise<void>
+  /**
+   * Deletes a lesson, removes a free slot, or frees a booked slot. Only before the start. The optional reason (at most
+   * `MAX_REASON` characters) is sent to the others in the notification.
+   */
+  cancelLesson(lessonId: string, reason?: string | null): Promise<void>
   publishSlot(input: SlotInput): Promise<void>
   confirmBooking(lessonId: string): Promise<void>
-  declineBooking(lessonId: string): Promise<void>
+  /** Declines a late booking and frees the slot. The optional reason is sent in the notification. */
+  declineBooking(lessonId: string, reason?: string | null): Promise<void>
   setNote(lessonId: string, studentId: string, note: string | null): Promise<void>
   /** Records what happened; only after a confirmed lesson has ended. `null` clears it. */
   setOutcome(lessonId: string, outcome: Outcome | null): Promise<void>
+  /** Marks that one student has paid for the lesson, or takes the mark back. */
+  setPaid(lessonId: string, studentId: string, paid: boolean): Promise<void>
+
+  /** Held and upcoming lessons of each of the teacher's students. */
+  listStudentCounts(): Promise<StudentCount[]>
+  /**
+   * Deletes one student record. Refused (`PT409`) when the student has a lesson recorded as held; lessons still to come
+   * are cancelled and the others on them are told.
+   */
+  deleteStudent(studentId: string): Promise<void>
 
   /** The teacher's own colour, on all their lessons (past and future) for everybody who sees them. `null` is no choice. */
   setColor(teacherId: string, color: ColorKey | null): Promise<void>

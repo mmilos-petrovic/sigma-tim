@@ -108,6 +108,65 @@ describe('recording what happened', () => {
   })
 })
 
+describe('marking that a student has paid', () => {
+  const paidBox = (dialog: ReturnType<typeof within>, name: string) =>
+    dialog.getByRole('checkbox', { name: `Plaćeno za ${name}` })
+
+  it('is a box for each student, empty to begin with', async () => {
+    renderTeacher(PATH)
+    const dialog = await open(TOMORROW, 'Fizika')
+    expect(paidBox(dialog, 'Ana Petrović')).not.toBeChecked()
+    expect(paidBox(dialog, 'Luka Ilić')).not.toBeChecked()
+  })
+
+  it('marks one student and leaves the other alone', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(TOMORROW, 'Fizika')
+    await userEvent.click(paidBox(dialog, 'Luka Ilić'))
+    expect(teacherApi.setPaid).toHaveBeenCalledWith('les-tomorrow', 'st-luka', true)
+    await waitFor(() => expect(paidBox(dialog, 'Luka Ilić')).toBeChecked())
+    expect(paidBox(dialog, 'Ana Petrović')).not.toBeChecked()
+    expect(teacherApi.setPaid).toHaveBeenCalledTimes(1)
+  })
+
+  it('takes the mark back', async () => {
+    const state = seedTeacher()
+    for (const lesson of state.lessons) {
+      if (lesson.id === 'les-tomorrow') lesson.participants[0].paid = true
+    }
+    const { teacherApi } = renderTeacher(PATH, { api: createFakeTeacherApi(state) })
+    const dialog = await open(TOMORROW, 'Fizika')
+    expect(paidBox(dialog, 'Ana Petrović')).toBeChecked()
+    await userEvent.click(paidBox(dialog, 'Ana Petrović'))
+    expect(teacherApi.setPaid).toHaveBeenCalledWith('les-tomorrow', 'st-ana', false)
+    await waitFor(() => expect(paidBox(dialog, 'Ana Petrović')).not.toBeChecked())
+  })
+
+  it('can be set on a lesson that is over, and on one that is frozen', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const over = await open(TODAY, 'Matematika')
+    await userEvent.click(paidBox(over, 'Ana Petrović'))
+    expect(teacherApi.setPaid).toHaveBeenCalledWith('les-today', 'st-ana', true)
+  })
+
+  it('says what went wrong, and leaves the box as the database has it', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(TOMORROW, 'Fizika')
+    teacherApi.failNext('setPaid', new AdminError('PT404', 'the student is not on this lesson'))
+    await userEvent.click(paidBox(dialog, 'Luka Ilić'))
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
+      'Čas ili učenik više ne postoji. Osvežite stranicu.',
+    )
+    expect(paidBox(dialog, 'Luka Ilić')).not.toBeChecked()
+  })
+
+  it('is not asked for a free slot, which has nobody on it', async () => {
+    renderTeacher(PATH)
+    const dialog = await open(/^Slobodan termin/, 'Slobodan termin')
+    expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+})
+
 describe('deleting, cancelling and removing', () => {
   it('deletes a lesson after explaining what happens, and it leaves the calendar', async () => {
     const { teacherApi } = renderTeacher(PATH)
@@ -117,7 +176,7 @@ describe('deleting, cancelling and removing', () => {
     expect(confirm.getByText(/dobijaju obaveštenje/)).toBeInTheDocument()
     await userEvent.click(confirm.getByRole('button', { name: 'Obriši' }))
 
-    expect(teacherApi.cancelLesson).toHaveBeenCalledWith('les-tomorrow')
+    expect(teacherApi.cancelLesson).toHaveBeenCalledWith('les-tomorrow', null)
     expect(await screen.findByRole('status')).toHaveTextContent('Čas je obrisan.')
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: TOMORROW })).not.toBeInTheDocument(),
@@ -153,6 +212,49 @@ describe('deleting, cancelling and removing', () => {
     )
   })
 
+  it('sends the reason the teacher gives, trimmed, for the people who are told', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(TOMORROW, 'Fizika')
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši čas' }))
+    const confirm = await inDialog('Brisanje časa')
+    expect(
+      confirm.getByText(/Razlog dobijaju učenici i roditelji u obaveštenju/),
+    ).toBeInTheDocument()
+    await userEvent.type(confirm.getByLabelText('Razlog (nije obavezan)'), '  Razboleo sam se ')
+    await userEvent.click(confirm.getByRole('button', { name: 'Obriši' }))
+    expect(teacherApi.cancelLesson).toHaveBeenCalledWith('les-tomorrow', 'Razboleo sam se')
+  })
+
+  it('sends no reason when only blanks were typed', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(TOMORROW, 'Fizika')
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši čas' }))
+    const confirm = await inDialog('Brisanje časa')
+    await userEvent.type(confirm.getByLabelText('Razlog (nije obavezan)'), '   ')
+    await userEvent.click(confirm.getByRole('button', { name: 'Obriši' }))
+    expect(teacherApi.cancelLesson).toHaveBeenCalledWith('les-tomorrow', null)
+  })
+
+  it('asks for no reason when a free slot is removed: nobody is told', async () => {
+    renderTeacher(PATH)
+    const dialog = await open(/^Slobodan termin/, 'Slobodan termin')
+    await userEvent.click(dialog.getByRole('button', { name: 'Ukloni termin' }))
+    const confirm = await inDialog('Uklanjanje termina')
+    expect(confirm.queryByLabelText('Razlog (nije obavezan)')).not.toBeInTheDocument()
+  })
+
+  it('explains it when the reason is refused as too long', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(TOMORROW, 'Fizika')
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši čas' }))
+    const confirm = await inDialog('Brisanje časa')
+    teacherApi.failNext('cancelLesson', new AdminError('PT400', 'the reason is too long'))
+    await userEvent.click(confirm.getByRole('button', { name: 'Obriši' }))
+    expect(await confirm.findByRole('alert')).toHaveTextContent(
+      'Razlog je predugačak (najviše 200 znakova).',
+    )
+  })
+
   it('removes a free slot', async () => {
     const { teacherApi } = renderTeacher(PATH)
     const dialog = await open(/^Slobodan termin/, 'Slobodan termin')
@@ -160,7 +262,7 @@ describe('deleting, cancelling and removing', () => {
     await userEvent.click(
       (await inDialog('Uklanjanje termina')).getByRole('button', { name: 'Ukloni' }),
     )
-    expect(teacherApi.cancelLesson).toHaveBeenCalledWith('slot-open')
+    expect(teacherApi.cancelLesson).toHaveBeenCalledWith('slot-open', null)
     expect(await screen.findByRole('status')).toHaveTextContent('Termin je uklonjen.')
   })
 
@@ -169,7 +271,7 @@ describe('deleting, cancelling and removing', () => {
     const booked = {
       ...state.lessons.find((l) => l.id === 'slot-open')!,
       status: 'confirmed' as const,
-      participants: [{ studentId: 'st-luka', note: null }],
+      participants: [{ studentId: 'st-luka', note: null, paid: false }],
     }
     const lessons = state.lessons.map((l) => (l.id === 'slot-open' ? booked : l))
     const { teacherApi } = renderTeacher(PATH, { api: createFakeTeacherApi({ lessons }) })
@@ -177,9 +279,10 @@ describe('deleting, cancelling and removing', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Otkaži čas' }))
     const confirm = await inDialog('Otkazivanje časa')
     expect(confirm.getByText(/ponovo postaje slobodan/)).toBeInTheDocument()
+    await userEvent.type(confirm.getByLabelText('Razlog (nije obavezan)'), 'Prezauzet sam')
     await userEvent.click(confirm.getByRole('button', { name: 'Otkaži čas' }))
 
-    expect(teacherApi.cancelLesson).toHaveBeenCalledWith('slot-open')
+    expect(teacherApi.cancelLesson).toHaveBeenCalledWith('slot-open', 'Prezauzet sam')
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Čas je otkazan, termin je ponovo slobodan.',
     )
@@ -195,6 +298,46 @@ describe('answering a booking from its dialog', () => {
     await userEvent.click(dialog.getByRole('button', { name: 'Potvrdi' }))
     expect(teacherApi.confirmBooking).toHaveBeenCalledWith('booking-pending')
     expect(await dialog.findByText('Zahtev je potvrđen.')).toBeInTheDocument()
+  })
+
+  it('declines it after asking for a reason, which is optional', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(/^Na čekanju/, 'Na čekanju')
+    await userEvent.click(dialog.getByRole('button', { name: 'Odbij' }))
+    const decline = await inDialog('Odbijanje zahteva')
+    expect(
+      decline.getByText(/Razlog dobijaju učenik i roditelji u obaveštenju/),
+    ).toBeInTheDocument()
+    await userEvent.type(decline.getByLabelText('Razlog (nije obavezan)'), ' Termin nije slobodan ')
+    await userEvent.click(decline.getByRole('button', { name: 'Odbij zahtev' }))
+    expect(teacherApi.declineBooking).toHaveBeenCalledWith(
+      'booking-pending',
+      'Termin nije slobodan',
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Zahtev je odbijen, termin je ponovo slobodan.',
+    )
+  })
+
+  it('declines it without a reason when none is given', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(/^Na čekanju/, 'Na čekanju')
+    await userEvent.click(dialog.getByRole('button', { name: 'Odbij' }))
+    await userEvent.click(
+      (await inDialog('Odbijanje zahteva')).getByRole('button', { name: 'Odbij zahtev' }),
+    )
+    expect(teacherApi.declineBooking).toHaveBeenCalledWith('booking-pending', null)
+  })
+
+  it('comes back to the booking when the teacher thinks better of declining it', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(/^Na čekanju/, 'Na čekanju')
+    await userEvent.click(dialog.getByRole('button', { name: 'Odbij' }))
+    await userEvent.click(
+      (await inDialog('Odbijanje zahteva')).getByRole('button', { name: 'Odustani' }),
+    )
+    expect(await inDialog('Na čekanju')).toBeTruthy()
+    expect(teacherApi.declineBooking).not.toHaveBeenCalled()
   })
 })
 
@@ -347,7 +490,7 @@ describe('editing a lesson', () => {
     const booked = {
       ...state.lessons.find((l) => l.id === 'slot-open')!,
       status: 'confirmed' as const,
-      participants: [{ studentId: 'st-luka', note: null }],
+      participants: [{ studentId: 'st-luka', note: null, paid: false }],
     }
     const lessons = state.lessons.map((l) => (l.id === 'slot-open' ? booked : l))
     const { teacherApi } = renderTeacher(PATH, { api: createFakeTeacherApi({ lessons }) })

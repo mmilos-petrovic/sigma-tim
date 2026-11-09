@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import { FormDialog } from '../../components/FormDialog'
+import { ReasonField } from '../../components/ReasonField'
+import { cleanReason } from '../../lib/reason'
 import { isLateBooking } from '../lessonList'
 import { useRefresh, useTeacherPhone } from '../queries'
 import { useStudentApi } from '../StudentApiProvider'
@@ -21,6 +24,7 @@ export function CancelDialog({
   const api = useStudentApi()
   const refresh = useRefresh()
   const phone = useTeacherPhone(lesson.teacherId)
+  const [reason, setReason] = useState('')
   const label = cancelLabel(lesson)
   const isSlot = lesson.origin === 'slot'
   const late = isLateBooking(lesson.start, now)
@@ -34,7 +38,7 @@ export function CancelDialog({
       onClose={onClose}
       onSubmit={async () => {
         try {
-          await api.cancelLesson(lesson.id)
+          await api.cancelLesson(lesson.id, cleanReason(reason))
         } catch (failure) {
           // whatever went wrong, the lists may be out of date
           void refresh()
@@ -61,6 +65,11 @@ export function CancelDialog({
           )}
         </p>
       )}
+      <ReasonField
+        value={reason}
+        onChange={setReason}
+        hint="Razlog dobija nastavnik u obaveštenju."
+      />
     </FormDialog>
   )
 }

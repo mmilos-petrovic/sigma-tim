@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import { AdminError } from '../../admin/adminApi'
 import { explainError } from '../../admin/errors'
+import { DeleteStudentDialog } from '../../components/DeleteStudentDialog'
 import { Field, FormDialog } from '../../components/FormDialog'
 import { Loaded, Notice, PageHeader } from '../../components/Loaded'
 import { PhoneDialog, PhoneLine } from '../../components/PhoneDialog'
 import { normalizePhone, phoneProblem } from '../../lib/phone'
 import { useTeacherApi } from '../TeacherApiProvider'
-import { useRefresh, useStudents, useUnassigned } from '../queries'
-import { MAX_PARENTS, type ParentRow, type StudentRow, type UnassignedStudent } from '../teacherApi'
+import { useRefresh, useStudentCounts, useStudents, useUnassigned } from '../queries'
+import {
+  MAX_PARENTS,
+  type ParentRow,
+  type StudentCount,
+  type StudentRow,
+  type UnassignedStudent,
+} from '../teacherApi'
 
 const EMAIL_FORMAT = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
@@ -31,6 +38,7 @@ type Dialog =
   | { kind: 'addParent'; student: StudentRow }
   | { kind: 'editParent'; parent: ParentRow }
   | { kind: 'removeParent'; student: StudentRow; parent: ParentRow }
+  | { kind: 'deleteStudent'; student: StudentRow; upcoming: number }
   | { kind: 'phone'; profileId: string; name: string; phone: string | null; required: boolean }
   | null
 
@@ -356,9 +364,12 @@ function ClassCell({ grade, section }: { grade: string | null; section: string |
 
 function StudentsTable({
   rows,
+  counts,
   onDialog,
 }: {
   rows: StudentRow[]
+  /** What each student has in lessons; empty while unknown, and then nobody can be deleted. */
+  counts: ReadonlyMap<string, StudentCount>
   onDialog: (dialog: Dialog) => void
 }) {
   return (
@@ -476,6 +487,22 @@ function StudentsTable({
                   Dodaj roditelja
                 </button>
               )}
+              {counts.get(student.id)?.heldLessons === 0 && (
+                <button
+                  type="button"
+                  className="button button--small button--secondary"
+                  aria-label={`Obriši učenika ${fullName(student)}`}
+                  onClick={() =>
+                    onDialog({
+                      kind: 'deleteStudent',
+                      student,
+                      upcoming: counts.get(student.id)?.upcomingLessons ?? 0,
+                    })
+                  }
+                >
+                  Obriši
+                </button>
+              )}
             </td>
           </tr>
         ))}
@@ -542,6 +569,8 @@ export function StudentsPage() {
   const refresh = useRefresh()
   const students = useStudents()
   const unassigned = useUnassigned()
+  const studentCounts = useStudentCounts()
+  const counts = new Map((studentCounts.data ?? []).map((count) => [count.studentId, count]))
   const [dialog, setDialog] = useState<Dialog>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [requestError, setRequestError] = useState<string | null>(null)
@@ -583,7 +612,7 @@ export function StudentsPage() {
           rows.length === 0 ? (
             <p className="empty-note">Još nemate učenika. Dodajte prvog.</p>
           ) : (
-            <StudentsTable rows={rows} onDialog={setDialog} />
+            <StudentsTable rows={rows} counts={counts} onDialog={setDialog} />
           )
         }
       </Loaded>
@@ -635,6 +664,18 @@ export function StudentsPage() {
           name={dialog.name}
           phone={dialog.phone}
           required={dialog.required}
+          onClose={() => setDialog(null)}
+          onDone={done}
+        />
+      )}
+      {dialog?.kind === 'deleteStudent' && (
+        <DeleteStudentDialog
+          name={fullName(dialog.student)}
+          upcoming={dialog.upcoming}
+          onDelete={async () => {
+            await api.deleteStudent(dialog.student.id)
+            await refresh()
+          }}
           onClose={() => setDialog(null)}
           onDone={done}
         />

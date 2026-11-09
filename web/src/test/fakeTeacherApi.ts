@@ -150,7 +150,7 @@ export const seedTeacher = (): FakeTeacherState => ({
       status: 'confirmed',
       origin: 'teacher',
       outcome: null,
-      participants: [{ studentId: 'st-ana', note: 'Radili razlomke' }],
+      participants: [{ studentId: 'st-ana', note: 'Radili razlomke', paid: false }],
     },
     {
       // tomorrow 16:00-17:00, two students, same room and time as the colleague below
@@ -164,8 +164,8 @@ export const seedTeacher = (): FakeTeacherState => ({
       origin: 'teacher',
       outcome: null,
       participants: [
-        { studentId: 'st-ana', note: null },
-        { studentId: 'st-luka', note: null },
+        { studentId: 'st-ana', note: null, paid: false },
+        { studentId: 'st-luka', note: null, paid: false },
       ],
     },
     {
@@ -179,7 +179,7 @@ export const seedTeacher = (): FakeTeacherState => ({
       status: 'confirmed',
       origin: 'teacher',
       outcome: 'held',
-      participants: [{ studentId: 'st-ana', note: null }],
+      participants: [{ studentId: 'st-ana', note: null, paid: false }],
     },
     {
       id: 'slot-open',
@@ -204,7 +204,7 @@ export const seedTeacher = (): FakeTeacherState => ({
       status: 'pending',
       origin: 'slot',
       outcome: null,
-      participants: [{ studentId: 'st-luka', note: null }],
+      participants: [{ studentId: 'st-luka', note: null, paid: false }],
     },
     {
       // an expired free slot: never shown
@@ -304,6 +304,12 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
     const location = state.reference.locations.find((l) => l.id === place.locationId)
     if (!location || (place.roomId && !location.rooms.some((r) => r.id === place.roomId)))
       throw new AdminError('23503', 'the room must belong to the location')
+  }
+
+  /** A reason for cancelling: blank is none, more than 200 characters is refused. */
+  const checkReason = (reason: string | null | undefined) => {
+    if (reason && reason.trim().length > 200)
+      throw new AdminError('PT400', 'the reason is too long')
   }
 
   const checkTimes = (range: { start: string; end: string }) => {
@@ -478,6 +484,21 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
       await gate('listPending')
       return structuredClone(state.lessons.filter((l) => l.status === 'pending'))
     },
+    async listUpcoming(_teacherId, now) {
+      await gate('listUpcoming')
+      return structuredClone(
+        state.lessons
+          .filter((l) => l.status !== 'open' && new Date(l.end) > new Date(now))
+          .sort((a, b) => a.start.localeCompare(b.start)),
+      )
+    },
+    async listPast(_teacherId, now, limit) {
+      await gate('listPast')
+      const past = state.lessons
+        .filter((l) => l.status !== 'open' && new Date(l.end) <= new Date(now))
+        .sort((a, b) => b.start.localeCompare(a.start))
+      return structuredClone({ lessons: past.slice(0, limit), hasMore: past.length > limit })
+    },
     async listBusy(range, teacherId) {
       await gate('listBusy')
       return structuredClone(
@@ -532,7 +553,7 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
         status: 'confirmed',
         origin: 'teacher',
         outcome: null,
-        participants: studentIds.map((studentId) => ({ studentId, note: null })),
+        participants: studentIds.map((studentId) => ({ studentId, note: null, paid: false })),
       })
       return id
     },
@@ -570,14 +591,19 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
       const wanted = checkStudents(studentIds)
       lesson.participants = wanted.map(
         (studentId) =>
-          lesson.participants.find((p) => p.studentId === studentId) ?? { studentId, note: null },
+          lesson.participants.find((p) => p.studentId === studentId) ?? {
+            studentId,
+            note: null,
+            paid: false,
+          },
       )
     },
-    async cancelLesson(lessonId) {
+    async cancelLesson(lessonId, reason) {
       await gate('cancelLesson')
       const lesson = findLesson(lessonId)
       if (new Date(lesson.start) <= state.now)
         throw new AdminError('PT409', 'lesson already started')
+      checkReason(reason)
       if (lesson.status === 'open' || lesson.origin === 'teacher') {
         state.lessons = state.lessons.filter((l) => l.id !== lessonId)
       } else {
@@ -614,13 +640,14 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
         throw new AdminError('PT409', 'only a pending booking can be confirmed')
       lesson.status = 'confirmed'
     },
-    async declineBooking(lessonId) {
+    async declineBooking(lessonId, reason) {
       await gate('declineBooking')
       const lesson = findLesson(lessonId)
       if (lesson.status !== 'pending')
         throw new AdminError('PT409', 'only a pending booking can be declined')
       if (new Date(lesson.start) <= state.now)
         throw new AdminError('PT409', 'lesson already started')
+      checkReason(reason)
       lesson.status = 'open'
       lesson.participants = []
     },
@@ -641,6 +668,49 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
           'an outcome can only be recorded once a confirmed lesson has ended',
         )
       lesson.outcome = outcome
+    },
+    async setPaid(lessonId, studentId, paid) {
+      await gate('setPaid')
+      const lesson = findLesson(lessonId)
+      const participant = lesson.participants.find((p) => p.studentId === studentId)
+      if (!participant) throw new AdminError('PT404', 'the student is not on this lesson')
+      participant.paid = paid
+    },
+    async listStudentCounts() {
+      await gate('listStudentCounts')
+      return state.students.map((student) => {
+        const mine = state.lessons.filter((l) =>
+          l.participants.some((p) => p.studentId === student.id),
+        )
+        return {
+          studentId: student.id,
+          heldLessons: mine.filter((l) => l.outcome === 'held').length,
+          upcomingLessons: mine.filter((l) => new Date(l.start) > state.now).length,
+        }
+      })
+    },
+    async deleteStudent(studentId) {
+      await gate('deleteStudent')
+      if (!state.students.some((s) => s.id === studentId))
+        throw new AdminError('PT404', 'student not found')
+      const mine = state.lessons.filter((l) =>
+        l.participants.some((p) => p.studentId === studentId),
+      )
+      if (mine.some((l) => l.outcome === 'held'))
+        throw new AdminError('PT409', 'a student with a lesson that took place cannot be deleted')
+      for (const lesson of mine) {
+        const others = lesson.participants.filter((p) => p.studentId !== studentId)
+        const started = new Date(lesson.start) <= state.now
+        if (others.length > 0) {
+          lesson.participants = others
+        } else if (started || lesson.origin === 'teacher') {
+          state.lessons = state.lessons.filter((l) => l.id !== lesson.id)
+        } else {
+          lesson.status = 'open'
+          lesson.participants = []
+        }
+      }
+      state.students = state.students.filter((s) => s.id !== studentId)
     },
     async setColor(_teacherId, color) {
       await gate('setColor')

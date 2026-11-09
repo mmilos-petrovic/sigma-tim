@@ -49,7 +49,7 @@ export interface LessonRowFromDb extends PlaceRow {
   status: string
   outcome: string | null
   origin: string
-  mine: { note: string | null }[]
+  mine: { note: string | null; paid_at: string | null }[]
 }
 
 const iso = (timestamp: string) => new Date(timestamp).toISOString()
@@ -73,6 +73,7 @@ export function mapLesson(
     teacherId: row.teacher_id,
     teacherName: teacherNames.get(row.teacher_id) ?? null,
     note: row.mine[0]?.note?.trim() ? row.mine[0].note : null,
+    paid: row.mine[0]?.paid_at != null,
   }
 }
 
@@ -94,7 +95,7 @@ export function mapSlot(
 
 const PLACE = 'subject:subjects(name), location:locations(name, address), room:rooms(name)'
 // Only through the student's own participation: an account that also teaches can read more lessons than these.
-const LESSON = `id, teacher_id, start_at, end_at, status, outcome, origin, ${PLACE}, mine:lesson_students!inner(note)`
+const LESSON = `id, teacher_id, start_at, end_at, status, outcome, origin, ${PLACE}, mine:lesson_students!inner(note, paid_at)`
 
 export function createSupabaseStudentApi(client: SupabaseClient<Database>): StudentApi {
   /** First and last names of the given profiles. Teachers of old lessons are readable too (see the database README). */
@@ -206,8 +207,8 @@ export function createSupabaseStudentApi(client: SupabaseClient<Database>): Stud
       return data as LessonStatus
     },
 
-    async cancelLesson(lessonId) {
-      await run(client.rpc('cancel_lesson', { p_lesson_id: lessonId }))
+    async cancelLesson(lessonId, reason) {
+      await run(client.rpc('cancel_lesson', { p_lesson_id: lessonId, p_note: reason ?? undefined }))
     },
   }
 }

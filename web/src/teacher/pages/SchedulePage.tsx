@@ -7,8 +7,8 @@ import { CONTEXT_LABEL, homePath } from '../../auth/roles'
 import { useNow } from '../clock'
 import { chooseLocation, readLastLocation, writeLastLocation } from '../locationFilter'
 import { ConflictDialog } from '../lessons/ConflictDialog'
-import { LessonDialog } from '../lessons/LessonDialog'
 import { LessonFormDialog } from '../lessons/LessonFormDialog'
+import { LessonViewer } from '../lessons/LessonViewer'
 import { PendingBookings } from '../lessons/PendingBookings'
 import { SlotDialog } from '../lessons/SlotDialog'
 import {
@@ -34,7 +34,6 @@ type Dialog =
   | { kind: 'new'; initial?: TimeRange }
   | { kind: 'slot' }
   | { kind: 'view'; lessonId: string }
-  | { kind: 'edit'; lessonId: string }
   | null
 
 /** The teacher's whole schedule: the weekly calendar, late bookings, and the dialogs to change them. */
@@ -137,9 +136,7 @@ export function SchedulePage() {
   }
 
   const viewed =
-    dialog && (dialog.kind === 'view' || dialog.kind === 'edit')
-      ? lessons.data?.find((l) => l.id === dialog.lessonId)
-      : undefined
+    dialog?.kind === 'view' ? lessons.data?.find((l) => l.id === dialog.lessonId) : undefined
 
   return (
     <>
@@ -253,17 +250,7 @@ export function SchedulePage() {
                   <SlotDialog reference={ref} onClose={() => setDialog(null)} onDone={done} />
                 )}
                 {dialog?.kind === 'view' && viewed && (
-                  <LessonDialog
-                    lesson={viewed}
-                    reference={ref}
-                    students={people}
-                    onClose={() => setDialog(null)}
-                    onEdit={() => setDialog({ kind: 'edit', lessonId: viewed.id })}
-                    onDone={done}
-                  />
-                )}
-                {dialog?.kind === 'edit' && viewed && (
-                  <LessonFormDialog
+                  <LessonViewer
                     lesson={viewed}
                     reference={ref}
                     students={people}

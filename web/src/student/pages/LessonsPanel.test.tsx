@@ -77,6 +77,21 @@ describe('the list of lessons', () => {
     expect(screen.queryByText(/ishod|unos/i)).not.toBeInTheDocument()
   })
 
+  it('marks a lesson that was paid for, only once it is over, and never says one was not paid', async () => {
+    const state = seedStudent()
+    for (const lesson of state.lessons) {
+      if (lesson.id === 'l-held' || lesson.id === 'l-next') lesson.paid = true // a past one, and one paid in advance
+    }
+    renderStudent(PATH, { api: createFakeStudentApi(state) })
+    const ahead = texts(await upcoming())
+    const behind = texts(await past())
+    expect(behind[0]).toContain('Plaćen') // the held lesson, paid
+    expect(behind[1]).not.toMatch(/Plaćen|Neplaćen/i) // not held, not paid: nothing to say
+    expect(behind[2]).not.toMatch(/Plaćen|Neplaćen/i)
+    expect(ahead[1]).not.toContain('Plaćen') // paid in advance, but not over
+    expect(document.body.textContent).not.toMatch(/Neplaćen|Nije plaćen/i)
+  })
+
   it('opens a row on a click to show the teacher, phone, address, room and note', async () => {
     renderStudent(PATH)
     const button = await open(30, 31)
@@ -241,9 +256,35 @@ describe('cancelling', () => {
     await userEvent.click(dlg.getByRole('button', { name: 'Otkaži čas' }))
 
     expect(await screen.findByText('Čas je otkazan.')).toBeInTheDocument()
-    expect(api.calls.cancelLesson).toHaveBeenCalledWith('l-next')
+    expect(api.calls.cancelLesson).toHaveBeenCalledWith('l-next', null)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(texts(await upcoming())).toHaveLength(1)
+  })
+
+  it('offers an optional reason, which goes to the teacher with the cancellation', async () => {
+    const api = createFakeStudentApi()
+    renderStudent(PATH, { api })
+    await open(30, 31)
+    await userEvent.click(await screen.findByRole('button', { name: 'Otkaži čas' }))
+    const dlg = await inDialog('Otkaži čas')
+    expect(dlg.getByText(/Razlog dobija nastavnik u obaveštenju/)).toBeInTheDocument()
+    await userEvent.type(dlg.getByLabelText('Razlog (nije obavezan)'), '  Bolestan sam ')
+    await userEvent.click(dlg.getByRole('button', { name: 'Otkaži čas' }))
+    expect(api.calls.cancelLesson).toHaveBeenCalledWith('l-next', 'Bolestan sam')
+  })
+
+  it('explains it when the reason is refused as too long', async () => {
+    const api = createFakeStudentApi()
+    renderStudent(PATH, { api })
+    await open(30, 31)
+    await userEvent.click(await screen.findByRole('button', { name: 'Otkaži čas' }))
+    api.failNext('cancelLesson', new AdminError('PT400', 'the reason is too long'))
+    await userEvent.click(
+      (await inDialog('Otkaži čas')).getByRole('button', { name: 'Otkaži čas' }),
+    )
+    expect(
+      await screen.findByText('Razlog je predugačak (najviše 200 znakova).'),
+    ).toBeInTheDocument()
   })
 
   it('changes nothing when the person backs out', async () => {
@@ -277,7 +318,7 @@ describe('cancelling', () => {
     expect(dlg.getByText(/Termin počinje za manje od 12 sati/)).toBeInTheDocument()
     expect(await dlg.findByRole('link', { name: '064 1110 000' })).toBeInTheDocument()
     await userEvent.click(dlg.getByRole('button', { name: 'Otkaži rezervaciju' }))
-    expect(api.calls.cancelLesson).toHaveBeenCalledWith('l-waiting')
+    expect(api.calls.cancelLesson).toHaveBeenCalledWith('l-waiting', null)
   })
 
   it('warns without a number when the teacher has none', async () => {
