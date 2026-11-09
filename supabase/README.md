@@ -45,13 +45,17 @@ The script is idempotent: it never deletes or renames anything, and it only crea
 | `schedule_lesson(subject, location, room, start, end, student_ids)` | teacher | confirmed lesson for their own students. It may start earlier today (to enter a lesson afterwards), not on a day that has passed (`PT400`) |
 | `set_lesson_students(lesson_id, student_ids)` | the lesson's teacher | replaces the participants of a confirmed lesson: 1 to 4 of the teacher's own students; students who stay keep their notes. Not subject to the day lock. `PT409` for a free slot or a pending booking |
 | `claim_slot(lesson_id, student_ids)` | student, parent | book a free slot; atomic, first one wins; returns `confirmed` or `pending` (less than 12 h ahead) |
-| `confirm_booking(lesson_id)` / `decline_booking(lesson_id)` | the slot's teacher | answer a `pending` booking; declining frees the slot. Declining after the start is refused (`PT409`, it would leave a free slot in the past); confirming still works, which is how an outcome is recorded for a booking nobody answered |
-| `cancel_lesson(lesson_id)` | teacher, participant, parent | before the start only. The teacher cancels the whole lesson. A student or parent removes only their own student(s); the lesson goes on for the others. When the last participant leaves, the lesson is deleted, or a booked slot is freed |
+| `confirm_booking(lesson_id)` / `decline_booking(lesson_id, note)` | the slot's teacher | answer a `pending` booking; declining frees the slot (the optional `note` is a reason, see Reasons for cancelling). Declining after the start is refused (`PT409`, it would leave a free slot in the past); confirming still works, which is how an outcome is recorded for a booking nobody answered |
+| `cancel_lesson(lesson_id, note)` | teacher, participant, parent | before the start only; `note` is an optional reason (see Reasons for cancelling). The teacher cancels the whole lesson. A student or parent removes only their own student(s); the lesson goes on for the others. When the last participant leaves, the lesson is deleted, or a booked slot is freed |
 | `find_conflicts(teacher, room, start, end, exclude_lesson)` | teacher, admin | overlaps, as a warning only; times and places, never students |
 | `busy_times(from, to)` | teacher, admin | colleagues' busy times (no subject, no students) |
 | `change_student_email(student_id, new_email)` | the student's teacher | corrects the email of their own student; the old Google account is cut off at once and the profile is linked to the new address's account if one exists (same rules as `change_profile_email`, which shares its code). Only for a person who is this teacher's and nobody else's: a student who also studies with another teacher, a colleague or admin who is also their student, or a parent of another teacher's child gets `PT409`/`PT403` and goes through the administrator |
 | `rename_person(profile_id, first, last)` | teacher | corrects the name of one of their students or of a parent of one. Never an email. The name belongs to the person, so a parent shared with another teacher is renamed for both. Colleagues, admins and the teacher themselves are refused (`PT403`) |
 | `remove_parent_from_student(student_id, parent_id)` | the student's teacher, admin | unlinks a parent (the way to fix a wrong parent email: remove, then `add_parent_to_student` with the right one). A parent with no children left loses the parent role; the profile stays |
+| `set_lesson_paid(lesson_id, student_id, paid)` | the lesson's teacher | marks that one student has paid for the lesson (`lesson_students.paid_at`), or takes the mark back. Any lesson that has the student on it, past or still to come, a booking that waits included; marking twice keeps the first moment. `PT404` for a lesson or a student who is not on it, `PT400` for no answer |
+| `delete_student(student_id)` | the student's teacher, admin (any student, also one nobody teaches) | deletes one student record, see Deleting a student |
+| `student_lesson_counts()` | teacher, admin | per student the caller may delete (all for an admin, the teacher's own for a teacher): `held_lessons` (outcome held) and `upcoming_lessons` (starting later, booked or waiting) |
+| `admin_list_students()` | admin | one row per student record, the one added last first: person, `created_at`, teacher, parent names, the locations of the record's lessons, and the two counts above |
 | `request_takeover(student_id)` | teacher | ask for an unassigned student |
 | `approve_takeover(id)` / `reject_takeover(id)` | admin | approving closes competing requests |
 | `deactivate_teacher(teacher_id)` | admin | deletes future lessons (participants are notified), unassigns students |
@@ -113,6 +117,20 @@ A teacher edits their own lessons directly (`update` on `lessons`: subject, loca
 ## Storage
 
 One private bucket, `location-photos` (JPEG or WebP, at most 2 MiB per file; the Storage API enforces both). Only approved members read it (through signed links), only the admin writes. Objects are named `<location id>/<file>` and `public.location_photos` keeps the order (1 to 3 per location). Storage refuses a direct `DELETE` from SQL, and deleting a location does not remove its files, so the app deletes the files through the Storage API right after it deletes the location row (in that order: if rooms or lessons still use the location, the delete is refused and nothing is lost; if removing the files fails afterwards, they are only orphans, which the app logs).
+
+## Paid, reasons for cancelling, deleting a student
+
+**Paid.** `lesson_students.paid_at` is set by `set_lesson_paid` only (the table grant still lets a teacher update `note` and nothing else). The student and a parent read it on their own row, like the note.
+
+**Reasons for cancelling.** `cancel_lesson` (a teacher cancelling, a student or parent cancelling or leaving a group lesson) and `decline_booking` take an optional reason of up to 200 characters; blank means none, longer is refused with `PT400` before anything changes. It is kept nowhere but in the queued notice, as `payload.note` (`reason` already means `cancelled`, `declined` or `teacher_deactivated`). A deletion reaches the notice trigger through `app.cancel_note`, which `cancel_lesson` sets and clears like `app.cancel_reason`. Cancelling by deactivation or by a plain `delete` on the table carries no note.
+
+**Deleting a student.** `delete_student` removes one student record (a person with one teacher), only while it has no lesson with outcome `held`; with one, nothing is deleted and the answer is `PT409`, also for the administrator. A student nobody teaches is the administrator's. In one transaction:
+- lessons still to come leave the way a student does: a group lesson goes on for the others, a lesson of the teacher's own is cancelled, a booked free slot is free again (the others are told; the person who deletes is not);
+- lessons that already started and have nobody else on them are deleted (not held, not recorded, or a booking nobody answered), so no empty block is left; with somebody else on them they stay without the student. This is the only way a lesson that started can go: it needs `app.deleting_student`, which only this function sets, and it never lets a held lesson go;
+- the person's profile is deleted when no role is left (not a teacher, an administrator, another student record or a parent), so the email is free again; a parent loses the parent role when no child is left, and the profile too when nothing else is left. The Google account itself stays. Notices queued for deleted profiles go with them;
+- a request by somebody who is not an administrator or an active teacher gets `PT403` before anything is looked up, so nobody learns which students exist.
+
+A parent's request to erase their child's data (for the law on personal data) is not served by this: it is a manual administrator procedure, left to the legal review.
 
 ## Notifications
 

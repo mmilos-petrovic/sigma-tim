@@ -67,14 +67,14 @@ isOneToOne: false
                   ]
                 },"lesson_students": {
                   Row: {
-                    "created_at": string,"lesson_id": string,"note": string | null,"student_id": string
+                    "created_at": string,"lesson_id": string,"note": string | null,"paid_at": string | null,"student_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"lesson_id": string,"note"?: string | null,"student_id": string
+                    "created_at"?: string,"lesson_id": string,"note"?: string | null,"paid_at"?: string | null,"student_id": string
                   }
                   Update: {
-                    "created_at"?: string,"lesson_id"?: string,"note"?: string | null,"student_id"?: string
+                    "created_at"?: string,"lesson_id"?: string,"note"?: string | null,"paid_at"?: string | null,"student_id"?: string
                   }
                   Relationships: [
                     {
@@ -479,6 +479,11 @@ isOneToOne: true
 "add_student":
 { Args: { "p_class_section"?: string,"p_email": string,"p_first_name": string,"p_grade"?: string,"p_last_name": string,"p_phone"?: string,"p_school"?: string,"p_teacher_id"?: string }; Returns: string
                            },
+"admin_list_students":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "created_at": string,"email": string,"first_name": string,"held_lessons": number,"last_name": string,"location_names": (string)[],"parent_names": (string)[],"profile_id": string,"student_id": string,"teacher_id": string,"teacher_name": string,"upcoming_lessons": number
+            }[]
+                           },
 "approve_takeover":
 { Args: { "p_request_id": string }; Returns: undefined
                            },
@@ -488,7 +493,7 @@ isOneToOne: true
             }[]
                            },
 "cancel_lesson":
-{ Args: { "p_lesson_id": string }; Returns: undefined
+{ Args: { "p_lesson_id": string,"p_note"?: string }; Returns: undefined
                            },
 "change_profile_email":
 { Args: { "p_new_email": string,"p_profile_id": string }; Returns: undefined
@@ -509,7 +514,10 @@ isOneToOne: true
 { Args: { "p_teacher_id": string }; Returns: undefined
                            },
 "decline_booking":
-{ Args: { "p_lesson_id": string }; Returns: undefined
+{ Args: { "p_lesson_id": string,"p_note"?: string }; Returns: undefined
+                           },
+"delete_student":
+{ Args: { "p_student_id": string }; Returns: undefined
                            },
 "erase_teacher":
 { Args: { "p_teacher_id": string }; Returns: string
@@ -561,6 +569,9 @@ isOneToOne: true
 "schedule_lesson":
 { Args: { "p_end_at": string,"p_location_id": string,"p_room_id": string,"p_start_at": string,"p_student_ids": (string)[],"p_subject_id": string }; Returns: string
                            },
+"set_lesson_paid":
+{ Args: { "p_lesson_id": string,"p_paid": boolean,"p_student_id": string }; Returns: undefined
+                           },
 "set_lesson_students":
 { Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: undefined
                            },
@@ -569,6 +580,11 @@ isOneToOne: true
                            },
 "set_teacher_locations":
 { Args: { "p_location_ids": (string)[],"p_teacher_id": string }; Returns: undefined
+                           },
+"student_lesson_counts":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "held_lessons": number,"student_id": string,"upcoming_lessons": number
+            }[]
                            }
           }
           Enums: {
