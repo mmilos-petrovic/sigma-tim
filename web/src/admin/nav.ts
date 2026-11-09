@@ -12,6 +12,7 @@ export interface NavItem {
 export const ADMIN_NAV: NavItem[] = [
   { to: BASE, label: 'Pregled', end: true },
   { to: `${BASE}/nastavnici`, label: 'Nastavnici' },
+  { to: `${BASE}/ucenici`, label: 'Učenici' },
   { to: `${BASE}/predmeti`, label: 'Predmeti' },
   { to: `${BASE}/lokacije`, label: 'Lokacije' },
   { to: `${BASE}/zahtevi`, label: 'Zahtevi za preuzimanje' },

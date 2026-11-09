@@ -38,6 +38,8 @@ export interface MyLesson {
   teacherName: string | null
   /** The teacher's note for this student; null when there is none. */
   note: string | null
+  /** The teacher marked that this student has paid for the lesson. */
+  paid: boolean
 }
 
 export interface LessonPage {
@@ -69,8 +71,11 @@ export interface StudentApi {
   teacherPhone(teacherId: string): Promise<string | null>
   /** Books a free slot for one student; `pending` means the teacher still has to confirm it. */
   claimSlot(slotId: string, studentId: string): Promise<LessonStatus>
-  /** Cancels a booking or lesson of this person (or leaves it, when others attend). */
-  cancelLesson(lessonId: string): Promise<void>
+  /**
+   * Cancels a booking or lesson of this person (or leaves it, when others attend). The optional reason is sent to the
+   * teacher in the notification.
+   */
+  cancelLesson(lessonId: string, reason?: string | null): Promise<void>
 }
 
 /** Past lessons shown at first, and added by each "Prikaži starije". */

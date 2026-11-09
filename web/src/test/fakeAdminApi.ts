@@ -5,6 +5,7 @@ import {
   type AdminApi,
   type LocationRow,
   type Photo,
+  type AdminStudentRow,
   type Subject,
   type TakeoverRow,
   type EraseResult,
@@ -17,6 +18,7 @@ export interface FakeState {
   teachers: TeacherRow[]
   locations: LocationRow[]
   takeovers: TakeoverRow[]
+  students: AdminStudentRow[]
   impact: Record<string, TeacherImpact>
   /** Teachers who have a lesson that already started: erasing them leaves a record. */
   history: Record<string, boolean>
@@ -124,6 +126,65 @@ export const seed = (): FakeState => ({
         section: 'a',
       },
       teacher: { id: 't-marko', firstName: 'Marko', lastName: 'Jovanović' },
+    },
+  ],
+  students: [
+    {
+      // one person, two teachers: with Marko two lessons were held, with Ana Nikolić none
+      studentId: 'st-ana1',
+      profileId: 'pr-ana',
+      firstName: 'Ana',
+      lastName: 'Petrović',
+      email: 'ana.petrovic@example.test',
+      createdAt: '2026-02-10T10:00:00Z',
+      teacherId: 't-marko',
+      teacherName: 'Marko Jovanović',
+      parentNames: ['Mira Petrović', 'Zoran Petrović'],
+      locationNames: ['Glavna lokacija'],
+      heldLessons: 2,
+      upcomingLessons: 1,
+    },
+    {
+      studentId: 'st-ana2',
+      profileId: 'pr-ana',
+      firstName: 'Ana',
+      lastName: 'Petrović',
+      email: 'ana.petrovic@example.test',
+      createdAt: '2026-03-01T10:00:00Z',
+      teacherId: 't-ana',
+      teacherName: 'Ana Nikolić',
+      parentNames: ['Mira Petrović'],
+      locationNames: ['Zemun'],
+      heldLessons: 0,
+      upcomingLessons: 0,
+    },
+    {
+      studentId: 'st-luka',
+      profileId: 'pr-luka',
+      firstName: 'Luka',
+      lastName: 'Ilić',
+      email: 'luka.ilic@example.test',
+      createdAt: '2026-04-05T10:00:00Z',
+      teacherId: 't-ana',
+      teacherName: 'Ana Nikolić',
+      parentNames: [],
+      locationNames: ['Zemun'],
+      heldLessons: 0,
+      upcomingLessons: 2,
+    },
+    {
+      studentId: 'st-neda',
+      profileId: 'pr-neda',
+      firstName: 'Neda',
+      lastName: 'Marković',
+      email: 'neda.markovic@example.test',
+      createdAt: '2026-01-05T10:00:00Z',
+      teacherId: null,
+      teacherName: null,
+      parentNames: [],
+      locationNames: [],
+      heldLessons: 0,
+      upcomingLessons: 0,
     },
   ],
   impact: { 't-ana': { futureLessons: 3, students: 2, pendingRequests: 1 } },
@@ -385,6 +446,19 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
     async photoUrls(paths) {
       await gate('photoUrls')
       return Object.fromEntries(paths.map((path) => [path, `https://signed.example.test/${path}`]))
+    },
+
+    async listStudents() {
+      await gate('listStudents')
+      return structuredClone(state.students)
+    },
+    async deleteStudent(studentId) {
+      await gate('deleteStudent')
+      const student = state.students.find((s) => s.studentId === studentId)
+      if (!student) throw new AdminError('PT404', 'student not found')
+      if (student.heldLessons > 0)
+        throw new AdminError('PT409', 'a student with a lesson that took place cannot be deleted')
+      state.students = state.students.filter((s) => s.studentId !== studentId)
     },
 
     async listTakeovers() {

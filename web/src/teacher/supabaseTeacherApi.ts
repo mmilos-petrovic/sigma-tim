@@ -161,7 +161,7 @@ export function mapLesson(row: {
   status: LessonStatus
   origin: LessonOrigin
   outcome: Outcome | null
-  participants: { student_id: string; note: string | null }[]
+  participants: { student_id: string; note: string | null; paid_at: string | null }[]
 }): LessonRow {
   return {
     id: row.id,
@@ -173,7 +173,11 @@ export function mapLesson(row: {
     status: row.status,
     origin: row.origin,
     outcome: row.outcome,
-    participants: row.participants.map((p) => ({ studentId: p.student_id, note: p.note })),
+    participants: row.participants.map((p) => ({
+      studentId: p.student_id,
+      note: p.note,
+      paid: p.paid_at !== null,
+    })),
   }
 }
 
@@ -212,7 +216,7 @@ export function mapConflict(
 
 const PROFILE = 'id, email, first_name, last_name, user_id'
 const LESSON =
-  'id, subject_id, location_id, room_id, start_at, end_at, status, origin, outcome, participants:lesson_students(student_id, note)'
+  'id, subject_id, location_id, room_id, start_at, end_at, status, origin, outcome, participants:lesson_students(student_id, note, paid_at)'
 
 export function createSupabaseTeacherApi(client: SupabaseClient<Database>): TeacherApi {
   return {
@@ -384,6 +388,35 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
       )
       return (data ?? []).map((row) => mapLesson(row as unknown as Parameters<typeof mapLesson>[0]))
     },
+    async listUpcoming(teacherId, now) {
+      const { data } = await run(
+        client
+          .from('lessons')
+          .select(LESSON)
+          .eq('teacher_id', teacherId)
+          .neq('status', 'open')
+          .gt('end_at', now)
+          .order('start_at'),
+      )
+      return (data ?? []).map((row) => mapLesson(row as unknown as Parameters<typeof mapLesson>[0]))
+    },
+    async listPast(teacherId, now, limit) {
+      // one more than asked for tells whether there are older lessons
+      const { data } = await run(
+        client
+          .from('lessons')
+          .select(LESSON)
+          .eq('teacher_id', teacherId)
+          .neq('status', 'open')
+          .lte('end_at', now)
+          .order('start_at', { ascending: false })
+          .limit(limit + 1),
+      )
+      const rows = (data ?? []).map((row) =>
+        mapLesson(row as unknown as Parameters<typeof mapLesson>[0]),
+      )
+      return { lessons: rows.slice(0, limit), hasMore: rows.length > limit }
+    },
     async listBusy(range, teacherId) {
       const { data } = await run(client.rpc('busy_times', { p_from: range.start, p_to: range.end }))
       return (data ?? [])
@@ -432,8 +465,8 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
         client.rpc('set_lesson_students', { p_lesson_id: lessonId, p_student_ids: studentIds }),
       )
     },
-    async cancelLesson(lessonId) {
-      await run(client.rpc('cancel_lesson', { p_lesson_id: lessonId }))
+    async cancelLesson(lessonId, reason) {
+      await run(client.rpc('cancel_lesson', { p_lesson_id: lessonId, p_note: reason ?? undefined }))
     },
     async publishSlot({ teacherId, subjectId, locationId, roomId, start, minutes }) {
       const end = new Date(new Date(start).getTime() + minutes * 60_000).toISOString()
@@ -453,8 +486,10 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
     async confirmBooking(lessonId) {
       await run(client.rpc('confirm_booking', { p_lesson_id: lessonId }))
     },
-    async declineBooking(lessonId) {
-      await run(client.rpc('decline_booking', { p_lesson_id: lessonId }))
+    async declineBooking(lessonId, reason) {
+      await run(
+        client.rpc('decline_booking', { p_lesson_id: lessonId, p_note: reason ?? undefined }),
+      )
     },
     async setNote(lessonId, studentId, note) {
       await runOne(
@@ -468,6 +503,27 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
     },
     async setOutcome(lessonId, outcome) {
       await runOne(client.from('lessons').update({ outcome }).eq('id', lessonId).select('id'))
+    },
+    async setPaid(lessonId, studentId, paid) {
+      await run(
+        client.rpc('set_lesson_paid', {
+          p_lesson_id: lessonId,
+          p_student_id: studentId,
+          p_paid: paid,
+        }),
+      )
+    },
+
+    async listStudentCounts() {
+      const { data } = await run(client.rpc('student_lesson_counts'))
+      return (data ?? []).map((row) => ({
+        studentId: row.student_id,
+        heldLessons: row.held_lessons,
+        upcomingLessons: row.upcoming_lessons,
+      }))
+    },
+    async deleteStudent(studentId) {
+      await run(client.rpc('delete_student', { p_student_id: studentId }))
     },
 
     async setColor(teacherId, color) {

@@ -382,6 +382,28 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
       return urls
     },
 
+    async listStudents() {
+      const { data } = await run(client.rpc('admin_list_students'))
+      return (data ?? []).map((row) => ({
+        studentId: row.student_id,
+        profileId: row.profile_id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        createdAt: new Date(row.created_at).toISOString(),
+        // the generated types say these are never empty, but a student nobody teaches has no teacher
+        teacherId: (row.teacher_id as string | null) ?? null,
+        teacherName: (row.teacher_name as string | null) ?? null,
+        parentNames: row.parent_names,
+        locationNames: row.location_names,
+        heldLessons: row.held_lessons,
+        upcomingLessons: row.upcoming_lessons,
+      }))
+    },
+    async deleteStudent(studentId) {
+      await run(client.rpc('delete_student', { p_student_id: studentId }))
+    },
+
     async listTakeovers() {
       const { data } = await run(
         client

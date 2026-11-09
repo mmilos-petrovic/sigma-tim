@@ -74,6 +74,28 @@ export interface TeacherImpact {
 /** `deleted`: nothing is left. `kept_history`: the name stays as a record behind lessons that already started. */
 export type EraseResult = 'deleted' | 'kept_history'
 
+/** One student record (a person with one teacher) as the administrator's list shows it. */
+export interface AdminStudentRow {
+  studentId: string
+  /** The person; a person who studies with two teachers has two records. */
+  profileId: string
+  firstName: string
+  lastName: string
+  email: string
+  /** When the record was added (an ISO instant). */
+  createdAt: string
+  teacherId: string | null
+  /** Null for a student nobody teaches. */
+  teacherName: string | null
+  parentNames: string[]
+  /** The locations of this record's lessons, past or still to come, each once. */
+  locationNames: string[]
+  /** Lessons recorded as held. With one, the record can never be deleted. */
+  heldLessons: number
+  /** Lessons that have not started yet. */
+  upcomingLessons: number
+}
+
 export const MAX_LOCATION_PHOTOS = 3
 
 export interface AdminApi {
@@ -117,6 +139,14 @@ export interface AdminApi {
   removePhoto(photo: Photo): Promise<void>
   /** Short-lived links for the given object paths. */
   photoUrls(paths: string[]): Promise<Record<string, string>>
+
+  /** Every student record, the one added last first. */
+  listStudents(): Promise<AdminStudentRow[]>
+  /**
+   * Deletes one student record. Refused (`PT409`) when the student has a lesson recorded as held; lessons still to
+   * come are cancelled and the others on them are told.
+   */
+  deleteStudent(studentId: string): Promise<void>
 
   listTakeovers(): Promise<TakeoverRow[]>
   approveTakeover(requestId: string): Promise<void>
@@ -181,4 +211,6 @@ export type ActionKey =
   | 'declineBooking'
   | 'setNote'
   | 'setOutcome'
+  | 'setPaid'
+  | 'deleteStudent'
   | 'setColor'

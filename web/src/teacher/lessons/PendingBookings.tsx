@@ -4,6 +4,7 @@ import { formatDay, formatRange } from '../format'
 import { studentNames } from '../scheduleItems'
 import { useRefresh } from '../queries'
 import { useTeacherApi } from '../TeacherApiProvider'
+import { DeclineDialog } from './DeclineDialog'
 import type { LessonRow, Reference, StudentRow } from '../teacherApi'
 
 /** Late bookings (made less than 12 hours ahead): the teacher confirms them, or declines and frees the slot. */
@@ -23,23 +24,19 @@ export function PendingBookings({
   const api = useTeacherApi()
   const refresh = useRefresh()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [declining, setDeclining] = useState<LessonRow | null>(null)
 
   if (bookings.length === 0) return null
 
-  const answer = async (booking: LessonRow, confirm: boolean) => {
+  const confirm = async (booking: LessonRow) => {
     if (busyId) return
     setBusyId(booking.id)
     try {
-      if (confirm) {
-        await api.confirmBooking(booking.id)
-        onNotice('Zahtev je potvrđen.')
-      } else {
-        await api.declineBooking(booking.id)
-        onNotice('Zahtev je odbijen, termin je ponovo slobodan.')
-      }
+      await api.confirmBooking(booking.id)
+      onNotice('Zahtev je potvrđen.')
       await refresh()
     } catch (failure) {
-      onError(explainError(failure, confirm ? 'confirmBooking' : 'declineBooking'))
+      onError(explainError(failure, 'confirmBooking'))
       await refresh()
     } finally {
       setBusyId(null)
@@ -68,7 +65,7 @@ export function PendingBookings({
                 type="button"
                 className="button button--small"
                 disabled={busyId !== null}
-                onClick={() => void answer(booking, true)}
+                onClick={() => void confirm(booking)}
               >
                 Potvrdi
               </button>
@@ -76,7 +73,7 @@ export function PendingBookings({
                 type="button"
                 className="button button--small button--secondary"
                 disabled={busyId !== null}
-                onClick={() => void answer(booking, false)}
+                onClick={() => setDeclining(booking)}
               >
                 Odbij
               </button>
@@ -84,6 +81,18 @@ export function PendingBookings({
           )
         })}
       </ul>
+      {declining && (
+        <DeclineDialog
+          booking={declining}
+          reference={reference}
+          students={students}
+          onClose={() => setDeclining(null)}
+          onDone={(message) => {
+            setDeclining(null)
+            onNotice(message)
+          }}
+        />
+      )}
     </section>
   )
 }

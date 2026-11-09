@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { explainError } from '../../admin/errors'
 import { Dialog } from '../../components/Dialog'
 import { FormDialog } from '../../components/FormDialog'
+import { ReasonField } from '../../components/ReasonField'
+import { cleanReason } from '../../lib/reason'
+import { DeclineDialog } from './DeclineDialog'
 import { useNow } from '../clock'
 import { formatDay, formatRange } from '../format'
 import { useRefresh } from '../queries'
@@ -101,6 +104,8 @@ export function LessonDialog({
   const now = useNow()
   const state = lessonState(lesson, now)
   const [confirming, setConfirming] = useState(false)
+  const [declining, setDeclining] = useState(false)
+  const [reason, setReason] = useState('')
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -145,7 +150,7 @@ export function LessonDialog({
         danger
         onClose={() => setConfirming(false)}
         onSubmit={async () => {
-          await api.cancelLesson(lesson.id)
+          await api.cancelLesson(lesson.id, cleanReason(reason))
           await refresh()
           onDone(CANCEL.done)
         }}
@@ -155,7 +160,26 @@ export function LessonDialog({
           {formatRange(lesson.start, lesson.end)}.
         </p>
         <p>{CANCEL.text}</p>
+        {cancelKind !== 'remove' && (
+          <ReasonField
+            value={reason}
+            onChange={setReason}
+            hint="Razlog dobijaju učenici i roditelji u obaveštenju."
+          />
+        )}
       </FormDialog>
+    )
+  }
+
+  if (declining) {
+    return (
+      <DeclineDialog
+        booking={lesson}
+        reference={reference}
+        students={students}
+        onClose={() => setDeclining(false)}
+        onDone={onDone}
+      />
     )
   }
 
@@ -226,6 +250,24 @@ export function LessonDialog({
                 <p>
                   <strong>{student ? fullName(student) : 'Nepoznat učenik'}</strong>
                 </p>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={participant.paid}
+                    disabled={busy}
+                    aria-label={`Plaćeno za ${student ? fullName(student) : 'Nepoznat učenik'}`}
+                    onChange={(event) =>
+                      void run(
+                        () => api.setPaid(lesson.id, participant.studentId, event.target.checked),
+                        'setPaid',
+                        event.target.checked
+                          ? 'Označeno je da je čas plaćen.'
+                          : 'Oznaka je uklonjena.',
+                      )
+                    }
+                  />
+                  <span>Plaćeno</span>
+                </label>
                 <NoteEditor lesson={lesson} participant={participant} student={student} />
               </div>
             )
@@ -319,13 +361,7 @@ export function LessonDialog({
               type="button"
               className="button button--secondary"
               disabled={busy}
-              onClick={() =>
-                void run(
-                  () => api.declineBooking(lesson.id),
-                  'declineBooking',
-                  'Zahtev je odbijen, termin je ponovo slobodan.',
-                )
-              }
+              onClick={() => setDeclining(true)}
             >
               Odbij
             </button>

@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { formatDay, formatRange } from '../../teacher/format'
-import { canCancel, mapsUrl, statusChip } from '../lessonList'
+import { canCancel, mapsUrl, showsPaid, statusChip } from '../lessonList'
 import { useTeacherPhone } from '../queries'
 import type { MyLesson } from '../studentApi'
 import { PhoneLink } from './PhoneLink'
@@ -51,6 +51,7 @@ export function LessonItem({
         </span>
         <span className="lesson__marks">
           {chip && <span className="badge">{chip}</span>}
+          {showsPaid(lesson, now) && <span className="badge badge--paid">Plaćen</span>}
           {unread && <span className="badge badge--new">Nova napomena</span>}
         </span>
       </button>

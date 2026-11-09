@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useMember } from '../components/guards'
+import { useNow } from './clock'
 import { useTeacherApi } from './TeacherApiProvider'
 import type { TimeRange } from './teacherApi'
 
@@ -17,6 +18,16 @@ export function useStudents() {
   return useQuery({
     queryKey: [...teacher, 'students', teacherId],
     queryFn: () => api.listStudents(teacherId),
+  })
+}
+
+/** Held and upcoming lessons of each student: what decides whether a student can be deleted. */
+export function useStudentCounts() {
+  const api = useTeacherApi()
+  const teacherId = useTeacherId()
+  return useQuery({
+    queryKey: [...teacher, 'studentCounts', teacherId],
+    queryFn: () => api.listStudentCounts(),
   })
 }
 
@@ -78,6 +89,29 @@ export function useBusy(range: TimeRange | null) {
     queryKey: [...teacher, 'busy', teacherId, range?.start, range?.end],
     queryFn: () => api.listBusy(range as TimeRange, teacherId),
     enabled: range !== null,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Lessons and bookings that have not ended yet, the soonest first (free slots are not among them). */
+export function useUpcomingLessons() {
+  const api = useTeacherApi()
+  const teacherId = useTeacherId()
+  const now = useNow()
+  return useQuery({
+    queryKey: [...teacher, 'upcoming', teacherId],
+    queryFn: () => api.listUpcoming(teacherId, now.toISOString()),
+  })
+}
+
+/** The newest `limit` lessons that are over; asking for more keeps the ones on screen while the rest load. */
+export function usePastLessons(limit: number) {
+  const api = useTeacherApi()
+  const teacherId = useTeacherId()
+  const now = useNow()
+  return useQuery({
+    queryKey: [...teacher, 'past', teacherId, limit],
+    queryFn: () => api.listPast(teacherId, now.toISOString(), limit),
     placeholderData: keepPreviousData,
   })
 }

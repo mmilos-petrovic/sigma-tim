@@ -199,7 +199,10 @@ describe('bookings that wait for an answer', () => {
   it('declines a booking, which frees the slot again', async () => {
     const { teacherApi } = renderTeacher(PATH)
     await userEvent.click((await entry()).getByRole('button', { name: 'Odbij' }))
-    expect(teacherApi.declineBooking).toHaveBeenCalledWith('booking-pending')
+    const decline = await inDialog('Odbijanje zahteva')
+    await userEvent.type(decline.getByLabelText('Razlog (nije obavezan)'), 'Nisam u gradu')
+    await userEvent.click(decline.getByRole('button', { name: 'Odbij zahtev' }))
+    expect(teacherApi.declineBooking).toHaveBeenCalledWith('booking-pending', 'Nisam u gradu')
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Zahtev je odbijen, termin je ponovo slobodan.',
     )
@@ -222,6 +225,9 @@ describe('bookings that wait for an answer', () => {
     const { teacherApi } = renderTeacher(PATH)
     teacherApi.failNext('declineBooking', new AdminError('PT409', 'lesson already started'))
     await userEvent.click((await entry()).getByRole('button', { name: 'Odbij' }))
+    await userEvent.click(
+      (await inDialog('Odbijanje zahteva')).getByRole('button', { name: 'Odbij zahtev' }),
+    )
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Čas je već počeo, pa se zahtev više ne može odbiti. Potvrdite ga.',
     )

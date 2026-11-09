@@ -3,6 +3,7 @@ import { AdminError, type ActionKey } from './adminApi'
 
 const GENERIC = 'Došlo je do greške. Pokušajte ponovo.'
 const FORBIDDEN = 'Nemate dozvolu za ovu radnju.'
+const TOO_LONG_REASON = 'Razlog je predugačak (najviše 200 znakova).'
 
 /** A refused phone number: not a number, or missing for somebody who needs one (`who`: "nastavnika", "roditelja"). */
 const phoneMessage = (message: string, who: string) =>
@@ -35,6 +36,8 @@ export function explainError(error: unknown, action: ActionKey): string {
         return 'Roditelj više nije povezan sa ovim učenikom. Osvežite stranicu.'
       }
       if (action === 'cancelLesson') return 'Čas više ne postoji. Osvežite stranicu.'
+      if (action === 'setPaid') return 'Čas ili učenik više ne postoji. Osvežite stranicu.'
+      if (action === 'deleteStudent') return 'Učenik više ne postoji. Osvežite stranicu.'
       if (action === 'claimSlot') return 'Termin više ne postoji. Izaberite drugi.'
       return 'Podatak više ne postoji. Osvežite stranicu.'
     case 'PT403':
@@ -210,6 +213,7 @@ export function explainError(error: unknown, action: ActionKey): string {
       break
     case 'cancelLesson':
       if (code === 'PT409') return 'Čas je već počeo i ne može da se otkaže.'
+      if (code === 'PT400') return TOO_LONG_REASON
       break
     case 'claimSlot':
       if (code === 'PT409') {
@@ -220,12 +224,16 @@ export function explainError(error: unknown, action: ActionKey): string {
       break
     case 'confirmBooking':
     case 'declineBooking':
+      if (code === 'PT400' && action === 'declineBooking') return TOO_LONG_REASON
       if (code === 'PT409') {
         if (/started/i.test(message)) {
           return 'Čas je već počeo, pa se zahtev više ne može odbiti. Potvrdite ga.'
         }
         return 'Zahtev više nije na čekanju. Osvežite stranicu.'
       }
+      break
+    case 'deleteStudent':
+      if (code === 'PT409') return 'Učenik ima održan čas i ne može da se obriše.'
       break
     case 'setOutcome':
       if (code === 'PT400') return 'Ishod se upisuje tek kada se potvrđen čas završi.'

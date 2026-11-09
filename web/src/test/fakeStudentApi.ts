@@ -70,6 +70,7 @@ export function lessonOf(overrides: Partial<FakeLesson> & { id: string }): FakeL
     teacherId: 't-ana',
     teacherName: 'Ana Nikolić',
     note: null,
+    paid: false,
     ...overrides,
   }
 }
@@ -215,15 +216,18 @@ export function createFakeStudentApi(initial: Partial<FakeStudentState> = {}): F
         outcome: null,
         origin: 'slot',
         note: null,
+        paid: false,
       })
       return status
     },
-    async cancelLesson(lessonId) {
+    async cancelLesson(lessonId, reason) {
       await gate('cancelLesson')
       const lesson = state.lessons.find((l) => l.id === lessonId)
       if (!lesson) throw new AdminError('PT404', 'lesson not found')
       if (new Date(lesson.start) <= state.now)
         throw new AdminError('PT409', 'lesson already started')
+      if (reason && reason.trim().length > 200)
+        throw new AdminError('PT400', 'the reason is too long')
       state.lessons = state.lessons.filter((l) => l.id !== lessonId)
       if (lesson.origin === 'slot') {
         state.slots.push({

@@ -166,6 +166,19 @@ describe("a teacher's colour", () => {
   })
 })
 
+describe('payment', () => {
+  it('does not show on the calendar: not in a title, a detail or any other property', () => {
+    const paid = lessons.map((l) => ({
+      ...l,
+      participants: l.participants.map((p) => ({ ...p, paid: true })),
+    }))
+    const before = JSON.stringify(build())
+    const after = JSON.stringify(build({ lessons: paid }))
+    expect(after).toBe(before)
+    expect(after).not.toMatch(/paid|Plać|plać/)
+  })
+})
+
 describe('lessons that are over', () => {
   it('are marked as past, so the calendar can draw them lighter than the ones still to come', () => {
     expect(item('les-today')).toMatchObject({ past: true }) // ended at 09:00, now is 11:00

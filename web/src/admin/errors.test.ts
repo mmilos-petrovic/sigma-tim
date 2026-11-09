@@ -166,4 +166,38 @@ describe('explainError', () => {
       ).toBe('Ta osoba je već učenik tog nastavnika.')
     })
   })
+
+  describe('a reason for cancelling', () => {
+    it('says that a reason is too long, for every way of cancelling', () => {
+      for (const action of ['cancelLesson', 'declineBooking'] as const) {
+        expect(explain('PT400', action, 'the reason is too long')).toBe(
+          'Razlog je predugačak (najviše 200 znakova).',
+        )
+      }
+    })
+  })
+
+  describe('paid', () => {
+    it('says what is wrong when a mark cannot be set', () => {
+      expect(explain('PT404', 'setPaid')).toBe('Čas ili učenik više ne postoji. Osvežite stranicu.')
+      expect(explain('PT403', 'setPaid')).toBe('Nemate dozvolu za ovu radnju.')
+    })
+  })
+
+  describe('deleting a student', () => {
+    it('says that a student who has a held lesson stays', () => {
+      expect(
+        explain(
+          'PT409',
+          'deleteStudent',
+          'a student with a lesson that took place cannot be deleted',
+        ),
+      ).toBe('Učenik ima održan čas i ne može da se obriše.')
+    })
+
+    it('says when the student is gone already, or the person may not delete them', () => {
+      expect(explain('PT404', 'deleteStudent')).toBe('Učenik više ne postoji. Osvežite stranicu.')
+      expect(explain('PT403', 'deleteStudent')).toBe('Nemate dozvolu za ovu radnju.')
+    })
+  })
 })

@@ -22,7 +22,7 @@ const row = (overrides: Partial<LessonRowFromDb> = {}): LessonRowFromDb => ({
   subject: { name: 'Matematika' },
   location: { name: 'Centar', address: 'Knez Mihailova 1' },
   room: { name: 'Učionica 1' },
-  mine: [{ note: 'Ponesite zbirku.' }],
+  mine: [{ note: 'Ponesite zbirku.', paid_at: null as string | null }],
   ...overrides,
 })
 
@@ -42,18 +42,30 @@ describe('mapLesson', () => {
       teacherId: 't1',
       teacherName: 'Ana Nikolić',
       note: 'Ponesite zbirku.',
+      paid: false,
     })
   })
 
   it('has no room, note or teacher name when the database shows none', () => {
-    const lesson = mapLesson(row({ room: null, mine: [{ note: null }], teacher_id: 'gone' }), names)
+    const lesson = mapLesson(
+      row({ room: null, mine: [{ note: null, paid_at: null }], teacher_id: 'gone' }),
+      names,
+    )
     expect(lesson.room).toBeNull()
     expect(lesson.note).toBeNull()
     expect(lesson.teacherName).toBeNull()
   })
 
   it('treats a blank note as none', () => {
-    expect(mapLesson(row({ mine: [{ note: '   ' }] }), names).note).toBeNull()
+    expect(mapLesson(row({ mine: [{ note: '   ', paid_at: null }] }), names).note).toBeNull()
+  })
+
+  it('knows whether the teacher marked the lesson as paid', () => {
+    expect(
+      mapLesson(row({ mine: [{ note: null, paid_at: '2026-11-06T09:00:00+00:00' }] }), names).paid,
+    ).toBe(true)
+    expect(mapLesson(row({ mine: [{ note: null, paid_at: null }] }), names).paid).toBe(false)
+    expect(mapLesson(row({ mine: [] }), names).paid).toBe(false)
   })
 
   it('keeps the outcome the teacher recorded', () => {
@@ -211,6 +223,13 @@ describe('the queries', () => {
     const { api, log } = stubClient({})
     await api.cancelLesson('l1')
     expect(log[0].table).toBe('rpc:cancel_lesson')
+    expect(log[0].calls).toEqual([['args', [{ p_lesson_id: 'l1', p_note: undefined }]]])
+  })
+
+  it('send the reason with the cancellation', async () => {
+    const { api, log } = stubClient({})
+    await api.cancelLesson('l1', 'Bolestan sam')
+    expect(log[0].calls).toEqual([['args', [{ p_lesson_id: 'l1', p_note: 'Bolestan sam' }]]])
   })
 
   it('read the teacher’s number from the phone table', async () => {

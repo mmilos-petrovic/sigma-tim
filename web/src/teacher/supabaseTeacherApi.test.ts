@@ -138,8 +138,8 @@ describe('mapLesson', () => {
     origin: 'teacher' as const,
     outcome: null,
     participants: [
-      { student_id: 'st-2', note: null },
-      { student_id: 'st-1', note: 'Razlomci' },
+      { student_id: 'st-2', note: null, paid_at: null },
+      { student_id: 'st-1', note: 'Razlomci', paid_at: '2026-11-06T09:00:00+00:00' },
     ],
   }
 
@@ -155,8 +155,8 @@ describe('mapLesson', () => {
       origin: 'teacher',
       outcome: null,
       participants: [
-        { studentId: 'st-2', note: null },
-        { studentId: 'st-1', note: 'Razlomci' },
+        { studentId: 'st-2', note: null, paid: false },
+        { studentId: 'st-1', note: 'Razlomci', paid: true },
       ],
     })
   })
