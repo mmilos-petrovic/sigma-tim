@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { AdminError } from '../../admin/adminApi'
 import { createFakeTeacherApi, seedTeacher } from '../../test/fakeTeacherApi'
 import { calendar, TEST_WEEK } from '../../test/mockCalendar'
+import { setDate, setTime, timeOf } from '../../test/dateTime'
 import { inDialog, page, renderTeacher } from '../../test/renderTeacher'
 import type { StudentRow } from '../teacherApi'
 
@@ -11,8 +12,6 @@ vi.mock('../calendar/WeekCalendar', async () => import('../../test/mockCalendar'
 
 const PATH = '/moj-raspored'
 const block = (name: string | RegExp) => screen.findByRole('button', { name })
-const setField = (field: HTMLElement, value: string) =>
-  fireEvent.change(field, { target: { value } })
 
 /** Opens the "Novi čas" form from the toolbar. */
 async function openNewLesson() {
@@ -31,6 +30,38 @@ describe('the reminder about a missing phone number', () => {
       'href',
       '/moj-raspored/podesavanja',
     )
+  })
+
+  it('keeps a teacher without a number from scheduling or publishing anything until it is given', async () => {
+    renderTeacher(PATH, { api: createFakeTeacherApi({ myPhone: null }) })
+    await page('Moj raspored')
+    expect(await screen.findByRole('note')).toHaveTextContent(
+      'Dok ga ne upišete, ne možete da zakazujete časove ni da objavljujete termine.',
+    )
+    expect(screen.getByRole('button', { name: 'Novi čas' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Objavi slobodan termin' })).toBeDisabled()
+
+    // a stretch selected on the calendar is no way round it
+    act(() =>
+      calendar().onCreate({ start: '2026-11-06T09:00:00+01:00', end: '2026-11-06T10:15:00+01:00' }),
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('leaves the buttons on for a teacher who has a number', async () => {
+    renderTeacher(PATH)
+    await page('Moj raspored')
+    await block('Ana Petrović, Luka Ilić – Učionica 1')
+    expect(screen.getByRole('button', { name: 'Novi čas' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Objavi slobodan termin' })).toBeEnabled()
+  })
+
+  it('does not block a teacher whose number cannot be read', async () => {
+    const api = createFakeTeacherApi()
+    api.failNext('myPhone', new AdminError('network'))
+    renderTeacher(PATH, { api })
+    await block('Ana Petrović, Luka Ilić – Učionica 1')
+    expect(screen.getByRole('button', { name: 'Novi čas' })).toBeEnabled()
   })
 
   it('is not there for a teacher who has one', async () => {
@@ -61,6 +92,8 @@ describe('the reminder about a missing phone number', () => {
     await page('Moj raspored')
     await block('Ana Petrović, Luka Ilić – Učionica 1')
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Novi čas' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Objavi slobodan termin' })).toBeEnabled()
   })
 })
 
@@ -203,9 +236,9 @@ describe('scheduling a lesson', () => {
     await userEvent.selectOptions(form.getByLabelText('Predmet'), 'Matematika')
     await userEvent.selectOptions(form.getByLabelText('Lokacija'), 'Glavna lokacija')
     await userEvent.selectOptions(form.getByLabelText('Učionica'), 'Učionica 2')
-    setField(form.getByLabelText('Datum'), '2026-11-06')
-    setField(form.getByLabelText('Početak'), '09:00')
-    setField(form.getByLabelText('Kraj'), '10:15')
+    setDate(form, 'Datum', '2026-11-06')
+    setTime(form, 'Početak', '09:00')
+    setTime(form, 'Kraj', '10:15')
     await userEvent.click(form.getByRole('checkbox', { name: 'Luka Ilić' }))
     await userEvent.click(form.getByRole('button', { name: 'Zakaži' }))
 
@@ -245,9 +278,9 @@ describe('scheduling a lesson', () => {
   it('starts from the first full hour ahead, today, for one hour', async () => {
     renderTeacher(PATH)
     const form = await openNewLesson()
-    expect(form.getByLabelText('Datum')).toHaveValue('2026-11-04')
-    expect(form.getByLabelText('Početak')).toHaveValue('12:00')
-    expect(form.getByLabelText('Kraj')).toHaveValue('13:00')
+    expect(form.getByLabelText('Datum')).toHaveValue('04.11.2026')
+    expect(timeOf(form, 'Početak')).toBe('12:00')
+    expect(timeOf(form, 'Kraj')).toBe('13:00')
   })
 
   it('is prefilled from the stretch of time selected on the calendar', async () => {
@@ -257,9 +290,9 @@ describe('scheduling a lesson', () => {
       calendar().onCreate({ start: '2026-11-06T09:00:00+01:00', end: '2026-11-06T10:15:00+01:00' }),
     )
     const form = await inDialog('Novi čas')
-    expect(form.getByLabelText('Datum')).toHaveValue('2026-11-06')
-    expect(form.getByLabelText('Početak')).toHaveValue('09:00')
-    expect(form.getByLabelText('Kraj')).toHaveValue('10:15')
+    expect(form.getByLabelText('Datum')).toHaveValue('06.11.2026')
+    expect(timeOf(form, 'Početak')).toBe('09:00')
+    expect(timeOf(form, 'Kraj')).toBe('10:15')
   })
 
   it('wants at least one student, and at most four', async () => {
@@ -281,7 +314,7 @@ describe('scheduling a lesson', () => {
       await userEvent.click(form.getByRole('checkbox', { name: `Učenik${id} Test` }))
     }
     expect(form.getByRole('checkbox', { name: 'UčenikE Test' })).toBeDisabled()
-    expect(form.getByText('Najviše 4 učenika.')).toBeInTheDocument()
+    expect(form.queryByText(/Najviše/)).not.toBeInTheDocument() // the limit is not announced, only enforced
     await userEvent.click(form.getByRole('checkbox', { name: 'UčenikA Test' })) // one leaves, room again
     expect(form.getByRole('checkbox', { name: 'UčenikE Test' })).toBeEnabled()
     expect(teacherApi.scheduleLesson).not.toHaveBeenCalled()
@@ -292,20 +325,16 @@ describe('scheduling a lesson', () => {
     const form = await openNewLesson()
     await userEvent.click(form.getByRole('checkbox', { name: 'Luka Ilić' }))
 
-    setField(form.getByLabelText('Kraj'), '11:30') // before the start (12:00)
+    setTime(form, 'Kraj', '11:30') // before the start (12:00)
     await userEvent.click(form.getByRole('button', { name: 'Zakaži' }))
     expect(form.getByRole('alert')).toHaveTextContent('Kraj časa mora biti posle početka.')
 
-    setField(form.getByLabelText('Kraj'), '13:10')
-    await userEvent.click(form.getByRole('button', { name: 'Zakaži' }))
-    expect(form.getByRole('alert')).toHaveTextContent('Vreme mora biti na svakih 15 minuta.')
-
-    setField(form.getByLabelText('Kraj'), '13:00')
-    setField(form.getByLabelText('Datum'), '2026-11-03') // yesterday
+    setTime(form, 'Kraj', '13:00')
+    setDate(form, 'Datum', '2026-11-03') // yesterday
     await userEvent.click(form.getByRole('button', { name: 'Zakaži' }))
     expect(form.getByRole('alert')).toHaveTextContent('Čas ne može da počne na dan koji je prošao.')
 
-    setField(form.getByLabelText('Datum'), '')
+    fireEvent.change(form.getByLabelText('Datum'), { target: { value: '' } })
     await userEvent.click(form.getByRole('button', { name: 'Zakaži' }))
     expect(form.getByRole('alert')).toHaveTextContent('Unesite datum i vreme časa.')
     expect(teacherApi.scheduleLesson).not.toHaveBeenCalled()
@@ -315,8 +344,8 @@ describe('scheduling a lesson', () => {
     const { teacherApi } = renderTeacher(PATH)
     const form = await openNewLesson()
     await userEvent.click(form.getByRole('checkbox', { name: 'Luka Ilić' }))
-    setField(form.getByLabelText('Početak'), '07:00')
-    setField(form.getByLabelText('Kraj'), '07:45')
+    setTime(form, 'Početak', '07:00')
+    setTime(form, 'Kraj', '07:45')
     await userEvent.click(form.getByRole('button', { name: 'Zakaži' }))
     expect(teacherApi.scheduleLesson).toHaveBeenCalledWith(
       expect.objectContaining({ start: '2026-11-04T06:00:00.000Z' }),
@@ -327,9 +356,9 @@ describe('scheduling a lesson', () => {
     async function fillClash() {
       const form = await openNewLesson()
       await userEvent.selectOptions(form.getByLabelText('Učionica'), 'Učionica 1')
-      setField(form.getByLabelText('Datum'), '2026-11-05')
-      setField(form.getByLabelText('Početak'), '16:00')
-      setField(form.getByLabelText('Kraj'), '17:00')
+      setDate(form, 'Datum', '2026-11-05')
+      setTime(form, 'Početak', '16:00')
+      setTime(form, 'Kraj', '17:00')
       await userEvent.click(form.getByRole('checkbox', { name: 'Luka Ilić' }))
       return form
     }
@@ -359,8 +388,8 @@ describe('scheduling a lesson', () => {
       await userEvent.click(form.getByRole('button', { name: 'Zakaži' }))
       await form.findByRole('group', { name: 'Upozorenje o preklapanju' })
 
-      setField(form.getByLabelText('Početak'), '14:00')
-      setField(form.getByLabelText('Kraj'), '15:00') // no longer overlaps anything
+      setTime(form, 'Početak', '14:00')
+      setTime(form, 'Kraj', '15:00') // no longer overlaps anything
       expect(
         form.queryByRole('group', { name: 'Upozorenje o preklapanju' }),
       ).not.toBeInTheDocument()

@@ -129,7 +129,7 @@ test.describe('where a teacher may teach', () => {
     }
   })
 
-  test('the calendar of a teacher filters by location, and the forms offer only their own', async ({
+  test('the calendar of a teacher keeps their own lessons whatever the location, and the forms offer only their own', async ({
     page,
     request,
   }) => {
@@ -157,28 +157,20 @@ test.describe('where a teacher may teach', () => {
       const filter = page.getByLabel('Prikaz po lokaciji')
       await expect(filter).toBeVisible()
       const options = await filter.locator('option').allTextContents()
-      expect(options).toContain('Sve lokacije')
+      expect(options).not.toContain('Sve lokacije') // colleagues are seen at one location at a time
       expect(options).toContain('Glavna lokacija')
       expect(options).toContain(world.nameB)
       expect(options).not.toContain(world.nameC) // a location Ana may not use is not offered
 
+      // the teacher's own slots are there whichever location is chosen
       const slotMain = block(page, 'slot', atMain)
       const slotB = block(page, 'slot', atB)
       await shown(page, slotMain)
-      await expect(slotMain.first()).toBeAttached()
-      await expect(slotB.first()).toBeAttached()
-
-      await filter.selectOption({ label: world.nameB })
-      await expect(slotMain).toHaveCount(0)
-      await expect(slotB.first()).toBeAttached()
-
-      await filter.selectOption({ label: 'Glavna lokacija' })
-      await expect(slotB).toHaveCount(0)
-      await expect(slotMain.first()).toBeAttached()
-
-      await filter.selectOption({ label: 'Sve lokacije' })
-      await expect(slotMain.first()).toBeAttached()
-      await expect(slotB.first()).toBeAttached()
+      for (const place of ['Glavna lokacija', world.nameB]) {
+        await filter.selectOption({ label: place })
+        await expect(slotMain.first()).toBeAttached()
+        await expect(slotB.first()).toBeAttached()
+      }
 
       // the forms offer the same places, and no other
       await page.getByRole('button', { name: 'Novi čas' }).click()

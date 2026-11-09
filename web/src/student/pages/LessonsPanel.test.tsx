@@ -85,7 +85,7 @@ describe('the list of lessons', () => {
       button.getAttribute('aria-controls') ?? '',
     ) as HTMLElement
     expect(within(region).getByText('Ana Nikolić')).toBeInTheDocument()
-    const phone = await within(region).findByRole('link', { name: '+381641110000' })
+    const phone = await within(region).findByRole('link', { name: '064 1110 000' })
     expect(phone).toHaveAttribute('href', 'tel:+381641110000')
     const map = within(region).getByRole('link', { name: /Knez Mihailova 1, Beograd/ })
     expect(map).toHaveAttribute('href', expect.stringContaining('google.com/maps'))
@@ -275,7 +275,7 @@ describe('cancelling', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Otkaži rezervaciju' }))
     const dlg = await inDialog('Otkaži rezervaciju')
     expect(dlg.getByText(/Termin počinje za manje od 12 sati/)).toBeInTheDocument()
-    expect(await dlg.findByRole('link', { name: '+381641110000' })).toBeInTheDocument()
+    expect(await dlg.findByRole('link', { name: '064 1110 000' })).toBeInTheDocument()
     await userEvent.click(dlg.getByRole('button', { name: 'Otkaži rezervaciju' }))
     expect(api.calls.cancelLesson).toHaveBeenCalledWith('l-waiting')
   })

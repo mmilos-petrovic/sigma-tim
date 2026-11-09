@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 import { rpc, select, tokenFor } from './api.ts'
+import { chooseTime, fillDate } from './fields.ts'
 import { localEnv, signInAs } from './helpers.ts'
 
 const dialog = (page: Page, name: string) => page.getByRole('dialog', { name })
@@ -118,9 +119,9 @@ test.describe("the teacher's schedule", () => {
         await form.getByLabel('Predmet').selectOption({ label: 'Matematika' })
         await form.getByLabel('Lokacija').selectOption({ label: 'Glavna lokacija' })
         await form.getByLabel('Učionica').selectOption({ label: 'Učionica 3' })
-        await form.getByLabel('Datum').fill(day)
-        await form.getByLabel('Početak').fill(start)
-        await form.getByLabel('Kraj').fill(end)
+        await fillDate(form, 'Datum', day)
+        await chooseTime(form, 'Početak', start)
+        await chooseTime(form, 'Kraj', end)
         await form.getByRole('checkbox', { name: 'Luka Ilić' }).check()
         await submitThroughWarning(form, 'Zakaži')
         await expect(page.getByRole('status')).toHaveText('Čas je zakazan.')
@@ -137,9 +138,9 @@ test.describe("the teacher's schedule", () => {
         await form.getByLabel('Predmet').selectOption({ label: 'Matematika' })
         await form.getByLabel('Lokacija').selectOption({ label: 'Glavna lokacija' })
         await form.getByLabel('Učionica').selectOption({ label: 'Učionica 3' })
-        await form.getByLabel('Datum').fill(day)
-        await form.getByLabel('Početak').fill(start)
-        await form.getByLabel('Kraj').fill(end)
+        await fillDate(form, 'Datum', day)
+        await chooseTime(form, 'Početak', start)
+        await chooseTime(form, 'Kraj', end)
         await form.getByRole('checkbox', { name: 'Mina Ilić' }).check()
         await form.getByRole('button', { name: 'Zakaži' }).click()
 
@@ -213,8 +214,8 @@ test.describe("the teacher's schedule", () => {
       await test.step('publishes a free slot and removes it', async () => {
         await page.getByRole('button', { name: 'Objavi slobodan termin' }).click()
         const form = dialog(page, 'Novi slobodan termin')
-        await form.getByLabel('Datum').fill(day)
-        await form.getByLabel('Početak').fill('19:00')
+        await fillDate(form, 'Datum', day)
+        await chooseTime(form, 'Početak', '19:00')
         await form.getByRole('radio', { name: '45 minuta' }).check()
         await form.getByRole('button', { name: 'Objavi' }).click()
         await expect(page.getByRole('status')).toHaveText('Slobodan termin je objavljen.')
@@ -292,18 +293,23 @@ test.describe("the teacher's schedule", () => {
       })
 
       await test.step('records what happened after a lesson, and the lesson is then frozen', async () => {
-        // a quarter hour earlier today that has surely ended, different from run to run
+        // a quarter hour earlier today that has surely ended and that the calendar draws (it starts at 06:00),
+        // different from run to run
         const nowSlot = Math.floor(minutesOf(clock(Date.now())) / 15)
-        test.skip(nowSlot < 8, 'too early in the day for a quarter hour that has surely ended')
-        const from = quarterAt(Date.now() % (nowSlot - 5))
+        test.skip(
+          nowSlot < 28,
+          'too early in the day: before 07:00 no quarter hour on the calendar has ended',
+        )
+        // ... and that ends by 23:00, where the calendar ends
+        const from = quarterAt(24 + (Date.now() % (Math.min(nowSlot, 92) - 25)))
         const to = plus(from, 15)
 
         await page.getByRole('button', { name: 'Novi čas' }).click()
         const form = dialog(page, 'Novi čas')
         await form.getByLabel('Predmet').selectOption({ label: 'Matematika' })
-        await form.getByLabel('Datum').fill(belgradeDate(0))
-        await form.getByLabel('Početak').fill(from)
-        await form.getByLabel('Kraj').fill(to)
+        await fillDate(form, 'Datum', belgradeDate(0))
+        await chooseTime(form, 'Početak', from)
+        await chooseTime(form, 'Kraj', to)
         await form.getByLabel('Učionica').selectOption({ label: 'Bez učionice' })
         await form.getByRole('checkbox', { name: 'Luka Ilić' }).check()
         await submitThroughWarning(form, 'Zakaži')
@@ -332,7 +338,7 @@ test.describe("the teacher's schedule", () => {
         await lesson.getByRole('button', { name: 'Izmeni čas' }).click()
         const edit = dialog(page, 'Izmena časa')
         await expect(edit.getByText(/Dan ovog časa je prošao ili je upisan ishod/)).toBeVisible()
-        await expect(edit.getByLabel('Početak')).toBeDisabled()
+        await expect(edit.getByLabel('Početak', { exact: true })).toBeDisabled()
         await edit.getByRole('button', { name: 'Odustani' }).click()
 
         // clearing the outcome is allowed (it stays editable), and leaves the lesson usable for the next run, since a

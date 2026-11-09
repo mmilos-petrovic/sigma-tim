@@ -256,6 +256,41 @@
   outline-offset: 1px;
 }
 
+/* The time of day: an hour and the minutes, side by side, with no AM or PM. */
+.time-field {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.time-field legend {
+  padding: 0;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.time-field__parts {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.time-field select {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.time-field select:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 1px;
+}
+
 .inline-form {
   display: flex;
   flex-wrap: wrap;

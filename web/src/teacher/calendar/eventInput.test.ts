@@ -15,6 +15,16 @@ const item: CalendarItem = {
 }
 
 describe('what the calendar is given for a block', () => {
+  it('draws a block that is over lighter, and crosses it out when it was not held', () => {
+    expect(toEventInput({ ...item, past: true }).className).toBe(
+      'cal-item cal-item--own cal-item--past',
+    )
+    expect(toEventInput({ ...item, past: true, notHeld: true }).className).toBe(
+      'cal-item cal-item--own cal-item--past cal-item--not-held',
+    )
+    expect(toEventInput({ ...item, past: false }).className).toBe('cal-item cal-item--own')
+  })
+
   it('colours it with `color`, the only property FullCalendar 7 draws an event with, and white text', () => {
     const input = toEventInput(item)
     expect(input).toMatchObject({ color: '#006a6a', contrastColor: '#ffffff' })

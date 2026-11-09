@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { AdminError } from '../../admin/adminApi'
@@ -65,10 +65,66 @@ describe('the free slots', () => {
     expect(item).toHaveTextContent('60 min')
   })
 
-  it('say when there are none', async () => {
+  it('tell a student with no free slots to call the teacher, with the number to tap', async () => {
     renderStudent(SLOTS, { api: createFakeStudentApi({ slots: [] }) })
+    const text = await screen.findByText(/kako bi zakazali čas/)
+    expect(text).toHaveTextContent('Pozvati nastavnika na broj 064 1110 000 kako bi zakazali čas.')
+    expect(within(text).getByRole('link', { name: '064 1110 000' })).toHaveAttribute(
+      'href',
+      'tel:+381641110000',
+    )
+    expect(screen.queryByText(/Za dodatne termine/)).not.toBeInTheDocument()
+  })
+
+  it('tell a student with free slots to call the teacher for more, below the list', async () => {
+    renderStudent(SLOTS)
+    const text = await screen.findByText(/Za dodatne termine/)
+    expect(text).toHaveTextContent('Za dodatne termine pozvati nastavnika na broj 064 1110 000.')
+    expect(within(text).getByRole('link', { name: '064 1110 000' })).toHaveAttribute(
+      'href',
+      'tel:+381641110000',
+    )
+    expect(screen.queryByText(/kako bi zakazali čas/)).not.toBeInTheDocument()
+    const slots = screen.getAllByRole('listitem')
     expect(
-      await screen.findByText('Nastavnik trenutno nema slobodnih termina.'),
+      slots[slots.length - 1].compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('keep the sentence without a number when the teacher has none', async () => {
+    const empty = seedStudent()
+    empty.slots = []
+    empty.phones = {}
+    renderStudent(SLOTS, { api: createFakeStudentApi(empty) })
+    expect(await screen.findByText('Pozvati nastavnika kako bi zakazali čas.')).toBeInTheDocument()
+
+    cleanup()
+    const some = seedStudent()
+    some.phones = {}
+    renderStudent(SLOTS, { api: createFakeStudentApi(some) })
+    expect(await screen.findByText('Za dodatne termine pozvati nastavnika.')).toBeInTheDocument()
+  })
+
+  it('show no sentence while the number is still being fetched, also when there are no slots', async () => {
+    const api = createFakeStudentApi({ slots: [] })
+    const release = api.hold('teacherPhone')
+    renderStudent(SLOTS, { api })
+    await waitFor(() => expect(api.calls.listSlots).toHaveBeenCalled())
+    await waitFor(() => expect(api.calls.teacherPhone).toHaveBeenCalled())
+    expect(screen.queryByText(/kako bi zakazali čas/)).not.toBeInTheDocument()
+    release()
+    expect(await screen.findByText(/Pozvati nastavnika na broj/)).toBeInTheDocument()
+  })
+
+  it('show no sentence while the number is still being fetched, so it does not jump', async () => {
+    const api = createFakeStudentApi()
+    const release = api.hold('teacherPhone')
+    renderStudent(SLOTS, { api })
+    await book(48, 49)
+    expect(screen.queryByText(/Za dodatne termine/)).not.toBeInTheDocument()
+    release()
+    expect(
+      await screen.findByText(/Za dodatne termine pozvati nastavnika na broj/),
     ).toBeInTheDocument()
   })
 
@@ -137,7 +193,7 @@ describe('booking a slot', () => {
     expect(
       dlg.getByText(/Termin počinje za manje od 12 sati. Nastavnik mora da ga potvrdi./),
     ).toBeInTheDocument()
-    expect(await dlg.findByRole('link', { name: '+381641110000' })).toHaveAttribute(
+    expect(await dlg.findByRole('link', { name: '064 1110 000' })).toHaveAttribute(
       'href',
       'tel:+381641110000',
     )
@@ -154,7 +210,7 @@ describe('booking a slot', () => {
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Zahtev je poslat. Nastavnik mora da potvrdi termin.')
     expect(notice).toHaveTextContent('Pozovite nastavnika:')
-    expect(within(notice).getByRole('link', { name: '+381641110000' })).toBeInTheDocument()
+    expect(within(notice).getByRole('link', { name: '064 1110 000' })).toBeInTheDocument()
   })
 
   it('leaves the number out of the late-booking messages when the teacher has none', async () => {
@@ -299,5 +355,16 @@ describe('a parent', () => {
     expect(dlg.getByText(/Hemija/)).toBeInTheDocument()
     await userEvent.click(dlg.getByRole('button', { name: 'Zauzmi termin' }))
     expect(api.calls.claimSlot).toHaveBeenCalledWith('petar-slot', 'st-jana')
+  })
+
+  it('is told the number of the teacher of the child they are looking at', async () => {
+    renderStudent('/roditelj/termini', { api: twoChildren() })
+    await screen.findByRole('button', { name: /Zauzmi.*/ })
+    await userEvent.selectOptions(screen.getByLabelText('Dete'), 'st-marko')
+    expect(await screen.findByText(/Za dodatne termine/)).toHaveTextContent('064 1110 000')
+    await userEvent.selectOptions(screen.getByLabelText('Dete'), 'st-jana')
+    await waitFor(() =>
+      expect(screen.getByText(/Za dodatne termine/)).toHaveTextContent('064 2220 000'),
+    )
   })
 })

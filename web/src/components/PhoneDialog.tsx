@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { normalizePhone, PHONE_EXAMPLE, phoneProblem } from '../lib/phone'
+import { formatPhone, normalizePhone, PHONE_EXAMPLE, phoneProblem } from '../lib/phone'
 import { Field, FormDialog } from './FormDialog'
 
 /**
@@ -22,7 +22,7 @@ export function PhoneDialog({
   onClose: () => void
   onDone: (message: string | null) => void
 }) {
-  const [typed, setTyped] = useState(current ?? '')
+  const [typed, setTyped] = useState(current ? formatPhone(current) : '')
 
   return (
     <FormDialog
@@ -42,8 +42,8 @@ export function PhoneDialog({
       }}
     >
       <p>
-        Za: <strong>{personName}</strong>. Upišite broj sa pozivnim brojem države, na primer{' '}
-        {PHONE_EXAMPLE}.{!required && ' Ostavite prazno da uklonite broj.'}
+        Za: <strong>{personName}</strong>. Upišite broj na primer ovako: {PHONE_EXAMPLE}. Broj iz
+        druge države upišite sa pozivnim brojem.{!required && ' Ostavite prazno da uklonite broj.'}
       </p>
       <Field
         label={required ? 'Broj telefona' : 'Broj telefona (nije obavezan)'}
@@ -59,7 +59,7 @@ export function PhoneDialog({
 
 /** A number under a name, or the mark that a person who should have one has none. */
 export function PhoneLine({ phone, required }: { phone: string | null; required: boolean }) {
-  if (phone) return <div className="muted">{phone}</div>
+  if (phone) return <div className="muted">{formatPhone(phone)}</div>
   return required ? (
     <div>
       <span className="badge badge--warn">nedostaje broj</span>

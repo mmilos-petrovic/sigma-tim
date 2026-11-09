@@ -91,7 +91,6 @@ export function Field({
   type = 'text',
   autoComplete = 'off',
   disabled = false,
-  step,
 }: {
   label: string
   value: string
@@ -100,8 +99,6 @@ export function Field({
   type?: string
   autoComplete?: string
   disabled?: boolean
-  /** For a time field: seconds between the choices (900 is a quarter of an hour). */
-  step?: number
 }) {
   return (
     <label className="field">
@@ -112,7 +109,6 @@ export function Field({
         maxLength={maxLength}
         autoComplete={autoComplete}
         disabled={disabled}
-        step={step}
         onChange={(event) => onChange(event.target.value)}
       />
     </label>

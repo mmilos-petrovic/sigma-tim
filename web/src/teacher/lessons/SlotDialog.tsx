@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Field, FormDialog } from '../../components/FormDialog'
+import { DateField, TimeField } from '../../components/DateTimeFields'
+import { FormDialog } from '../../components/FormDialog'
 import { useNow } from '../clock'
 import { useRefresh, useTeacherId } from '../queries'
 import { toInstant, toWallClock } from '../schoolDay'
@@ -8,7 +9,6 @@ import { SLOT_MINUTES, type Reference, type SlotMinutes, type TimeRange } from '
 import { PlaceFields } from './PlaceFields'
 import { usePlace } from './usePlace'
 
-const QUARTER_MS = 15 * 60_000
 const HOUR_MS = 60 * 60_000
 
 /** Publishes a free slot (45 or 60 minutes) that the teacher's own students and their parents can book. */
@@ -49,7 +49,6 @@ export function SlotDialog({
       onClose={onClose}
       validate={() => {
         if (Number.isNaN(start.getTime())) return 'Unesite datum i vreme termina.'
-        if (start.getTime() % QUARTER_MS !== 0) return 'Vreme mora biti na svakih 15 minuta.'
         if (start.getTime() <= now.getTime()) return 'Slobodan termin mora biti u budućnosti.'
         return null
       }}
@@ -68,8 +67,8 @@ export function SlotDialog({
     >
       <p>Vide ga i mogu da ga zauzmu samo vaši učenici i njihovi roditelji.</p>
       <PlaceFields reference={reference} place={place} />
-      <Field label="Datum" type="date" value={date} onChange={setDate} />
-      <Field label="Početak" type="time" step={900} value={time} onChange={setTime} />
+      <DateField label="Datum" value={date} onChange={setDate} />
+      <TimeField label="Početak" value={time} onChange={setTime} />
       <fieldset className="choice">
         <legend>Trajanje</legend>
         {SLOT_MINUTES.map((option) => (

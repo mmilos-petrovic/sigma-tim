@@ -50,8 +50,11 @@ interface Inputs {
   reference: Reference
   teacherId: string
   now: Date
-  /** Only what is at this location (the calendar's filter); null or left out shows everything. */
-  locationId?: string | null
+  /**
+   * The location whose colleagues are shown (the calendar's filter); colleagues at any other location are left out, and
+   * with null there are none. The teacher's own lessons are shown wherever they are.
+   */
+  colleaguesAt: string | null
 }
 
 /** The blocks of the weekly calendar: the teacher's own lessons and slots, and the time colleagues are busy. */
@@ -62,13 +65,12 @@ export function buildItems({
   reference,
   teacherId,
   now,
-  locationId = null,
+  colleaguesAt,
 }: Inputs) {
   const items: CalendarItem[] = []
   const ownColor = chosenColor(reference.color) ?? OWN_COLOR
 
   for (const lesson of lessons) {
-    if (locationId && lesson.locationId !== locationId) continue
     // a free slot that has begun is of no use to anyone
     if (lesson.status === 'open' && new Date(lesson.start) <= now) continue
     const state = lessonState(lesson, now)
@@ -102,13 +104,15 @@ export function buildItems({
         detail: room ?? '',
         color: ownColor,
         variant: state.locked ? 'own locked' : 'own',
+        past: state.ended,
+        notHeld: lesson.outcome === 'not_held',
       })
     }
   }
 
   for (const block of busy) {
     if (block.teacherId === teacherId) continue
-    if (locationId && block.locationId !== locationId) continue
+    if (block.locationId !== colleaguesAt) continue
     const colleague = reference.colleagues.find((c) => c.id === block.teacherId)
     const room = roomName(reference, block.locationId, block.roomId)
     items.push({

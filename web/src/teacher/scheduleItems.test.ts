@@ -15,6 +15,7 @@ const build = (overrides = {}) =>
     reference: seed.reference,
     teacherId: 't-ana',
     now: TEST_NOW,
+    colleaguesAt: 'l-main',
     ...overrides,
   })
 const item = (id: string) => build().find((i) => i.id === id)
@@ -165,40 +166,82 @@ describe("a teacher's colour", () => {
   })
 })
 
-describe('the location filter', () => {
+describe('lessons that are over', () => {
+  it('are marked as past, so the calendar can draw them lighter than the ones still to come', () => {
+    expect(item('les-today')).toMatchObject({ past: true }) // ended at 09:00, now is 11:00
+    expect(item('les-locked')).toMatchObject({ past: true })
+    expect(item('les-tomorrow')).toMatchObject({ past: false })
+  })
+
+  it('count as past from the moment they end, not before', () => {
+    const lesson = (end: string) => [{ ...byId('les-today'), end }]
+    const endsAt = (end: string) =>
+      build({ lessons: lesson(end), now: new Date('2026-11-04T09:00:00Z') })[0]
+    expect(endsAt('2026-11-04T09:00:00Z')).toMatchObject({ past: true })
+    expect(endsAt('2026-11-04T09:15:00Z')).toMatchObject({ past: false })
+  })
+
+  it('mark one that was not held, so it can be crossed out', () => {
+    const notHeld = [{ ...byId('les-locked'), outcome: 'not_held' as const }]
+    expect(build({ lessons: notHeld })[0]).toMatchObject({ past: true, notHeld: true })
+    expect(item('les-locked')).toMatchObject({ notHeld: false })
+  })
+
+  it('leave free slots, waiting bookings and the colleagues’ blocks as they are', () => {
+    expect(item('slot-open')).not.toHaveProperty('past')
+    expect(item('booking-pending')).not.toHaveProperty('past')
+    const colleague = build().find((i) => i.variant === 'busy')!
+    expect(colleague).not.toHaveProperty('past')
+  })
+})
+
+describe('the location of the colleagues', () => {
   const atZemun = (id: string) => ({ ...byId(id), locationId: 'l-zemun', roomId: null })
   const mixed = [byId('les-tomorrow'), atZemun('les-today')]
   const busyMixed = [seed.busy[0], { ...seed.busy[0], locationId: 'l-zemun', roomId: null }]
   const ids = (items: { id: string }[]) => items.map((i) => i.id).sort()
+  type Shown = { variant: string; detail?: string }
+  const own = (items: Shown[]) => items.filter((i) => i.variant !== 'busy')
+  const busy = (items: Shown[]) => items.filter((i) => i.variant === 'busy')
 
-  it('shows everything without a filter', () => {
-    const items = build({ lessons: mixed, busy: busyMixed, locationId: null })
-    expect(items).toHaveLength(4)
-    expect(build({ lessons: mixed, busy: busyMixed })).toHaveLength(4)
+  it('always shows every own lesson, wherever it is', () => {
+    for (const colleaguesAt of ['l-main', 'l-zemun', 'l-elsewhere', null]) {
+      const items = build({ lessons: mixed, busy: [], colleaguesAt })
+      expect(ids(items)).toEqual(['les-today', 'les-tomorrow'])
+    }
   })
 
-  it('hides the own lessons and the colleagues’ blocks at the other locations', () => {
-    const items = build({ lessons: mixed, busy: busyMixed, locationId: 'l-zemun' })
-    expect(ids(items.filter((i) => i.variant !== 'busy'))).toEqual(['les-today'])
-    expect(items.filter((i) => i.variant === 'busy')).toHaveLength(1)
-    expect(items.filter((i) => i.variant === 'busy')[0].detail).toBe('')
-  })
-
-  it('hides free slots and bookings that wait as well', () => {
+  it('always shows own free slots and waiting bookings, wherever they are', () => {
     const slots = [
       atZemun('slot-open'),
       byId('slot-open'),
       atZemun('booking-pending'),
       byId('booking-pending'),
     ].map((l, i) => ({ ...l, id: `${l.id}-${i}` }))
-    const items = build({ lessons: slots, busy: [], locationId: 'l-main' })
-    expect(ids(items)).toEqual(['booking-pending-3', 'slot-open-1'])
+    for (const colleaguesAt of ['l-main', 'l-zemun']) {
+      expect(build({ lessons: slots, busy: [], colleaguesAt })).toHaveLength(4)
+    }
   })
 
-  it('shows nothing when no lesson is at the chosen location', () => {
-    expect(
-      build({ lessons: [byId('les-tomorrow')], busy: seed.busy, locationId: 'l-zemun' }),
-    ).toEqual([])
+  it('shows the colleagues who are busy at the chosen location only', () => {
+    const main = build({ lessons: [], busy: busyMixed, colleaguesAt: 'l-main' })
+    expect(busy(main)).toHaveLength(1)
+    expect(busy(main)[0].detail).toBe('Učionica 1')
+
+    const zemun = build({ lessons: [], busy: busyMixed, colleaguesAt: 'l-zemun' })
+    expect(busy(zemun)).toHaveLength(1)
+    expect(busy(zemun)[0].detail).toBe('')
+  })
+
+  it('shows a colleague at another location to nobody, also with all of the own lessons there', () => {
+    const items = build({ lessons: mixed, busy: busyMixed, colleaguesAt: 'l-elsewhere' })
+    expect(busy(items)).toEqual([])
+    expect(own(items)).toHaveLength(2)
+  })
+
+  it('shows no colleague at all when there is no location to look at', () => {
+    expect(busy(build({ lessons: mixed, busy: busyMixed, colleaguesAt: null }))).toEqual([])
+    expect(own(build({ lessons: mixed, busy: busyMixed, colleaguesAt: null }))).toHaveLength(2)
   })
 })
 

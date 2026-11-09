@@ -70,7 +70,7 @@ describe("the teacher's own phone number", () => {
 
   it('shows the number the teacher has, and asks what it is for', async () => {
     await open()
-    expect(await field()).toHaveValue('+381641110099')
+    expect(await field()).toHaveValue('064 1110 099')
     expect(screen.getByText(/obaveštenja i poziv u vezi sa časovima/)).toBeInTheDocument()
     expect(screen.queryByText(/Nemate upisan broj telefona/)).not.toBeInTheDocument()
   })
@@ -115,10 +115,20 @@ describe("the teacher's own phone number", () => {
     expect(teacherApi.setPhone).not.toHaveBeenCalled()
   })
 
-  it('wants the international form', async () => {
+  it('takes a number typed the way it is written at home and saves it in the international form', async () => {
+    const { teacherApi } = await open(createFakeTeacherApi({ myPhone: null }))
+    await userEvent.type(await field(), '064 555 0001')
+    await userEvent.click(save())
+
+    expect(teacherApi.setPhone).toHaveBeenCalledWith('p-teacher', '+381645550001')
+    expect(await screen.findByText('Broj telefona je sačuvan.')).toBeInTheDocument()
+    expect(await field()).toHaveValue('064 555 0001') // what was typed stays as typed
+  })
+
+  it('wants a country when the number does not start with 0, + or 00', async () => {
     const { teacherApi } = await open()
     await userEvent.clear(await field())
-    await userEvent.type(await field(), '064 555 0001')
+    await userEvent.type(await field(), '381 64 555 0001')
     await userEvent.click(save())
     expect(await screen.findByRole('alert')).toHaveTextContent(INVALID_PHONE)
     expect(teacherApi.setPhone).not.toHaveBeenCalled()

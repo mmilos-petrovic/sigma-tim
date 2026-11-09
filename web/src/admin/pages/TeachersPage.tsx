@@ -3,7 +3,7 @@ import { useMember } from '../../components/guards'
 import { Field, FormDialog, LocationChoice, SubjectChoice } from '../../components/FormDialog'
 import { LoadError, Loaded, Loading, Notice, PageHeader } from '../../components/Loaded'
 import { PhoneDialog, PhoneLine } from '../../components/PhoneDialog'
-import { normalizePhone, phoneProblem } from '../../lib/phone'
+import { formatPhone, normalizePhone, phoneProblem } from '../../lib/phone'
 
 import { formatDay, formatRange } from '../../teacher/format'
 import { useAdminApi } from '../AdminApiProvider'
@@ -496,7 +496,13 @@ export function TeachersPage() {
                                 </td>
                                 <td>{subjectsOf(teacher)}</td>
                                 <td>{locationsOf(teacher)}</td>
-                                <td>{teacher.phone ?? <PhoneLine phone={null} required />}</td>
+                                <td>
+                                  {teacher.phone ? (
+                                    formatPhone(teacher.phone)
+                                  ) : (
+                                    <PhoneLine phone={null} required />
+                                  )}
+                                </td>
                                 <td>{teacher.isActive ? 'Aktivan' : 'Deaktiviran'}</td>
                                 <td className="table__actions">
                                   <button
