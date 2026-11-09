@@ -56,6 +56,9 @@ The script is idempotent: it never deletes or renames anything, and it only crea
 | `delete_student(student_id)` | the student's teacher, admin (any student, also one nobody teaches) | deletes one student record, see Deleting a student |
 | `student_lesson_counts()` | teacher, admin | per student the caller may delete (all for an admin, the teacher's own for a teacher): `held_lessons` (outcome held) and `upcoming_lessons` (starting later, booked or waiting) |
 | `admin_list_students()` | admin | one row per student record, the one added last first: person, `created_at`, teacher, parent names, the locations of the record's lessons, and the two counts above |
+| `get_notification_settings()` / `set_notification_settings(quiet_hours_enabled, quiet_start, quiet_end, reminder_enabled, reminder_minutes, welcome_text, school_contact)` | admin | the notification settings (see Notifications): quiet hours, reminder time (5 to 720 minutes), welcome text (1000 characters), school contact details (500), and the list of kinds |
+| `set_email_fallback(kind, enabled)` | admin | whether a kind of notice falls back to email; `PT409` for the welcome and the test, which are always emailed |
+| `admin_list_notifications(limit, before, state)` / `admin_resend_notification(id)` / `admin_send_test_notification()` | admin | the log of queued notices with a state (`sent`, `waiting`, `queued`, `retrying`, `failed`), sending a failed one again, and a test notice to oneself |
 | `request_takeover(student_id)` | teacher | ask for an unassigned student |
 | `approve_takeover(id)` / `reject_takeover(id)` | admin | approving closes competing requests |
 | `deactivate_teacher(teacher_id)` | admin | deletes future lessons (participants are notified), unassigns students |
@@ -134,7 +137,27 @@ A parent's request to erase their child's data (for the law on personal data) is
 
 ## Notifications
 
-Triggers write to `notifications`, the outbox. Only the service role (the Edge Function) can read it. Cancelled and declined lessons are queued with a snapshot of the lesson (`kind = 'lesson_cancelled'`, `payload.reason` is `cancelled`, `declined` or `teacher_deactivated`), so the notice survives the deletion. A student leaving a lesson that goes on is `kind = 'participant_left'`; its payload names only the student who left, and the remaining participants are not notified. The other events (new lesson, booking, reminders) are added with the Edge Function in the notifications phase.
+Triggers (and one scheduled job) write to `notifications`, the outbox; the Edge Function that sends it (Phase 6c) only reads it. Nobody but the service role can read or write the outbox, the settings or the kinds table.
+
+| `kind` | When | Who is told (never the person acting) |
+| --- | --- | --- |
+| `lesson_scheduled` | participants are added to a confirmed lesson that has not started (the teacher schedules it, or adds somebody later; only the added students) | those students and their parents |
+| `slot_claimed` | a free slot is booked; `payload.status` is `confirmed` or `pending` (booked less than 12 h ahead) | the teacher |
+| `booking_confirmed` | a booking becomes confirmed, at once or when the teacher answers; not after the lesson started | the students and their parents |
+| `lesson_moved` | the **start** or the **location** of a booked lesson that has not started changes (room, end, subject, note do not count); `payload.old_start_at`, `old_end_at`, `old_location` | participants, parents, teacher |
+| `lesson_cancelled`, `participant_left` | see Reasons for cancelling; declining a late booking is `lesson_cancelled` with reason `declined` | as before |
+| `lesson_reminder` | `enqueue_due_reminders()`, run every minute by pg_cron: a confirmed lesson with an unrecorded outcome that starts within `reminder_minutes` (60) and has been in place at least that long (`lessons.settled_at`: set when created, when its start changes and when it becomes confirmed, so a booking or move closer than that gets no reminder). One per person, lesson and start time | participants, parents, teacher |
+| `welcome` | `upsert_profile` creates a profile, i.e. somebody new is added as a teacher, student or parent (a person who already exists is not welcomed again) | that person |
+| `welcome_push` | the first push subscription of somebody who has a `welcome` | that person |
+| `test` | the administrator's test button | the administrator |
+
+Every notice except the welcome and the test names only what the recipient may know: a student or a parent reads `payload.students` with their own student(s), the teacher with all of them. `payload.actor` is who did it. `notifications.kind` must be a row of `notification_kinds`, which says whether the notice falls back to email when the person has no push subscription (`email_fallback`; the administrator can switch it per kind, except where `always_email`: welcome, test) and whether the quiet hours leave it alone (`ignores_quiet_hours`: reminder, welcome, welcome push, test).
+
+**Quiet hours** are one window in `notification_settings`, in the school's time zone (it may cross midnight). A notice written inside the window gets `deliver_after` = the end of the window (`private.quiet_hours_end`); the sender takes only rows with `deliver_after <= now()`. **Failures:** the sender counts `attempts`, writes `last_error` and, when it succeeds, `sent_at` and `channel` (`push` or `email`). After `private.max_notification_attempts()` (5) attempts a notice shows as `failed` until the administrator sends it again.
+
+pg_cron is switched on by the migration where the database has it (Supabase does); elsewhere the job is simply not scheduled and `select private.enqueue_due_reminders()` can be called by hand.
+
+The administrator's settings page uses `get_notification_settings()`, `set_notification_settings(...)`, `set_email_fallback(kind, enabled)`, `admin_list_notifications(limit, before, state)` (newest first; the notice itself is not shown, only who and when and what went wrong), `admin_resend_notification(id)` (failed notices only) and `admin_send_test_notification()`. All are administrator-only (`PT403`).
 
 ## Tests
 

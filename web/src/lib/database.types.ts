@@ -93,14 +93,14 @@ isOneToOne: false
                   ]
                 },"lessons": {
                   Row: {
-                    "confirmed_at": string | null,"created_at": string,"end_at": string,"id": string,"location_id": string,"origin": Database["public"]['Enums']["lesson_origin"],"outcome": Database["public"]['Enums']["lesson_outcome"] | null,"room_id": string | null,"start_at": string,"status": Database["public"]['Enums']["lesson_status"],"subject_id": string,"teacher_id": string
+                    "confirmed_at": string | null,"created_at": string,"end_at": string,"id": string,"location_id": string,"origin": Database["public"]['Enums']["lesson_origin"],"outcome": Database["public"]['Enums']["lesson_outcome"] | null,"room_id": string | null,"settled_at": string,"start_at": string,"status": Database["public"]['Enums']["lesson_status"],"subject_id": string,"teacher_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "confirmed_at"?: string | null,"created_at"?: string,"end_at": string,"id"?: string,"location_id": string,"origin": Database["public"]['Enums']["lesson_origin"],"outcome"?: Database["public"]['Enums']["lesson_outcome"] | null,"room_id"?: string | null,"start_at": string,"status": Database["public"]['Enums']["lesson_status"],"subject_id": string,"teacher_id": string
+                    "confirmed_at"?: string | null,"created_at"?: string,"end_at": string,"id"?: string,"location_id": string,"origin": Database["public"]['Enums']["lesson_origin"],"outcome"?: Database["public"]['Enums']["lesson_outcome"] | null,"room_id"?: string | null,"settled_at"?: string,"start_at": string,"status": Database["public"]['Enums']["lesson_status"],"subject_id": string,"teacher_id": string
                   }
                   Update: {
-                    "confirmed_at"?: string | null,"created_at"?: string,"end_at"?: string,"id"?: string,"location_id"?: string,"origin"?: Database["public"]['Enums']["lesson_origin"],"outcome"?: Database["public"]['Enums']["lesson_outcome"] | null,"room_id"?: string | null,"start_at"?: string,"status"?: Database["public"]['Enums']["lesson_status"],"subject_id"?: string,"teacher_id"?: string
+                    "confirmed_at"?: string | null,"created_at"?: string,"end_at"?: string,"id"?: string,"location_id"?: string,"origin"?: Database["public"]['Enums']["lesson_origin"],"outcome"?: Database["public"]['Enums']["lesson_outcome"] | null,"room_id"?: string | null,"settled_at"?: string,"start_at"?: string,"status"?: Database["public"]['Enums']["lesson_status"],"subject_id"?: string,"teacher_id"?: string
                   }
                   Relationships: [
                     {
@@ -163,19 +163,53 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"notifications": {
+                },"notification_kinds": {
                   Row: {
-                    "attempts": number,"created_at": string,"id": number,"kind": string,"last_error": string | null,"payload": NonNullable<Json>,"recipient_id": string,"sent_at": string | null
+                    "always_email": boolean,"email_fallback": boolean,"ignores_quiet_hours": boolean,"kind": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "attempts"?: number,"created_at"?: string,"id"?: never,"kind": string,"last_error"?: string | null,"payload"?: NonNullable<Json>,"recipient_id": string,"sent_at"?: string | null
+                    "always_email"?: boolean,"email_fallback": boolean,"ignores_quiet_hours"?: boolean,"kind": string
                   }
                   Update: {
-                    "attempts"?: number,"created_at"?: string,"id"?: never,"kind"?: string,"last_error"?: string | null,"payload"?: NonNullable<Json>,"recipient_id"?: string,"sent_at"?: string | null
+                    "always_email"?: boolean,"email_fallback"?: boolean,"ignores_quiet_hours"?: boolean,"kind"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"notification_settings": {
+                  Row: {
+                    "quiet_end": string,"quiet_hours_enabled": boolean,"quiet_start": string,"reminder_enabled": boolean,"reminder_minutes": number,"school_contact": string,"singleton": boolean,"updated_at": string,"welcome_text": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "quiet_end"?: string,"quiet_hours_enabled"?: boolean,"quiet_start"?: string,"reminder_enabled"?: boolean,"reminder_minutes"?: number,"school_contact"?: string,"singleton"?: boolean,"updated_at"?: string,"welcome_text"?: string
+                  }
+                  Update: {
+                    "quiet_end"?: string,"quiet_hours_enabled"?: boolean,"quiet_start"?: string,"reminder_enabled"?: boolean,"reminder_minutes"?: number,"school_contact"?: string,"singleton"?: boolean,"updated_at"?: string,"welcome_text"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"notifications": {
+                  Row: {
+                    "attempts": number,"channel": string | null,"created_at": string,"deliver_after": string,"id": number,"kind": string,"last_error": string | null,"payload": NonNullable<Json>,"recipient_id": string,"sent_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"channel"?: string | null,"created_at"?: string,"deliver_after"?: string,"id"?: never,"kind": string,"last_error"?: string | null,"payload"?: NonNullable<Json>,"recipient_id": string,"sent_at"?: string | null
+                  }
+                  Update: {
+                    "attempts"?: number,"channel"?: string | null,"created_at"?: string,"deliver_after"?: string,"id"?: never,"kind"?: string,"last_error"?: string | null,"payload"?: NonNullable<Json>,"recipient_id"?: string,"sent_at"?: string | null
                   }
                   Relationships: [
                     {
+      foreignKeyName: "notifications_kind_fk"
+      columns: ["kind"]
+isOneToOne: false
+      referencedRelation: "notification_kinds"
+      referencedColumns: ["kind"]
+    },{
       foreignKeyName: "notifications_recipient_id_fkey"
       columns: ["recipient_id"]
 isOneToOne: false
@@ -479,10 +513,21 @@ isOneToOne: true
 "add_student":
 { Args: { "p_class_section"?: string,"p_email": string,"p_first_name": string,"p_grade"?: string,"p_last_name": string,"p_phone"?: string,"p_school"?: string,"p_teacher_id"?: string }; Returns: string
                            },
+"admin_list_notifications":
+{ Args: { "p_before"?: number,"p_limit"?: number,"p_state"?: string }; Returns: {
+              "attempts": number,"channel": string,"created_at": string,"deliver_after": string,"id": number,"kind": string,"last_error": string,"recipient_email": string,"recipient_name": string,"sent_at": string,"state": string
+            }[]
+                           },
 "admin_list_students":
 { Args: Record<PropertyKey, never>; Returns: {
               "created_at": string,"email": string,"first_name": string,"held_lessons": number,"last_name": string,"location_names": (string)[],"parent_names": (string)[],"profile_id": string,"student_id": string,"teacher_id": string,"teacher_name": string,"upcoming_lessons": number
             }[]
+                           },
+"admin_resend_notification":
+{ Args: { "p_id": number }; Returns: undefined
+                           },
+"admin_send_test_notification":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "approve_takeover":
 { Args: { "p_request_id": string }; Returns: undefined
@@ -530,6 +575,9 @@ isOneToOne: true
 "get_member_cv":
 { Args: { "p_slug": string }; Returns: Json
                            },
+"get_notification_settings":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "get_public_cv":
 { Args: { "p_slug": string }; Returns: Json
                            },
@@ -569,11 +617,17 @@ isOneToOne: true
 "schedule_lesson":
 { Args: { "p_end_at": string,"p_location_id": string,"p_room_id": string,"p_start_at": string,"p_student_ids": (string)[],"p_subject_id": string }; Returns: string
                            },
+"set_email_fallback":
+{ Args: { "p_enabled": boolean,"p_kind": string }; Returns: undefined
+                           },
 "set_lesson_paid":
 { Args: { "p_lesson_id": string,"p_paid": boolean,"p_student_id": string }; Returns: undefined
                            },
 "set_lesson_students":
 { Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: undefined
+                           },
+"set_notification_settings":
+{ Args: { "p_quiet_end": string,"p_quiet_hours_enabled": boolean,"p_quiet_start": string,"p_reminder_enabled": boolean,"p_reminder_minutes": number,"p_school_contact": string,"p_welcome_text": string }; Returns: undefined
                            },
 "set_person_phone":
 { Args: { "p_phone": string,"p_profile_id": string }; Returns: undefined
