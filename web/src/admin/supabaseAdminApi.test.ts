@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { describe, expect, it, vi } from 'vitest'
+import type { Database } from '../lib/database.types'
+import { NOTIFICATION_PAGE_SIZE } from './adminApi'
 import {
+  createSupabaseAdminApi,
   mapLocation,
+  mapNotificationLogRow,
+  mapNotificationSettings,
   mapSubject,
   mapTakeover,
   mapTeacher,
@@ -180,6 +186,164 @@ describe('row mappers', () => {
         section: 'a',
       },
       teacher: { id: 't1', firstName: 'Ana', lastName: 'Nikolić' },
+    })
+  })
+})
+
+describe('notification settings', () => {
+  const answer = {
+    quiet_hours_enabled: true,
+    quiet_start: '22:00',
+    quiet_end: '07:00',
+    reminder_enabled: true,
+    reminder_minutes: 60,
+    welcome_text: 'Dobro došli',
+    school_contact: 'Tel 011',
+    kinds: [
+      {
+        kind: 'lesson_moved',
+        email_fallback: true,
+        always_email: false,
+        ignores_quiet_hours: false,
+      },
+      { kind: 'welcome', email_fallback: true, always_email: true, ignores_quiet_hours: true },
+    ],
+  }
+
+  it('maps the database answer', () => {
+    expect(mapNotificationSettings(answer)).toEqual({
+      quietHoursEnabled: true,
+      quietStart: '22:00',
+      quietEnd: '07:00',
+      reminderEnabled: true,
+      reminderMinutes: 60,
+      welcomeText: 'Dobro došli',
+      schoolContact: 'Tel 011',
+      kinds: [
+        { kind: 'lesson_moved', emailFallback: true, alwaysEmail: false, ignoresQuietHours: false },
+        { kind: 'welcome', emailFallback: true, alwaysEmail: true, ignoresQuietHours: true },
+      ],
+    })
+  })
+
+  it.each([
+    ['nothing', null],
+    ['a missing flag', { ...answer, quiet_hours_enabled: undefined }],
+    ['a missing time', { ...answer, quiet_start: undefined }],
+    ['a reminder time that is not a number', { ...answer, reminder_minutes: '60' }],
+    ['no kinds', { ...answer, kinds: null }],
+  ])('refuses an answer with %s instead of inventing a value', (_name, value) => {
+    expect(() => mapNotificationSettings(value)).toThrow(/settings/)
+  })
+
+  it('maps a line of the log, with the times as instants and the channel only when it is known', () => {
+    const row = {
+      id: 7,
+      kind: 'lesson_moved',
+      recipient_name: 'Luka Ilić',
+      recipient_email: 'luka@example.test',
+      created_at: '2026-11-09T10:00:00+00:00',
+      deliver_after: '2026-11-09T10:00:00+00:00',
+      sent_at: null,
+      channel: null,
+      attempts: 0,
+      last_error: null,
+      state: 'queued',
+    }
+    expect(mapNotificationLogRow(row)).toEqual({
+      id: 7,
+      kind: 'lesson_moved',
+      recipientName: 'Luka Ilić',
+      recipientEmail: 'luka@example.test',
+      createdAt: '2026-11-09T10:00:00.000Z',
+      deliverAfter: '2026-11-09T10:00:00.000Z',
+      sentAt: null,
+      channel: null,
+      attempts: 0,
+      lastError: null,
+      state: 'queued',
+    })
+    expect(
+      mapNotificationLogRow({ ...row, sent_at: '2026-11-09T10:00:05+00:00', channel: 'push' }),
+    ).toMatchObject({ sentAt: '2026-11-09T10:00:05.000Z', channel: 'push' })
+    expect(mapNotificationLogRow({ ...row, channel: 'carrier-pigeon' }).channel).toBeNull()
+  })
+
+  /** A client whose `rpc` answers with `data` and remembers what it was asked. */
+  const clientAnswering = (
+    data: unknown,
+    error: { code?: string; message?: string } | null = null,
+  ) => {
+    const rpc = vi.fn(async () => ({ data, error, status: error ? 400 : 200 }))
+    return { rpc, api: createSupabaseAdminApi({ rpc } as unknown as SupabaseClient<Database>) }
+  }
+
+  it('asks the database for the settings and saves them with the names it expects', async () => {
+    const { rpc, api } = clientAnswering(answer)
+    expect((await api.getNotificationSettings()).reminderMinutes).toBe(60)
+    expect(rpc).toHaveBeenLastCalledWith('get_notification_settings')
+
+    await api.saveNotificationSettings({
+      quietHoursEnabled: true,
+      quietStart: '21:30',
+      quietEnd: '06:00',
+      reminderEnabled: false,
+      reminderMinutes: 45,
+      welcomeText: 'Zdravo',
+      schoolContact: 'Kontakt',
+    })
+    expect(rpc).toHaveBeenLastCalledWith('set_notification_settings', {
+      p_quiet_hours_enabled: true,
+      p_quiet_start: '21:30',
+      p_quiet_end: '06:00',
+      p_reminder_enabled: false,
+      p_reminder_minutes: 45,
+      p_welcome_text: 'Zdravo',
+      p_school_contact: 'Kontakt',
+    })
+  })
+
+  it('switches an email fallback, resends and tests', async () => {
+    const { rpc, api } = clientAnswering(null)
+    await api.setEmailFallback('lesson_moved', false)
+    expect(rpc).toHaveBeenLastCalledWith('set_email_fallback', {
+      p_kind: 'lesson_moved',
+      p_enabled: false,
+    })
+    await api.resendNotification(42)
+    expect(rpc).toHaveBeenLastCalledWith('admin_resend_notification', { p_id: 42 })
+    await api.sendTestNotification()
+    expect(rpc).toHaveBeenLastCalledWith('admin_send_test_notification')
+  })
+
+  it('lists the log a page at a time, sending the cursor and the state only when there are some', async () => {
+    const { rpc, api } = clientAnswering([])
+    expect(await api.listNotifications({})).toEqual([])
+    expect(rpc).toHaveBeenLastCalledWith('admin_list_notifications', {
+      p_limit: NOTIFICATION_PAGE_SIZE,
+    })
+    await api.listNotifications({ before: 120, state: 'failed' })
+    expect(rpc).toHaveBeenLastCalledWith('admin_list_notifications', {
+      p_limit: NOTIFICATION_PAGE_SIZE,
+      p_before: 120,
+      p_state: 'failed',
+    })
+    // a cursor of 0 is still a cursor
+    await api.listNotifications({ before: 0, state: null })
+    expect(rpc).toHaveBeenLastCalledWith('admin_list_notifications', {
+      p_limit: NOTIFICATION_PAGE_SIZE,
+      p_before: 0,
+    })
+  })
+
+  it('keeps the code of a refusal for the screen to explain', async () => {
+    const { api } = clientAnswering(null, {
+      code: 'PT409',
+      message: 'only a failed notice can be sent again',
+    })
+    await expect(api.resendNotification(1)).rejects.toMatchObject({
+      name: 'AdminError',
+      code: 'PT409',
     })
   })
 })

@@ -98,6 +98,53 @@ export interface AdminStudentRow {
 
 export const MAX_LOCATION_PHOTOS = 3
 
+/** What each kind of notice may do (see `notification_kinds` in the database). */
+export interface NotificationKindRow {
+  /** `lesson_scheduled`, `lesson_moved`, ... */
+  kind: string
+  /** Falls back to email when the person has no push subscription. */
+  emailFallback: boolean
+  /** Always emailed; the switch does not apply. */
+  alwaysEmail: boolean
+  /** Never held back by the quiet hours. */
+  ignoresQuietHours: boolean
+}
+
+/** The administrator's settings for notifications. Times are clock times ("22:00") in the school's time zone. */
+export interface NotificationSettings {
+  quietHoursEnabled: boolean
+  quietStart: string
+  quietEnd: string
+  reminderEnabled: boolean
+  /** How long before a lesson the reminder goes out (5 to 720). */
+  reminderMinutes: number
+  welcomeText: string
+  schoolContact: string
+}
+
+export type NotificationSettingsAndKinds = NotificationSettings & { kinds: NotificationKindRow[] }
+
+export const NOTIFICATION_STATES = ['sent', 'waiting', 'queued', 'retrying', 'failed'] as const
+/** sent; waiting (held back by the quiet hours); queued; retrying (failed at least once); failed (gave up). */
+export type NotificationState = (typeof NOTIFICATION_STATES)[number]
+
+/** One line of the log. It says who and when, never what the notice said. */
+export interface NotificationLogRow {
+  id: number
+  kind: string
+  recipientName: string
+  recipientEmail: string
+  createdAt: string
+  deliverAfter: string
+  sentAt: string | null
+  channel: 'push' | 'email' | null
+  attempts: number
+  lastError: string | null
+  state: NotificationState
+}
+
+export const NOTIFICATION_PAGE_SIZE = 50
+
 export interface AdminApi {
   listSubjects(): Promise<Subject[]>
   addSubject(name: string): Promise<void>
@@ -151,6 +198,19 @@ export interface AdminApi {
   listTakeovers(): Promise<TakeoverRow[]>
   approveTakeover(requestId: string): Promise<void>
   rejectTakeover(requestId: string): Promise<void>
+
+  getNotificationSettings(): Promise<NotificationSettingsAndKinds>
+  saveNotificationSettings(settings: NotificationSettings): Promise<void>
+  setEmailFallback(kind: string, enabled: boolean): Promise<void>
+  /** Newest first; `before` is the id of the last row of the page before. */
+  listNotifications(input: {
+    before?: number | null
+    state?: NotificationState | null
+  }): Promise<NotificationLogRow[]>
+  /** Sends a failed notice again. Refused (`PT409`) for one that is not failed. */
+  resendNotification(id: number): Promise<void>
+  /** Queues a test notice for the administrator. */
+  sendTestNotification(): Promise<void>
 }
 
 /**
@@ -193,6 +253,10 @@ export type ActionKey =
   | 'removePhoto'
   | 'approveTakeover'
   | 'rejectTakeover'
+  | 'saveNotificationSettings'
+  | 'setEmailFallback'
+  | 'resendNotification'
+  | 'sendTestNotification'
   // the teacher's screens share the error texts and the dialogs
   | 'addStudent'
   | 'updateStudent'

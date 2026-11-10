@@ -138,6 +138,23 @@ export function explainError(error: unknown, action: ActionKey): string {
     case 'deleteRoom':
       if (code === '23503') return 'Učionica se koristi u časovima i ne može da se obriše.'
       break
+    case 'saveNotificationSettings':
+      if (code === 'PT400') {
+        if (/same time/i.test(message)) {
+          return 'Tihi sati ne mogu da počnu i završe se u isto vreme.'
+        }
+        if (/reminder/i.test(message)) return 'Vreme podsetnika mora biti između 5 i 720 minuta.'
+        if (/too long/i.test(message)) return 'Tekst je predugačak.'
+      }
+      break
+    case 'setEmailFallback':
+      if (code === 'PT409') return 'Ovo obaveštenje se uvek šalje emailom.'
+      break
+    case 'resendNotification':
+      if (code === 'PT409') {
+        return 'Samo obaveštenje koje nije uspelo može ponovo da se pošalje. Osvežite stranicu.'
+      }
+      break
     case 'addStudent':
       if (code === 'PT409') return 'Ovaj učenik je već među vašim učenicima.'
       if (code === 'PT400') {

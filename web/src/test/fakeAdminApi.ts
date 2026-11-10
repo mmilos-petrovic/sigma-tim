@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 import { normalizePhone } from '../lib/phone'
 import {
   AdminError,
+  NOTIFICATION_PAGE_SIZE,
   type AdminApi,
   type LocationRow,
   type Photo,
@@ -9,6 +10,9 @@ import {
   type Subject,
   type TakeoverRow,
   type EraseResult,
+  type NotificationKindRow,
+  type NotificationLogRow,
+  type NotificationSettingsAndKinds,
   type TeacherImpact,
   type TeacherRow,
 } from '../admin/adminApi'
@@ -19,6 +23,9 @@ export interface FakeState {
   locations: LocationRow[]
   takeovers: TakeoverRow[]
   students: AdminStudentRow[]
+  notificationSettings: NotificationSettingsAndKinds
+  /** Any order; the fake sorts newest first like the database. */
+  notificationLog: NotificationLogRow[]
   impact: Record<string, TeacherImpact>
   /** Teachers who have a lesson that already started: erasing them leaves a record. */
   history: Record<string, boolean>
@@ -39,6 +46,51 @@ export interface FakeAdminApi extends AdminApi {
   hold: (method: Methods) => () => void
   calls: Record<Methods, ReturnType<typeof vi.fn>>
 }
+
+const kind = (
+  name: string,
+  emailFallback: boolean,
+  { alwaysEmail = false, ignoresQuietHours = false } = {},
+): NotificationKindRow => ({ kind: name, emailFallback, alwaysEmail, ignoresQuietHours })
+
+/** What the database starts with: quiet hours off, a 60 minute reminder and the ten kinds of notice. */
+export const seedNotificationSettings = (): NotificationSettingsAndKinds => ({
+  quietHoursEnabled: false,
+  quietStart: '22:00',
+  quietEnd: '07:00',
+  reminderEnabled: true,
+  reminderMinutes: 60,
+  welcomeText: '',
+  schoolContact: '',
+  kinds: [
+    kind('booking_confirmed', true),
+    kind('lesson_cancelled', true),
+    kind('lesson_moved', true),
+    kind('lesson_reminder', false, { ignoresQuietHours: true }),
+    kind('lesson_scheduled', true),
+    kind('participant_left', true),
+    kind('slot_claimed', true),
+    kind('test', true, { alwaysEmail: true, ignoresQuietHours: true }),
+    kind('welcome', true, { alwaysEmail: true, ignoresQuietHours: true }),
+    kind('welcome_push', false, { ignoresQuietHours: true }),
+  ],
+})
+
+const logRow = (
+  id: number,
+  fields: Partial<NotificationLogRow> & Pick<NotificationLogRow, 'kind' | 'state'>,
+): NotificationLogRow => ({
+  id,
+  recipientName: 'Luka Ilić',
+  recipientEmail: 'luka.ilic@example.test',
+  createdAt: '2026-11-09T10:00:00.000Z',
+  deliverAfter: '2026-11-09T10:00:00.000Z',
+  sentAt: null,
+  channel: null,
+  attempts: 0,
+  lastError: null,
+  ...fields,
+})
 
 export const seed = (): FakeState => ({
   subjects: [
@@ -186,6 +238,40 @@ export const seed = (): FakeState => ({
       heldLessons: 0,
       upcomingLessons: 0,
     },
+  ],
+  notificationSettings: seedNotificationSettings(),
+  notificationLog: [
+    logRow(1, {
+      kind: 'lesson_scheduled',
+      state: 'sent',
+      sentAt: '2026-11-09T10:00:05.000Z',
+      channel: 'push',
+      attempts: 1,
+    }),
+    logRow(2, {
+      kind: 'lesson_moved',
+      state: 'sent',
+      recipientName: 'Ana Petrović',
+      recipientEmail: 'ana.petrovic@example.test',
+      sentAt: '2026-11-09T10:10:05.000Z',
+      channel: 'email',
+      attempts: 1,
+    }),
+    logRow(3, {
+      kind: 'lesson_cancelled',
+      state: 'waiting',
+      deliverAfter: '2026-11-10T06:00:00.000Z',
+    }),
+    logRow(4, { kind: 'lesson_reminder', state: 'queued' }),
+    logRow(5, { kind: 'booking_confirmed', state: 'retrying', attempts: 2, lastError: 'timeout' }),
+    logRow(6, {
+      kind: 'slot_claimed',
+      state: 'failed',
+      recipientName: 'Ana Nikolić',
+      recipientEmail: 'ana.nikolic@example.test',
+      attempts: 5,
+      lastError: 'push service said 400',
+    }),
   ],
   impact: { 't-ana': { futureLessons: 3, students: 2, pendingRequests: 1 } },
   history: { 't-ana': true },
@@ -475,6 +561,63 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
     async rejectTakeover(requestId) {
       await gate('rejectTakeover')
       state.takeovers = state.takeovers.filter((q) => q.id !== requestId)
+    },
+
+    async getNotificationSettings() {
+      await gate('getNotificationSettings')
+      return structuredClone(state.notificationSettings)
+    },
+    async saveNotificationSettings(settings) {
+      await gate('saveNotificationSettings')
+      if (settings.quietStart === settings.quietEnd)
+        throw new AdminError('PT400', 'the quiet hours cannot start and end at the same time')
+      if (!(settings.reminderMinutes >= 5 && settings.reminderMinutes <= 720))
+        throw new AdminError('PT400', 'the reminder time must be between 5 and 720 minutes')
+      if (settings.welcomeText.length > 1000 || settings.schoolContact.length > 500)
+        throw new AdminError('PT400', 'the text is too long')
+      state.notificationSettings = {
+        ...state.notificationSettings,
+        ...settings,
+        welcomeText: settings.welcomeText.trim(),
+        schoolContact: settings.schoolContact.trim(),
+      }
+    },
+    async setEmailFallback(kindName, enabled) {
+      await gate('setEmailFallback')
+      const row = state.notificationSettings.kinds.find((k) => k.kind === kindName)
+      if (!row) throw new AdminError('PT404', 'unknown kind of notice')
+      if (row.alwaysEmail) throw new AdminError('PT409', 'this notice is always sent by email')
+      row.emailFallback = enabled
+    },
+    async listNotifications({ before, state: wanted }) {
+      await gate('listNotifications')
+      return state.notificationLog
+        .filter((row) => (before == null || row.id < before) && (!wanted || row.state === wanted))
+        .sort((a, b) => b.id - a.id)
+        .slice(0, NOTIFICATION_PAGE_SIZE)
+        .map((row) => ({ ...row }))
+    },
+    async resendNotification(id) {
+      await gate('resendNotification')
+      const row = state.notificationLog.find((r) => r.id === id)
+      if (!row) throw new AdminError('PT404', 'notice not found')
+      if (row.state !== 'failed')
+        throw new AdminError('PT409', 'only a failed notice can be sent again')
+      row.state = 'queued'
+      row.attempts = 0
+      row.lastError = null
+    },
+    async sendTestNotification() {
+      await gate('sendTestNotification')
+      const id = Math.max(0, ...state.notificationLog.map((r) => r.id)) + 1
+      state.notificationLog.push(
+        logRow(id, {
+          kind: 'test',
+          state: 'queued',
+          recipientName: 'Admin Test',
+          recipientEmail: 'admin@example.test',
+        }),
+      )
     },
   }
 

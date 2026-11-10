@@ -379,3 +379,33 @@ a:focus-visible {
     padding: 1.5rem 2rem;
   }
 }
+
+.push-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--primary-soft);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.push-banner__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.steps {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.steps li {
+  margin-bottom: 0.4rem;
+}
+
+.notification-settings .button {
+  margin-top: 0.25rem;
+}
