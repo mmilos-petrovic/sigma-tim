@@ -4,8 +4,12 @@ import { mapPhones } from '../lib/phone'
 import {
   AdminError,
   MAX_LOCATION_PHOTOS,
+  NOTIFICATION_PAGE_SIZE,
   type AdminApi,
   type LocationRow,
+  type NotificationLogRow,
+  type NotificationSettingsAndKinds,
+  type NotificationState,
   type Subject,
   type TakeoverRow,
   type TeacherRow,
@@ -67,6 +71,67 @@ export function nextFreePosition(taken: number[]): number | null {
 export const photoPath = (locationId: string, fileId: string) => `${locationId}/${fileId}.jpg`
 
 // Row mappers ----------------------------------------------------------------------------------------------------
+
+/** `get_notification_settings()` answers with one JSON object; anything missing is a broken answer, not a default. */
+export function mapNotificationSettings(value: unknown): NotificationSettingsAndKinds {
+  const json = (value ?? {}) as Record<string, unknown>
+  const text = (key: string) => {
+    if (typeof json[key] !== 'string')
+      throw new AdminError('unknown', `settings: ${key} is missing`)
+    return json[key] as string
+  }
+  const flag = (key: string) => {
+    if (typeof json[key] !== 'boolean')
+      throw new AdminError('unknown', `settings: ${key} is missing`)
+    return json[key] as boolean
+  }
+  if (typeof json.reminder_minutes !== 'number' || !Array.isArray(json.kinds)) {
+    throw new AdminError('unknown', 'settings: reminder_minutes or kinds is missing')
+  }
+  return {
+    quietHoursEnabled: flag('quiet_hours_enabled'),
+    quietStart: text('quiet_start'),
+    quietEnd: text('quiet_end'),
+    reminderEnabled: flag('reminder_enabled'),
+    reminderMinutes: json.reminder_minutes,
+    welcomeText: text('welcome_text'),
+    schoolContact: text('school_contact'),
+    kinds: json.kinds.map((kind: Record<string, unknown>) => ({
+      kind: String(kind.kind),
+      emailFallback: kind.email_fallback === true,
+      alwaysEmail: kind.always_email === true,
+      ignoresQuietHours: kind.ignores_quiet_hours === true,
+    })),
+  }
+}
+
+export function mapNotificationLogRow(row: {
+  id: number
+  kind: string
+  recipient_name: string
+  recipient_email: string
+  created_at: string
+  deliver_after: string
+  sent_at: string | null
+  channel: string | null
+  attempts: number
+  last_error: string | null
+  state: string
+}): NotificationLogRow {
+  return {
+    id: row.id,
+    kind: row.kind,
+    recipientName: row.recipient_name,
+    recipientEmail: row.recipient_email,
+    createdAt: new Date(row.created_at).toISOString(),
+    deliverAfter: new Date(row.deliver_after).toISOString(),
+    sentAt: row.sent_at ? new Date(row.sent_at).toISOString() : null,
+    channel: row.channel === 'push' || row.channel === 'email' ? row.channel : null,
+    attempts: row.attempts,
+    lastError: row.last_error,
+    state: row.state as NotificationState,
+  }
+}
 
 export function mapSubject(row: {
   id: string
@@ -423,6 +488,43 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
     },
     async rejectTakeover(requestId) {
       await run(client.rpc('reject_takeover', { p_request_id: requestId }))
+    },
+
+    async getNotificationSettings() {
+      const { data } = await run(client.rpc('get_notification_settings'))
+      return mapNotificationSettings(data)
+    },
+    async saveNotificationSettings(settings) {
+      await run(
+        client.rpc('set_notification_settings', {
+          p_quiet_hours_enabled: settings.quietHoursEnabled,
+          p_quiet_start: settings.quietStart,
+          p_quiet_end: settings.quietEnd,
+          p_reminder_enabled: settings.reminderEnabled,
+          p_reminder_minutes: settings.reminderMinutes,
+          p_welcome_text: settings.welcomeText,
+          p_school_contact: settings.schoolContact,
+        }),
+      )
+    },
+    async setEmailFallback(kind, enabled) {
+      await run(client.rpc('set_email_fallback', { p_kind: kind, p_enabled: enabled }))
+    },
+    async listNotifications({ before, state }) {
+      const { data } = await run(
+        client.rpc('admin_list_notifications', {
+          p_limit: NOTIFICATION_PAGE_SIZE,
+          ...(before != null ? { p_before: before } : {}),
+          ...(state ? { p_state: state } : {}),
+        }),
+      )
+      return (data ?? []).map((row) => mapNotificationLogRow(row))
+    },
+    async resendNotification(id) {
+      await run(client.rpc('admin_resend_notification', { p_id: id }))
+    },
+    async sendTestNotification() {
+      await run(client.rpc('admin_send_test_notification'))
     },
   }
 }

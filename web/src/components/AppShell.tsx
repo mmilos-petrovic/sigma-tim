@@ -1,8 +1,11 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
 import type { NavItem } from '../admin/nav'
 import { useAuth } from '../auth/AuthProvider'
 import { CONTEXT_LABEL, homePath, type Context, type MyRoles } from '../auth/roles'
+import { NotificationsButton, NotificationsDialog } from '../notifications/NotificationSettings'
+import { PushDevice, usePushApi } from '../notifications/PushDevice'
+import { PushInvitation } from '../notifications/PushInvitation'
 
 // Students and parents use the app on a phone; teachers and the administration work at a desk.
 const LAYOUT: Record<Context, 'mobile' | 'desktop'> = {
@@ -40,53 +43,67 @@ export function AppShell({
   children: ReactNode
 }) {
   const { signOut } = useAuth()
+  const push = usePushApi()
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const layout = LAYOUT[context]
   const items: NavItem[] = nav ?? [
     { to: homePath(context), label: CONTEXT_LABEL[context], end: true },
   ]
 
+  // The device stops receiving this person's notices before the session ends; a failure must not keep them signed in.
+  const leave = async () => {
+    await push?.release(roles.profileId).catch(() => undefined)
+    await signOut()
+  }
+
   return (
-    <div className="shell" data-layout={layout}>
-      <header className="shell__header">
-        <Link className="shell__brand" to={homePath(context)}>
-          Sigma Tim
-        </Link>
+    <PushDevice profileId={roles.profileId}>
+      <div className="shell" data-layout={layout}>
+        <header className="shell__header">
+          <Link className="shell__brand" to={homePath(context)}>
+            Sigma Tim
+          </Link>
 
-        {contexts.length > 1 && (
-          <nav className="switcher" aria-label="Izbor prikaza">
-            {contexts.map((c) => (
-              <NavLink key={c} to={homePath(c)}>
-                {CONTEXT_LABEL[c]}
-              </NavLink>
-            ))}
-          </nav>
-        )}
-
-        <div className="shell__user">
-          <Avatar roles={roles} />
-          <span className="shell__name">
-            {roles.firstName} {roles.lastName}
-          </span>
-          <button type="button" className="button button--secondary" onClick={() => void signOut()}>
-            Odjavi se
-          </button>
-        </div>
-      </header>
-
-      <div className="shell__body">
-        {layout === 'desktop' && (
-          <aside className="shell__sidebar">
-            <nav aria-label="Glavna navigacija">
-              {items.map((item) => (
-                <NavLink key={item.to} to={item.to} end={item.end}>
-                  {item.label}
+          {contexts.length > 1 && (
+            <nav className="switcher" aria-label="Izbor prikaza">
+              {contexts.map((c) => (
+                <NavLink key={c} to={homePath(c)}>
+                  {CONTEXT_LABEL[c]}
                 </NavLink>
               ))}
             </nav>
-          </aside>
-        )}
-        <main className="shell__main">{children}</main>
+          )}
+
+          <div className="shell__user">
+            <Avatar roles={roles} />
+            <span className="shell__name">
+              {roles.firstName} {roles.lastName}
+            </span>
+            <NotificationsButton onOpen={() => setNotificationsOpen(true)} />
+            <button type="button" className="button button--secondary" onClick={() => void leave()}>
+              Odjavi se
+            </button>
+          </div>
+        </header>
+
+        <PushInvitation profileId={roles.profileId} />
+
+        <div className="shell__body">
+          {layout === 'desktop' && (
+            <aside className="shell__sidebar">
+              <nav aria-label="Glavna navigacija">
+                {items.map((item) => (
+                  <NavLink key={item.to} to={item.to} end={item.end}>
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </aside>
+          )}
+          <main className="shell__main">{children}</main>
+        </div>
+        {notificationsOpen && <NotificationsDialog onClose={() => setNotificationsOpen(false)} />}
       </div>
-    </div>
+    </PushDevice>
   )
 }

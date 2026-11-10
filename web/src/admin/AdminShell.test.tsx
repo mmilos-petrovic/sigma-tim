@@ -10,17 +10,20 @@ import { AdminError } from './adminApi'
 vi.mock('../teacher/calendar/WeekCalendar', async () => import('../test/mockCalendar'))
 
 describe('administration navigation', () => {
-  it('offers the five sections and marks the current one', async () => {
+  it('offers the sections, with the settings right below the takeover requests, and marks the current one', async () => {
     renderAdmin('/administracija')
     await page('Administracija')
 
     const nav = within(screen.getByRole('navigation', { name: 'Glavna navigacija' }))
+    const names = nav.getAllByRole('link').map((link) => link.textContent)
+    expect(names.slice(-2)).toEqual(['Zahtevi za preuzimanje', 'Podešavanja'])
     for (const name of [
       'Pregled',
       'Nastavnici',
       'Predmeti',
       'Lokacije',
       'Zahtevi za preuzimanje',
+      'Podešavanja',
     ]) {
       expect(nav.getByRole('link', { name })).toBeInTheDocument()
     }
@@ -42,6 +45,9 @@ describe('administration navigation', () => {
     expect(await page('Lokacije')).toBeInTheDocument()
     await userEvent.click(nav.getByRole('link', { name: 'Zahtevi za preuzimanje' }))
     expect(await page('Zahtevi za preuzimanje')).toBeInTheDocument()
+    await userEvent.click(nav.getByRole('link', { name: 'Podešavanja' }))
+    expect(await page('Podešavanja')).toBeInTheDocument()
+    expect(nav.getByRole('link', { name: 'Podešavanja' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('says a page does not exist, inside the administration', async () => {

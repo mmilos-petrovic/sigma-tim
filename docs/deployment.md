@@ -37,6 +37,14 @@ The web app and the database move separately. A branch with new migrations shows
 
 Secrets live in GitHub environments and in the Cloudflare and Supabase dashboards, never in the repository.
 
+## Push notifications in the web app
+
+The app shows notifications through a service worker (`web/public/sw.js`, which only displays a push message and opens the page it names, and caches nothing) and a web app manifest (`manifest.webmanifest`, icons made by `scripts/make-icons.mjs`). Push stays switched off, and its prompts hidden, in a build that has no VAPID public key.
+
+- `VITE_VAPID_PUBLIC_KEY` (Cloudflare Pages variable, one per environment: Production and Preview) is the **public** half of a VAPID key pair. It is not a secret.
+- Generate a pair with `node scripts/generate-vapid-keys.mjs`. Use a separate pair for staging and production. The **private** half is a secret: it goes only into the Edge Function secrets of the matching Supabase project (Phase 6c), never into git, a chat or a build variable.
+- A device subscribes after the person's first sign-in (a browser only allows it after a tap) and is forgotten when they sign out. On an iPhone or iPad push only works for the app added to the home screen; the app explains this.
+
 ## Google sign-in setup
 
 Each environment has its own Google OAuth client, so a mistake or a deletion in one cannot break the other. Production and staging live in two separate Google Cloud projects, each with its own consent screen. Name things clearly (`Sigma Tim staging - Supabase`, `Sigma Tim production - Supabase`) so nobody deletes the wrong client: deleting a client makes sign-in fail with `Error 401: deleted_client` until it is restored (Google keeps deleted clients for 30 days) or replaced.

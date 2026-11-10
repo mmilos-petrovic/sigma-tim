@@ -8,6 +8,13 @@ import { createSupabaseAuthApi } from './auth/supabaseAuthApi'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ConfigErrorScreen } from './components/Status'
 import { createAppClient } from './lib/supabase'
+import {
+  createBrowserEnv,
+  createLocalPushPrefs,
+  createSupabasePushStore,
+} from './notifications/browserEnv'
+import { PushApiProvider } from './notifications/PushDevice'
+import { createPushApi } from './notifications/pushApi'
 import { StudentApiProvider } from './student/StudentApiProvider'
 import { createSupabaseStudentApi } from './student/supabaseStudentApi'
 import { TeacherApiProvider } from './teacher/TeacherApiProvider'
@@ -20,6 +27,12 @@ const services = client
       admin: createSupabaseAdminApi(client),
       teacher: createSupabaseTeacherApi(client),
       student: createSupabaseStudentApi(client),
+      push: createPushApi({
+        env: createBrowserEnv(),
+        store: createSupabasePushStore(client),
+        prefs: createLocalPushPrefs(),
+        vapidKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
+      }),
     }
   : null
 
@@ -35,9 +48,11 @@ export default function App() {
             <TeacherApiProvider api={services.teacher}>
               <StudentApiProvider api={services.student}>
                 <AuthProvider api={services.auth}>
-                  <BrowserRouter>
-                    <AppRoutes />
-                  </BrowserRouter>
+                  <PushApiProvider api={services.push}>
+                    <BrowserRouter>
+                      <AppRoutes />
+                    </BrowserRouter>
+                  </PushApiProvider>
                 </AuthProvider>
               </StudentApiProvider>
             </TeacherApiProvider>

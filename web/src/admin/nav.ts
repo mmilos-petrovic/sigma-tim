@@ -16,4 +16,5 @@ export const ADMIN_NAV: NavItem[] = [
   { to: `${BASE}/predmeti`, label: 'Predmeti' },
   { to: `${BASE}/lokacije`, label: 'Lokacije' },
   { to: `${BASE}/zahtevi`, label: 'Zahtevi za preuzimanje' },
+  { to: `${BASE}/podesavanja`, label: 'Podešavanja' },
 ]

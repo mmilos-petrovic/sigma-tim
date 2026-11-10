@@ -1,6 +1,7 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useAdminApi } from './AdminApiProvider'
+import { NOTIFICATION_PAGE_SIZE, type NotificationState } from './adminApi'
 
 const admin = ['admin'] as const
 
@@ -27,6 +28,26 @@ export function useLocations() {
 export function useTakeovers() {
   const api = useAdminApi()
   return useQuery({ queryKey: [...admin, 'takeovers'], queryFn: () => api.listTakeovers() })
+}
+
+export function useNotificationSettings() {
+  const api = useAdminApi()
+  return useQuery({
+    queryKey: [...admin, 'notificationSettings'],
+    queryFn: () => api.getNotificationSettings(),
+  })
+}
+
+/** The log, a page at a time, newest first; `Prikaži starija` asks for the next page. */
+export function useNotificationLog(state: NotificationState | null) {
+  const api = useAdminApi()
+  return useInfiniteQuery({
+    queryKey: [...admin, 'notificationLog', state],
+    queryFn: ({ pageParam }) => api.listNotifications({ before: pageParam, state }),
+    initialPageParam: null as number | null,
+    getNextPageParam: (last) =>
+      last.length >= NOTIFICATION_PAGE_SIZE ? last[last.length - 1].id : undefined,
+  })
 }
 
 /** Always fresh: the numbers are shown right before a decision. */
