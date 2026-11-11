@@ -45,6 +45,35 @@ The app shows notifications through a service worker (`web/public/sw.js`, which 
 - Generate a pair with `node scripts/generate-vapid-keys.mjs`. Use a separate pair for staging and production. The **private** half is a secret: it goes only into the Edge Function secrets of the matching Supabase project (Phase 6c), never into git, a chat or a build variable.
 - A device subscribes after the person's first sign-in (a browser only allows it after a tap) and is forgotten when they sign out. On an iPhone or iPad push only works for the app added to the home screen; the app explains this.
 
+## Sending notifications (the Edge Function)
+
+The Edge Function `send-notifications` sends what the database queues: a push to the person's devices, an email through Brevo where the rules say so. A pg_cron job calls it every minute. How it decides is in `supabase/README.md` ("Notifications", "Sending"). Set it up once per environment, staging first:
+
+1. **Make the values.**
+   - `CRON_SECRET`: a long random string only the database and the function know. `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
+   - The VAPID pair from `node scripts/generate-vapid-keys.mjs` (a separate pair per environment). The public half is the same value as `VITE_VAPID_PUBLIC_KEY` of that environment's Cloudflare Pages build; they must match, or devices subscribe with one key and are sent to with another.
+   - `BREVO_API_KEY`: in Brevo, SMTP & API, API keys, Generate. The sender `noreply@sigmatim.com` is the one already verified for sign-in emails.
+2. **Set the function's secrets** in the Supabase dashboard (Edge Functions, Secrets) of that project, or with `npx supabase secrets set --project-ref <ref> NAME=value`:
+
+   | Name | Value |
+   | --- | --- |
+   | `CRON_SECRET` | the random string |
+   | `APP_URL` | the address of the site, for the links in emails: `https://staging.sigma-tim.pages.dev` or `https://sigmatim.com` |
+   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | the pair |
+   | `BREVO_API_KEY` | the Brevo key |
+
+   Optional: `VAPID_SUBJECT` (default `mailto:noreply@sigmatim.com`), `EMAIL_FROM`, `EMAIL_FROM_NAME`, `EMAIL_DAILY_LIMIT` (default 200 non-urgent emails a day, which keeps the rest of Brevo's 300 for welcome emails and for sign-in). `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided by Supabase.
+3. **Tell the database where the function is** (SQL editor of that project, once; the secret is the same `CRON_SECRET`):
+
+   ```sql
+   select vault.create_secret('https://<project ref>.supabase.co/functions/v1/send-notifications', 'notifications_function_url');
+   select vault.create_secret('<the CRON_SECRET value>', 'notifications_cron_secret');
+   ```
+
+   Until both exist the cron job does nothing. To change one later, edit it in the dashboard's Vault page rather than creating it again.
+4. **Deploy the function.** The **Functions deploy** workflow deploys it to staging when `supabase/functions/` changes on `main` (the `staging` environment may ask for approval), and by hand to either environment from the Actions tab (target, and untick "dry run" to really deploy; production waits for its reviewer). A dry run only checks that the function's secrets are set and lists what is deployed. The function's own secrets are never in GitHub.
+5. **Try it.** As administrator open Podešavanja and press "Pošalji probno obaveštenje": within a minute the notice shows as sent in the log, and the administrator gets the push (if a device is subscribed) and the email. `select * from cron.job_run_details order by start_time desc limit 5` shows the cron job running, and `select * from net._http_response order by created desc limit 5` what the function answered (200, or 401 when the two secrets differ).
+
 ## Google sign-in setup
 
 Each environment has its own Google OAuth client, so a mistake or a deletion in one cannot break the other. Production and staging live in two separate Google Cloud projects, each with its own consent screen. Name things clearly (`Sigma Tim staging - Supabase`, `Sigma Tim production - Supabase`) so nobody deletes the wrong client: deleting a client makes sign-in fail with `Error 401: deleted_client` until it is restored (Google keeps deleted clients for 30 days) or replaced.
