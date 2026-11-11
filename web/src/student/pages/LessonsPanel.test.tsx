@@ -77,7 +77,7 @@ describe('the list of lessons', () => {
     expect(screen.queryByText(/ishod|unos/i)).not.toBeInTheDocument()
   })
 
-  it('marks a lesson that was paid for, only once it is over, and never says one was not paid', async () => {
+  it('marks a lesson that was paid for, also in advance, and never says one was not paid', async () => {
     const state = seedStudent()
     for (const lesson of state.lessons) {
       if (lesson.id === 'l-held' || lesson.id === 'l-next') lesson.paid = true // a past one, and one paid in advance
@@ -88,7 +88,8 @@ describe('the list of lessons', () => {
     expect(behind[0]).toContain('Plaćen') // the held lesson, paid
     expect(behind[1]).not.toMatch(/Plaćen|Neplaćen/i) // not held, not paid: nothing to say
     expect(behind[2]).not.toMatch(/Plaćen|Neplaćen/i)
-    expect(ahead[1]).not.toContain('Plaćen') // paid in advance, but not over
+    expect(ahead[1]).toContain('Plaćen') // paid in advance, not held yet
+    expect(ahead[0]).not.toMatch(/Plaćen|Neplaćen/i) // the next one is not paid: nothing to say
     expect(document.body.textContent).not.toMatch(/Neplaćen|Nije plaćen/i)
   })
 
