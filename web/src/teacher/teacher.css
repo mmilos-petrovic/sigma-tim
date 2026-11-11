@@ -9,6 +9,20 @@
   overflow: hidden;
 }
 
+/* The head of a day column on a phone: the letter of the weekday above the date. */
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+  padding: 0.15rem 0;
+}
+
+.cal-day span {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
 .cal-item {
   color: #ffffff;
   font-size: 0.8rem;

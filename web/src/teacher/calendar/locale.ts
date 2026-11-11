@@ -27,8 +27,11 @@ export const srLatn: LocaleInput = {
   closeHint: 'Zatvori',
   eventsHint: 'Događaji',
   todayHint: 'Idi na današnji dan',
-  prevHint: (unitText: string) => `Prethodna ${unitText.toLowerCase()}`,
-  nextHint: (unitText: string) => `Sledeća ${unitText.toLowerCase()}`,
+  // a view of a few days (the phone's) is not one unit, so it has no unit text
+  prevHint: (unitText?: string) =>
+    unitText ? `Prethodna ${unitText.toLowerCase()}` : 'Prethodni dani',
+  nextHint: (unitText?: string) =>
+    unitText ? `Sledeća ${unitText.toLowerCase()}` : 'Sledeći dani',
   viewHint: (viewButtonText: string) => `Prikaz: ${viewButtonText.toLowerCase()}`,
   viewChangeHint: 'Promena prikaza',
   navLinkHint: 'Idi na $0',
