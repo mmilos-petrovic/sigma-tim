@@ -198,13 +198,20 @@ export function LessonFormDialog({ lesson, initial, reference, students, onClose
       )}
       <PlaceFields reference={reference} place={place} disabled={placeLocked} />
       <DateField label="Datum" value={date} onChange={setDate} disabled={placeLocked} />
-      <TimeField label="Početak" value={startTime} onChange={setStartTime} disabled={placeLocked} />
-      <TimeField
-        label="Kraj"
-        value={fixedLength ? toWallClock(end).time : endTime}
-        onChange={setEndTime}
-        disabled={placeLocked || fixedLength}
-      />
+      <div className="field-row">
+        <TimeField
+          label="Početak"
+          value={startTime}
+          onChange={setStartTime}
+          disabled={placeLocked}
+        />
+        <TimeField
+          label="Kraj"
+          value={fixedLength ? toWallClock(end).time : endTime}
+          onChange={setEndTime}
+          disabled={placeLocked || fixedLength}
+        />
+      </div>
       {fixedLength && (
         <p className="muted">Slobodan termin zadržava trajanje; pomera se samo početak.</p>
       )}

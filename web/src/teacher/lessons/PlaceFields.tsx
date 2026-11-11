@@ -17,45 +17,53 @@ export function PlaceFields({
   const choices = reference.locations.filter(
     (l) => reference.ownLocationIds.includes(l.id) || l.id === place.locationId,
   )
+  // A choice of one is no choice, so the field is left out: the lesson takes that subject and that location, and a
+  // location with a single room has its lesson in that room (`usePlace` selects it).
   return (
     <>
-      <SelectField
-        label="Predmet"
-        value={place.subjectId}
-        onChange={place.setSubjectId}
-        disabled={disabled}
-      >
-        {reference.subjects.map((subject) => (
-          <option key={subject.id} value={subject.id}>
-            {subject.name}
-          </option>
-        ))}
-      </SelectField>
-      <SelectField
-        label="Lokacija"
-        value={place.locationId}
-        onChange={place.setLocationId}
-        disabled={disabled}
-      >
-        {choices.map((location) => (
-          <option key={location.id} value={location.id}>
-            {location.name}
-          </option>
-        ))}
-      </SelectField>
-      <SelectField
-        label="Učionica"
-        value={place.roomId}
-        onChange={place.setRoomId}
-        disabled={disabled}
-      >
-        <option value="">Bez učionice</option>
-        {rooms.map((room) => (
-          <option key={room.id} value={room.id}>
-            {room.name}
-          </option>
-        ))}
-      </SelectField>
+      {reference.subjects.length !== 1 && (
+        <SelectField
+          label="Predmet"
+          value={place.subjectId}
+          onChange={place.setSubjectId}
+          disabled={disabled}
+        >
+          {reference.subjects.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {subject.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
+      {choices.length !== 1 && (
+        <SelectField
+          label="Lokacija"
+          value={place.locationId}
+          onChange={place.setLocationId}
+          disabled={disabled}
+        >
+          {choices.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
+      {rooms.length > 1 && (
+        <SelectField
+          label="Učionica"
+          value={place.roomId}
+          onChange={place.setRoomId}
+          disabled={disabled}
+        >
+          <option value="">Bez učionice</option>
+          {rooms.map((room) => (
+            <option key={room.id} value={room.id}>
+              {room.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
     </>
   )
 }

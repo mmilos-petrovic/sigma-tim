@@ -11,7 +11,16 @@ export interface PlaceState {
   setRoomId: (id: string) => void
 }
 
-/** The subject, location and room of a lesson or slot; the first subject and the first location the teacher may use unless told otherwise. */
+/** The room of a location that has just one: the form does not ask for it, so the lesson is held there. */
+export function soleRoomId(reference: Reference, locationId: string): string {
+  const rooms = reference.locations.find((location) => location.id === locationId)?.rooms ?? []
+  return rooms.length === 1 ? rooms[0].id : ''
+}
+
+/**
+ * The subject, location and room of a lesson or slot; the first subject and the first location the teacher may use unless
+ * told otherwise. A new one in a location with a single room is held in that room.
+ */
 export function usePlace(
   reference: Reference,
   initial?: { subjectId: string; locationId: string; roomId: string | null },
@@ -20,7 +29,9 @@ export function usePlace(
   const [locationId, setLocationIdState] = useState(
     initial?.locationId ?? ownLocations(reference)[0]?.id ?? '',
   )
-  const [roomId, setRoomId] = useState(initial?.roomId ?? '')
+  const [roomId, setRoomId] = useState(
+    initial ? (initial.roomId ?? '') : soleRoomId(reference, locationId),
+  )
   return {
     subjectId,
     locationId,
@@ -29,7 +40,7 @@ export function usePlace(
     // rooms belong to a location: a room of the old one cannot stay selected
     setLocationId: (id) => {
       setLocationIdState(id)
-      setRoomId('')
+      setRoomId(soleRoomId(reference, id))
     },
     setRoomId,
   }

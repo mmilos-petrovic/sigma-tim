@@ -2,7 +2,14 @@ import { useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
 import type { NavItem } from '../admin/nav'
 import { useAuth } from '../auth/AuthProvider'
-import { CONTEXT_LABEL, homePath, type Context, type MyRoles } from '../auth/roles'
+import {
+  CONTEXT_LABEL,
+  CONTEXT_SHORT_LABEL,
+  homePath,
+  type Context,
+  type MyRoles,
+} from '../auth/roles'
+import { SignOutIcon } from './icons'
 import { NotificationsButton, NotificationsDialog } from '../notifications/NotificationSettings'
 import { PushDevice, usePushApi } from '../notifications/PushDevice'
 import { PushInvitation } from '../notifications/PushInvitation'
@@ -46,6 +53,8 @@ export function AppShell({
   const push = usePushApi()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const layout = LAYOUT[context]
+  // Teachers and the administration get a header that fits one line on a phone: no app name, short names, icon buttons.
+  const compact = layout === 'desktop'
   const items: NavItem[] = nav ?? [
     { to: homePath(context), label: CONTEXT_LABEL[context], end: true },
   ]
@@ -60,15 +69,18 @@ export function AppShell({
     <PushDevice profileId={roles.profileId}>
       <div className="shell" data-layout={layout}>
         <header className="shell__header">
-          <Link className="shell__brand" to={homePath(context)}>
-            Sigma Tim
-          </Link>
+          {!compact && (
+            <Link className="shell__brand" to={homePath(context)}>
+              Sigma Tim
+            </Link>
+          )}
 
           {contexts.length > 1 && (
             <nav className="switcher" aria-label="Izbor prikaza">
               {contexts.map((c) => (
-                <NavLink key={c} to={homePath(c)}>
-                  {CONTEXT_LABEL[c]}
+                // the full name stays the accessible name, so a screen reader still hears "Administracija"
+                <NavLink key={c} to={homePath(c)} aria-label={CONTEXT_LABEL[c]}>
+                  {compact ? CONTEXT_SHORT_LABEL[c] : CONTEXT_LABEL[c]}
                 </NavLink>
               ))}
             </nav>
@@ -79,9 +91,17 @@ export function AppShell({
             <span className="shell__name">
               {roles.firstName} {roles.lastName}
             </span>
-            <NotificationsButton onOpen={() => setNotificationsOpen(true)} />
-            <button type="button" className="button button--secondary" onClick={() => void leave()}>
-              Odjavi se
+            <NotificationsButton iconOnly={compact} onOpen={() => setNotificationsOpen(true)} />
+            <button
+              type="button"
+              className={
+                compact ? 'button button--secondary button--icon' : 'button button--secondary'
+              }
+              aria-label={compact ? 'Odjavi se' : undefined}
+              title={compact ? 'Odjavi se' : undefined}
+              onClick={() => void leave()}
+            >
+              {compact ? <SignOutIcon /> : 'Odjavi se'}
             </button>
           </div>
         </header>

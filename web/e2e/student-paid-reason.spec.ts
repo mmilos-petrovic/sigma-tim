@@ -82,9 +82,8 @@ test.describe('student on a phone: payment and a reason for cancelling', () => {
       await expect(row(paidPast).first()).toContainText('Plaćen')
       await expect(row(unpaidPast).first()).toContainText('Održan')
       await expect(row(unpaidPast).first()).not.toContainText(/Plaćen|Neplaćen/)
-      // paid in advance, but not over yet: nothing is said
-      await expect(row(paidAhead).first()).toBeVisible()
-      await expect(row(paidAhead).first()).not.toContainText(/Plaćen|Neplaćen/)
+      // paid in advance, not held yet: it is in the list of upcoming lessons and says it is paid
+      await expect(row(paidAhead).first()).toContainText('Plaćen')
       await expect(page.locator('body')).not.toContainText(/Neplaćen|Nije plaćen/)
 
       // cancelling with a reason: the teacher and the parent get it in their notice

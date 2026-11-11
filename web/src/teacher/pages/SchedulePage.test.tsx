@@ -273,12 +273,39 @@ describe('scheduling a lesson', () => {
         .getAllByRole('option')
         .map((o) => o.textContent),
     ).toEqual(['Bez učionice', 'Učionica 1', 'Učionica 2'])
+    // a location without rooms has nothing to choose
     await userEvent.selectOptions(form.getByLabelText('Lokacija'), 'Zemun')
-    expect(
-      within(form.getByLabelText('Učionica'))
-        .getAllByRole('option')
-        .map((o) => o.textContent),
-    ).toEqual(['Bez učionice'])
+    expect(form.queryByLabelText('Učionica')).not.toBeInTheDocument()
+  })
+
+  it('leaves out the subject, the location and the room when each has only one choice', async () => {
+    const state = seedTeacher()
+    state.reference.subjects = [{ id: 's-fiz', name: 'Fizika' }]
+    state.reference.locations = [
+      { id: 'l-main', name: 'Glavna lokacija', rooms: [{ id: 'r-2', name: 'Učionica 2' }] },
+    ]
+    state.reference.ownLocationIds = ['l-main']
+    const teacherApi = createFakeTeacherApi(state)
+    renderTeacher(PATH, { api: teacherApi })
+    const form = await openNewLesson()
+    expect(form.queryByLabelText('Predmet')).not.toBeInTheDocument()
+    expect(form.queryByLabelText('Lokacija')).not.toBeInTheDocument()
+    expect(form.queryByLabelText('Učionica')).not.toBeInTheDocument()
+
+    await userEvent.click(form.getByRole('checkbox', { name: 'Luka Ilić' }))
+    await userEvent.click(form.getByRole('button', { name: 'Zakaži' }))
+    await waitFor(() =>
+      expect(teacherApi.scheduleLesson).toHaveBeenCalledWith(
+        expect.objectContaining({ subjectId: 's-fiz', locationId: 'l-main', roomId: 'r-2' }),
+      ),
+    )
+  })
+
+  it('keeps asking for the subject and the room while there is a choice', async () => {
+    renderTeacher(PATH)
+    const form = await openNewLesson()
+    expect(form.getByLabelText('Predmet')).toBeInTheDocument()
+    expect(form.getByLabelText('Učionica')).toHaveValue('') // two rooms: none is chosen for the teacher
   })
 
   it('starts from the first full hour ahead, today, for one hour', async () => {
