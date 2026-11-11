@@ -30,6 +30,14 @@ export const CONTEXT_LABEL: Record<Context, string> = {
   parent: 'Časovi dece',
 }
 
+/** What the switcher in the header shows: the names are short where the header must fit on one line of a phone. */
+export const CONTEXT_SHORT_LABEL: Record<Context, string> = {
+  admin: 'Admin',
+  teacher: 'Raspored',
+  student: CONTEXT_LABEL.student,
+  parent: CONTEXT_LABEL.parent,
+}
+
 export const LOGIN_PATH = '/prijava'
 export const NOT_MEMBER_PATH = '/nije-clan'
 export const CHOOSER_PATH = '/izbor'

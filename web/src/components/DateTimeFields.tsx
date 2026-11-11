@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { formatDate, parseDate } from '../lib/dateField'
+import { DatePicker } from './DatePicker'
 
 /**
  * Date and time for the lesson forms. The browser's own date and time fields follow the language of the browser or the
@@ -10,7 +11,27 @@ import { formatDate, parseDate } from '../lib/dateField'
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
 const QUARTERS = ['00', '15', '30', '45']
 
-/** A date typed as day.month.year. Hands on `2026-11-09`, or an empty text while what is typed is not a date. */
+function CalendarIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  )
+}
+
+/** A date typed as day.month.year, or chosen from a month that opens under it. Hands on `2026-11-09`, or an empty text while what is typed is not a date. */
 export function DateField({
   label,
   value,
@@ -25,23 +46,60 @@ export function DateField({
 }) {
   // what is typed is kept as it is, so a half-typed date is not rewritten under the fingers
   const [text, setText] = useState(formatDate(value))
+  const [picking, setPicking] = useState(false)
+  const inputId = useId()
+  const button = useRef<HTMLButtonElement>(null)
+
+  const pick = (iso: string) => {
+    setText(formatDate(iso))
+    onChange(iso)
+    setPicking(false)
+    button.current?.focus()
+  }
+
   return (
-    <label className="field">
-      <span>{label}</span>
-      <input
-        type="text"
-        inputMode="numeric"
-        placeholder="dd.mm.gggg"
-        autoComplete="off"
-        maxLength={10}
-        value={text}
-        disabled={disabled}
-        onChange={(event) => {
-          setText(event.target.value)
-          onChange(parseDate(event.target.value) ?? '')
-        }}
-      />
-    </label>
+    <div className="field date-field">
+      <label htmlFor={inputId}>
+        <span>{label}</span>
+      </label>
+      <div className="date-field__row">
+        <input
+          id={inputId}
+          type="text"
+          inputMode="numeric"
+          placeholder="dd.mm.gggg"
+          autoComplete="off"
+          maxLength={10}
+          value={text}
+          disabled={disabled}
+          onChange={(event) => {
+            setText(event.target.value)
+            onChange(parseDate(event.target.value) ?? '')
+          }}
+        />
+        <button
+          type="button"
+          ref={button}
+          className="button button--secondary date-field__open"
+          aria-label="Otvori izbor dana"
+          aria-expanded={picking}
+          disabled={disabled}
+          onClick={() => setPicking((open) => !open)}
+        >
+          <CalendarIcon />
+        </button>
+      </div>
+      {picking && (
+        <DatePicker
+          value={parseDate(text) ?? ''}
+          onPick={pick}
+          onClose={() => {
+            setPicking(false)
+            button.current?.focus()
+          }}
+        />
+      )}
+    </div>
   )
 }
 

@@ -182,14 +182,30 @@ describe('the forms', () => {
   })
 
   it('start from the first location the teacher may use, not the first of the school', async () => {
-    const lesson = await openLesson(['l-zemun'])
+    const lesson = await openLesson(['l-zemun', 'l-novi'])
     expect(lesson.getByLabelText('Lokacija')).toHaveValue('l-zemun')
-    expect(optionNames(lesson.getByLabelText('Lokacija'))).toEqual(['Zemun'])
+    expect(optionNames(lesson.getByLabelText('Lokacija'))).toEqual(['Zemun', 'Novi Beograd'])
   })
 
   it('start a free slot at the first location the teacher may use as well', async () => {
-    const slot = await openSlot(['l-zemun'])
+    const slot = await openSlot(['l-zemun', 'l-novi'])
     expect(slot.getByLabelText('Lokacija')).toHaveValue('l-zemun')
+  })
+
+  it('do not ask for the location when the teacher may use only one, and use it', async () => {
+    const api = createFakeTeacherApi(school(['l-zemun']))
+    renderTeacher(PATH, { api })
+    await page('Moj raspored')
+    await userEvent.click(await screen.findByRole('button', { name: 'Novi čas' }))
+    const lesson = await inDialog('Novi čas')
+    expect(lesson.queryByLabelText('Lokacija')).not.toBeInTheDocument()
+    await userEvent.click(lesson.getByRole('checkbox', { name: 'Luka Ilić' }))
+    await userEvent.click(lesson.getByRole('button', { name: 'Zakaži' }))
+    await waitFor(() =>
+      expect(api.scheduleLesson).toHaveBeenCalledWith(
+        expect.objectContaining({ locationId: 'l-zemun' }),
+      ),
+    )
   })
 
   it('keep the location of a lesson that was there before the teacher lost it', async () => {
@@ -205,14 +221,17 @@ describe('the forms', () => {
   })
 
   it('leave a location the teacher never had out, also when a lesson is edited', async () => {
-    renderTeacher(PATH, { api: createFakeTeacherApi(school(['l-main'])) })
+    renderTeacher(PATH, { api: createFakeTeacherApi(school(['l-main', 'l-novi'])) })
     await page('Moj raspored')
     await userEvent.click(await block(AT_MAIN))
     await userEvent.click(
       (await inDialog('Matematika')).getByRole('button', { name: 'Izmeni čas' }),
     )
     const form = await inDialog('Izmena časa')
-    expect(optionNames(form.getByLabelText('Lokacija'))).toEqual(['Glavna lokacija'])
+    expect(optionNames(form.getByLabelText('Lokacija'))).toEqual([
+      'Glavna lokacija',
+      'Novi Beograd',
+    ])
   })
 
   it("explain the database's refusal of a location, in each of the three places", async () => {

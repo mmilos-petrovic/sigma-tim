@@ -22,6 +22,16 @@ describe('the Serbian calendar texts', () => {
     expect(all.length).toBeGreaterThan(15)
   })
 
+  it('has hints for the buttons of a view that is not one unit, like the four days of a phone', () => {
+    const { prevHint, nextHint } = srLatn as unknown as {
+      prevHint: (unit?: string) => string
+      nextHint: (unit?: string) => string
+    }
+    expect(prevHint(undefined)).toBe('Prethodni dani')
+    expect(nextHint('')).toBe('Sledeći dani')
+    expect(prevHint('Nedelja')).toBe('Prethodna nedelja')
+  })
+
   it('is Latin script only: no Cyrillic, including the look-alike "е" of the stock locale', () => {
     for (const text of all) expect(text).not.toMatch(/[Ѐ-ӿ]/)
   })

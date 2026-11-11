@@ -107,19 +107,20 @@ describe('statusChip', () => {
 
 describe('showsPaid', () => {
   it('is for a lesson that is over and was paid', () => {
-    expect(showsPaid(lesson({ start: at(-30), end: at(-29), paid: true }), NOW)).toBe(true)
+    expect(showsPaid(lesson({ start: at(-30), end: at(-29), paid: true }))).toBe(true)
   })
 
   it('never says that a lesson was not paid', () => {
-    expect(showsPaid(lesson({ start: at(-30), end: at(-29), paid: false }), NOW)).toBe(false)
+    expect(showsPaid(lesson({ start: at(-30), end: at(-29), paid: false }))).toBe(false)
+    expect(showsPaid(lesson({ start: at(24), end: at(25), paid: false }))).toBe(false)
   })
 
-  it('is not for a lesson that is still to come, even when it was paid in advance', () => {
-    expect(showsPaid(lesson({ start: at(24), end: at(25), paid: true }), NOW)).toBe(false)
+  it('is also for a lesson that is still to come and was paid in advance', () => {
+    expect(showsPaid(lesson({ start: at(24), end: at(25), paid: true }))).toBe(true)
   })
 
-  it('is not for a lesson that is going on', () => {
-    expect(showsPaid(lesson({ start: at(-0.5), end: at(0.5), paid: true }), NOW)).toBe(false)
+  it('is also for a lesson that is going on', () => {
+    expect(showsPaid(lesson({ start: at(-0.5), end: at(0.5), paid: true }))).toBe(true)
   })
 })
 

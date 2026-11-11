@@ -9,6 +9,9 @@
 
 const FALLBACK_TITLE = 'Sigma Tim'
 
+/** Vibrate, pause, vibrate, pause, vibrate (milliseconds). Only phones that support it use it. */
+const VIBRATION = [200, 100, 200, 100, 200]
+
 /** Only paths of this site; a message can never send somebody to another address. */
 function safePath(url) {
   if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) return '/'
@@ -36,8 +39,11 @@ self.addEventListener('push', (event) => {
   const message = readMessage(event)
   const options = {
     body: typeof message.body === 'string' ? message.body : '',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/logo-192.png',
+    badge: '/badge-96.png',
+    // stays on the desktop screen until the person closes or taps it
+    requireInteraction: true,
+    vibrate: VIBRATION,
     data: { url: safePath(message.url) },
   }
   if (typeof message.tag === 'string') options.tag = message.tag

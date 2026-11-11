@@ -305,6 +305,30 @@ describe('layout', () => {
     expect(readLastContext('p-boss')).toBe('admin')
   })
 
+  it('keeps the header of teachers and the administration short enough for one line of a phone', async () => {
+    renderApp(signedInAs(personas.adminTeacher), '/moj-raspored')
+    const header = within(await screen.findByRole('banner'))
+    expect(header.queryByText('Sigma Tim')).not.toBeInTheDocument()
+
+    // short words on the screen, the full names for a screen reader
+    const switcher = within(header.getByRole('navigation', { name: 'Izbor prikaza' }))
+    expect(switcher.getByRole('link', { name: 'Administracija' })).toHaveTextContent(/^Admin$/)
+    expect(switcher.getByRole('link', { name: 'Moj raspored' })).toHaveTextContent(/^Raspored$/)
+
+    // icons instead of words; the buttons keep their names
+    const signOut = header.getByRole('button', { name: 'Odjavi se' })
+    expect(signOut).toHaveTextContent('')
+    expect(signOut).toHaveAttribute('title', 'Odjavi se')
+    expect(signOut.querySelector('svg')).not.toBeNull()
+  })
+
+  it('keeps the name and the words in the header of a student', async () => {
+    renderApp(signedInAs(personas.student), '/ucenik')
+    const header = within(await screen.findByRole('banner'))
+    expect(header.getByText('Sigma Tim')).toBeInTheDocument()
+    expect(header.getByRole('button', { name: 'Odjavi se' })).toHaveTextContent('Odjavi se')
+  })
+
   it('has no switch for an account with a single context', async () => {
     renderApp(signedInAs(personas.teacher), '/moj-raspored')
     await heading('Moj raspored')
