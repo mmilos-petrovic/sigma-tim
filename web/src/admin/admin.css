@@ -299,6 +299,109 @@
   outline-offset: 1px;
 }
 
+/* Fields that belong on one line, like the start and the end of a lesson. */
+.field-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.field-row > * {
+  flex: 1 1 0;
+}
+
+.field-row .time-field select {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 0.4rem;
+}
+
+/* A date typed or chosen: the field and the button that opens the month, side by side. */
+.date-field__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.date-field__row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.date-field__open {
+  flex: none;
+  width: 44px;
+  padding: 0;
+}
+
+.date-picker {
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.date-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.date-picker__head .button {
+  min-height: 36px;
+  width: 44px;
+  padding: 0;
+}
+
+.date-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.date-picker__weekday {
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.date-picker__day {
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.date-picker__day:hover {
+  background: var(--primary-soft);
+}
+
+.date-picker__day[data-outside='true'] {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.date-picker__day[data-today='true'] {
+  border-color: var(--primary);
+}
+
+.date-picker__day[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-text);
+  opacity: 1;
+}
+
+.date-picker__day:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 1px;
+}
+
 .inline-form {
   display: flex;
   flex-wrap: wrap;

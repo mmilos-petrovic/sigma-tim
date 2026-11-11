@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { DateField, TimeField } from './DateTimeFields'
+import { Dialog } from './Dialog'
 
 function WithDate({ initial = '2026-11-09', onValue = vi.fn(), disabled = false }) {
   const [value, setValue] = useState(initial)
@@ -72,6 +73,76 @@ describe('the date field', () => {
   it('can not be changed when it is disabled', () => {
     render(<WithDate disabled />)
     expect(screen.getByLabelText('Datum')).toBeDisabled()
+  })
+})
+
+describe('the day picker of the date field', () => {
+  const open = async () =>
+    userEvent.click(screen.getByRole('button', { name: 'Otvori izbor dana' }))
+
+  it('opens a month under the field, with the week from Monday to Sunday', async () => {
+    render(<WithDate />)
+    expect(screen.queryByRole('group', { name: 'Izbor dana' })).not.toBeInTheDocument()
+    await open()
+    const picker = within(screen.getByRole('group', { name: 'Izbor dana' }))
+    expect(picker.getByText('novembar 2026.')).toBeInTheDocument()
+    const letters = Array.from(document.querySelectorAll('.date-picker__weekday')).map(
+      (node) => node.textContent,
+    )
+    expect(letters).toEqual(['P', 'U', 'S', 'Č', 'P', 'S', 'N']) // Sunday is last
+    // 9 November 2026 is a Monday: the chosen day is marked
+    expect(picker.getByRole('button', { name: '9. novembar 2026.' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('hands on the chosen day, writes it as day.month.year and closes', async () => {
+    const onValue = vi.fn()
+    render(<WithDate onValue={onValue} />)
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: '20. novembar 2026.' }))
+    expect(onValue).toHaveBeenLastCalledWith('2026-11-20')
+    expect(screen.getByLabelText('Datum')).toHaveValue('20.11.2026')
+    expect(screen.queryByRole('group', { name: 'Izbor dana' })).not.toBeInTheDocument()
+  })
+
+  it('moves between months, also across the turn of the year', async () => {
+    const onValue = vi.fn()
+    render(<WithDate initial="2026-12-15" onValue={onValue} />)
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Sledeći mesec' }))
+    expect(screen.getByText('januar 2027.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '4. januar 2027.' }))
+    expect(onValue).toHaveBeenLastCalledWith('2027-01-04')
+  })
+
+  it('starts on the month that is typed in the field', async () => {
+    render(<WithDate />)
+    await userEvent.clear(screen.getByLabelText('Datum'))
+    await userEvent.type(screen.getByLabelText('Datum'), '3.3.2027')
+    await open()
+    expect(screen.getByText('mart 2027.')).toBeInTheDocument()
+  })
+
+  it('closes on Escape without closing the dialog around it', async () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog title="Novi čas" onClose={onClose}>
+        <WithDate />
+      </Dialog>,
+    )
+    await open()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('group', { name: 'Izbor dana' })).not.toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('cannot be opened when the field is disabled', () => {
+    render(<WithDate disabled />)
+    expect(screen.getByRole('button', { name: 'Otvori izbor dana' })).toBeDisabled()
   })
 })
 
