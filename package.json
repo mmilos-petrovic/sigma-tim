@@ -6,7 +6,7 @@
     "supabase": "^2.122.0"
   },
   "scripts": {
-    "db:start": "supabase start -x studio,imgproxy,vector,logflare,edge-runtime,realtime,inbucket",
+    "db:start": "supabase start -x studio,imgproxy,vector,logflare,edge-runtime,realtime,mailpit",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && node scripts/dev-setup.mjs",
     "db:test": "supabase test db",
