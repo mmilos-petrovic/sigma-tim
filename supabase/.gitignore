@@ -6,3 +6,6 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Written by a local Deno run of an Edge Function; the deploy resolves the imports from deno.json
+functions/*/deno.lock
