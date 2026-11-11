@@ -159,6 +159,32 @@ pg_cron is switched on by the migration where the database has it (Supabase does
 
 The administrator's settings page uses `get_notification_settings()`, `set_notification_settings(...)`, `set_email_fallback(kind, enabled)`, `admin_list_notifications(limit, before, state)` (newest first; the notice itself is not shown, only who and when and what went wrong), `admin_resend_notification(id)` (failed notices only) and `admin_send_test_notification()`. All are administrator-only (`PT403`).
 
+### Sending (Phase 6c)
+
+A pg_cron job `send-notifications` runs every minute and calls `private.invoke_send_notifications()`, which POSTs to the Edge Function `send-notifications` (`supabase/functions/send-notifications/`) through pg_net with the header `x-cron-secret`. The address and the secret are read from the Vault, two secrets set once per project by hand; until both exist the call does nothing, so CI and a fresh local database are fine:
+
+```sql
+select vault.create_secret('https://<project ref>.supabase.co/functions/v1/send-notifications', 'notifications_function_url');
+select vault.create_secret('<the same value as the function secret CRON_SECRET>', 'notifications_cron_secret');
+```
+
+The function talks to the database only through these service-role functions (nobody else can execute them):
+
+- `claim_notifications(limit)` returns, as one jsonb, the settings it needs (welcome text, school contact), how many emails went out today (school time), when a notice held back by the email limit may go again, and the due notices with their recipient (roles, `teaches_lesson`), the rules of their kind and the recipient's devices. A notice is due when `sent_at` is null, `attempts < 5` and `deliver_after <= now()`. **Claiming is the lease:** it counts an attempt and moves `deliver_after` forward by `private.notification_retry_delay(attempt)` (1, 5, 15 minutes, then an hour), and it uses `for update skip locked`. Two overlapping runs therefore never send the same notice, and a run that dies halfway only delays its notices (`supabase/tests/concurrency/claim_notifications_race.sh`).
+- `complete_notification(id, channel)`, `fail_notification(id, error, give_up)` (`give_up` sets the attempts to the maximum, so the log shows `failed` at once), `defer_notification(id, until, reason)` (holds a notice back without counting the attempt) and `forget_push_subscriptions(ids)` (devices the push service reports as gone). All but the last leave a notice that is already sent alone.
+
+The log's states: `sent`; `failed` (attempts used up); `retrying` (taken at least once and not sent: being tried, or waiting for its next try); `waiting` (held before any attempt: quiet hours, or the daily email limit); `queued`.
+
+What the function does with a notice (`process.ts`; the words are in `messages.ts`):
+
+1. Push to every device of the recipient. A device the push service answers 404 or 410 to, or whose keys cannot work, is forgotten; one it cannot reach is a failure to try again.
+2. Done if one device took it (`channel` = `push`). A kind with `always_email` (welcome, test) is also an email, and is done when the email goes out (or the push did).
+3. Otherwise, if the kind has `email_fallback`, the email goes out when there is no working device, or on the last attempt of a push that kept failing; before that a failed push is simply tried again. A kind without it (the reminder) is given up at once when there is no device, and shows as `failed` with the reason.
+4. Non-urgent emails stop at 200 a day (`EMAIL_DAILY_LIMIT`, counted from `channel = 'email'` since midnight in school time) and wait for the next morning; welcome and test ignore that limit, and Brevo's own 402 or 429 holds everything until tomorrow too.
+5. A reminder that gets its turn after the lesson began is dropped (`failed`, "Čas je već počeo").
+
+Secrets of the function (set in Supabase, see `docs/deployment.md`): `CRON_SECRET`, `APP_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `BREVO_API_KEY`, optionally `VAPID_SUBJECT` (default `mailto:noreply@sigmatim.com`), `EMAIL_FROM`, `EMAIL_FROM_NAME`, `EMAIL_DAILY_LIMIT`. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided by Supabase. Run it locally with `npx supabase functions serve --env-file <file>`; its unit tests are in `web/src/edge/` (the code under `supabase/functions` has no imports of its own except `index.ts`, so they run under Vitest).
+
 ## Tests
 
 `tests/01_helpers.test.sql` creates a `tests` schema (the only file that commits). Each test file calls `tests.seed_basic()` inside its own transaction, which is rolled back:

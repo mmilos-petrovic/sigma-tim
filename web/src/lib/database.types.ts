@@ -546,8 +546,14 @@ isOneToOne: true
 "change_student_email":
 { Args: { "p_new_email": string,"p_student_id": string }; Returns: undefined
                            },
+"claim_notifications":
+{ Args: { "p_limit"?: number }; Returns: Json
+                           },
 "claim_slot":
 { Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: Database["public"]['Enums']["lesson_status"]
+                           },
+"complete_notification":
+{ Args: { "p_channel": string,"p_id": number }; Returns: undefined
                            },
 "confirm_booking":
 { Args: { "p_lesson_id": string }; Returns: undefined
@@ -561,16 +567,25 @@ isOneToOne: true
 "decline_booking":
 { Args: { "p_lesson_id": string,"p_note"?: string }; Returns: undefined
                            },
+"defer_notification":
+{ Args: { "p_id": number,"p_reason": string,"p_until": string }; Returns: undefined
+                           },
 "delete_student":
 { Args: { "p_student_id": string }; Returns: undefined
                            },
 "erase_teacher":
 { Args: { "p_teacher_id": string }; Returns: string
                            },
+"fail_notification":
+{ Args: { "p_error": string,"p_give_up"?: boolean,"p_id": number }; Returns: undefined
+                           },
 "find_conflicts":
 { Args: { "p_end_at": string,"p_exclude_lesson_id"?: string,"p_room_id": string,"p_start_at": string,"p_teacher_id": string }; Returns: {
               "end_at": string,"location_id": string,"room_id": string,"same_room": boolean,"same_teacher": boolean,"start_at": string,"teacher_id": string
             }[]
+                           },
+"forget_push_subscriptions":
+{ Args: { "p_ids": (string)[] }; Returns: undefined
                            },
 "get_member_cv":
 { Args: { "p_slug": string }; Returns: Json
