@@ -41,6 +41,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Supabase's local ports (54320-54330) lie inside the range Linux hands out to outgoing connections, and the many
+      # image downloads before the start can take one ("address already in use"). Keep the system from using them.
+      - name: Keep the local Supabase ports free
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54330
       - run: npm run db:start
       - run: npm run db:test
       - run: npm run db:test:concurrency
