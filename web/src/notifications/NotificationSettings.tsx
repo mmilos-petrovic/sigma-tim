@@ -1,4 +1,5 @@
 import { Dialog } from '../components/Dialog'
+import { BellIcon } from '../components/icons'
 import { Loading } from '../components/Loaded'
 import { usePushDevice } from './PushDevice'
 
@@ -74,13 +75,25 @@ export function NotificationSettings() {
   )
 }
 
-/** The bell in the header: opens the settings. Hidden in a build without push. */
-export function NotificationsButton({ onOpen }: { onOpen: () => void }) {
+/** The button in the header that opens the settings: the word, or only a bell. Hidden in a build without push. */
+export function NotificationsButton({
+  onOpen,
+  iconOnly = false,
+}: {
+  onOpen: () => void
+  iconOnly?: boolean
+}) {
   const device = usePushDevice()
   if (!device || device.status === 'unconfigured') return null
   return (
-    <button type="button" className="button button--secondary" onClick={onOpen}>
-      Obaveštenja
+    <button
+      type="button"
+      className={iconOnly ? 'button button--secondary button--icon' : 'button button--secondary'}
+      aria-label={iconOnly ? 'Obaveštenja' : undefined}
+      title={iconOnly ? 'Obaveštenja' : undefined}
+      onClick={onOpen}
+    >
+      {iconOnly ? <BellIcon /> : 'Obaveštenja'}
     </button>
   )
 }
