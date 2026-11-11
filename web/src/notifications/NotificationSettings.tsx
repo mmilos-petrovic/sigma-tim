@@ -9,8 +9,9 @@ export function InstallSteps() {
       <p>Na iPhone-u i iPad-u obaveštenja rade samo kada je aplikacija dodata na početni ekran.</p>
       <ol className="steps">
         <li>Otvorite ovu stranicu u pregledaču Safari.</li>
-        <li>Dodirnite dugme „Podeli“ (kvadrat sa strelicom nagore).</li>
-        <li>Izaberite „Dodaj na početni ekran“.</li>
+        <li>Dodirnite tri tačke (…) u donjem desnom uglu ekrana.</li>
+        <li>Izaberite „Podeli“ (Share), simbol je kvadrat sa strelicom nagore.</li>
+        <li>Izaberite „Dodaj na početni ekran“ (Add to Home Screen).</li>
         <li>Otvorite Sigma Tim sa početnog ekrana i tamo uključite obaveštenja.</li>
       </ol>
     </>

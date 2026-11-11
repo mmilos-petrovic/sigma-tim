@@ -65,8 +65,18 @@ describe('push', () => {
     expect(shown[0].options).toMatchObject({
       body: 'Matematika, sreda 16:00',
       tag: 'lesson-1',
-      icon: '/icon-192.png',
+      icon: '/logo-192.png',
+      badge: '/badge-96.png',
       data: { url: '/ucenik' },
+    })
+  })
+
+  it('stays until it is dismissed and vibrates', async () => {
+    const { shown, fire } = loadWorker()
+    await fire('push', message({ title: 'Čas počinje u 16:00', body: 'Matematika' }))
+    expect(shown[0].options).toMatchObject({
+      requireInteraction: true,
+      vibrate: [200, 100, 200, 100, 200],
     })
   })
 
