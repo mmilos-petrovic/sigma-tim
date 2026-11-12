@@ -101,7 +101,8 @@ export function WeekCalendar({
         timeZone={SCHOOL_TIME_ZONE}
         now={now}
         height="100%"
-        headerToolbar={{ left: 'prev,next today', center: 'title', right: '' }}
+        // no title (the month and the year): the arrows at the two edges and "Danas" between them
+        headerToolbar={{ left: 'prev', center: 'today', right: 'next' }}
         allDaySlot={false}
         nowIndicator
         slotDuration="00:30:00"
