@@ -11,15 +11,18 @@ export function LessonViewer({
   lesson,
   reference,
   students,
+  editable = true,
   onClose,
   onDone,
 }: {
   lesson: LessonRow
   reference: Reference
   students: StudentRow[]
+  /** Offers the form that changes the lesson (the calendar). The list of lessons has a button for it on each card. */
+  editable?: boolean
   onClose: () => void
-  /** The lesson is gone, changed or answered; the message is shown on the page. */
-  onDone: (message: string | null) => void
+  /** The lesson is gone, changed or answered. */
+  onDone: () => void
 }) {
   const [editing, setEditing] = useState(false)
 
@@ -37,7 +40,7 @@ export function LessonViewer({
       reference={reference}
       students={students}
       onClose={onClose}
-      onEdit={() => setEditing(true)}
+      onEdit={editable ? () => setEditing(true) : undefined}
       onDone={onDone}
     />
   )

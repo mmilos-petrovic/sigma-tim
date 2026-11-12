@@ -35,7 +35,7 @@ interface Props {
   reference: Reference
   students: StudentRow[]
   onClose: () => void
-  onDone: (message: string | null) => void
+  onDone: () => void
 }
 
 /** Schedules a lesson or edits one. An overlap is shown as a warning and sent only on the second click. */
@@ -124,7 +124,7 @@ export function LessonFormDialog({ lesson, initial, reference, students, onClose
         studentIds,
       })
       await refresh()
-      onDone('Čas je zakazan.')
+      onDone()
       return
     }
 
@@ -142,7 +142,7 @@ export function LessonFormDialog({ lesson, initial, reference, students, onClose
     const studentsChanged =
       before.length !== studentIds.length || before.some((id) => !studentIds.includes(id))
     if (!timeOrPlaceChanged && !studentsChanged) {
-      onDone(null)
+      onDone()
       return
     }
 
@@ -172,7 +172,7 @@ export function LessonFormDialog({ lesson, initial, reference, students, onClose
       // whatever was saved before a failure is shown as it is
       await refresh()
     }
-    onDone('Čas je izmenjen.')
+    onDone()
   }
 
   const toggle = (id: string, checked: boolean) =>

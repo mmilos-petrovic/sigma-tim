@@ -149,12 +149,12 @@ test.describe("the teacher's list of lessons", () => {
           .getByRole('navigation', { name: 'Glavna navigacija' })
           .getByRole('link', { name: 'Časovi' })
           .click()
-        await upcomingRow.first().getByRole('button').click()
+        await upcomingRow.first().locator('.lesson__head').click()
         await dialog(page, 'Matematika').getByRole('button', { name: 'Obriši čas' }).click()
         const confirm = dialog(page, 'Brisanje časa')
         await confirm.getByLabel('Razlog (nije obavezan)').fill('  Razboleo sam se (e2e)  ')
         await confirm.getByRole('button', { name: 'Obriši' }).click()
-        await expect(page.getByRole('status')).toHaveText('Čas je obrisan.')
+        await expect(confirm).toHaveCount(0)
         await expect(upcomingRow).toHaveCount(0)
         const lessons = await select<{ id: string }>(
           request,

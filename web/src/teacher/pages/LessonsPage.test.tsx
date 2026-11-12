@@ -169,6 +169,89 @@ describe('the teacher’s list of lessons', () => {
   })
 })
 
+describe('the cards of the list', () => {
+  const editButton = (row: HTMLElement) =>
+    within(row).queryByRole('button', { name: /^Izmeni termin/ })
+
+  it('have a button that changes the date and time on a lesson that has not been held, and not on a past one or a request', async () => {
+    renderTeacher(PATH)
+    await page('Časovi')
+    const [booking, lesson] = rows(await upcoming())
+    expect(editButton(lesson)).toBeInTheDocument()
+    // a booking that waits for an answer is answered, not moved
+    expect(booking).toHaveTextContent('Čeka vaš odgovor')
+    expect(editButton(booking)).not.toBeInTheDocument()
+    for (const row of rows(await past())) expect(editButton(row)).not.toBeInTheDocument()
+  })
+
+  it('open the form of the lesson from that button, and the dialog with payment and notes from the card', async () => {
+    renderTeacher(PATH)
+    await page('Časovi')
+    const card = rows(await upcoming())[1]
+    await userEvent.click(editButton(card)!)
+    const form = await inDialog('Izmena časa')
+    expect(form.getByLabelText('Datum')).toBeInTheDocument()
+    await userEvent.click(form.getByRole('button', { name: 'Odustani' }))
+
+    await userEvent.click(card.querySelector('.lesson__head')!)
+    const dialog = await inDialog('Fizika')
+    expect(dialog.getByRole('checkbox', { name: 'Plaćeno za Ana Petrović' })).toBeInTheDocument()
+    expect(dialog.getByLabelText('Napomena za Luka Ilić')).toBeInTheDocument()
+  })
+})
+
+describe('OK in the dialog of a lesson from the list', () => {
+  it('saves a note that was typed and not saved, and goes back to the list', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    await page('Časovi')
+    await userEvent.click(rows(await past())[0].querySelector('button')!)
+    const dialog = await inDialog('Matematika')
+    await userEvent.type(dialog.getByLabelText('Napomena za Ana Petrović'), ' Ponoviti.')
+    await userEvent.click(dialog.getByRole('button', { name: 'OK' }))
+
+    expect(teacherApi.setNote).toHaveBeenCalledWith(
+      'les-today',
+      'st-ana',
+      'Radili razlomke Ponoviti.',
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    // not on the form that changes the term
+    expect(screen.queryByRole('dialog', { name: 'Izmena časa' })).not.toBeInTheDocument()
+    expect(await past()).toBeInTheDocument()
+  })
+
+  it('has nothing to save when nothing was typed, and still goes back to the list', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    await page('Časovi')
+    await userEvent.click(rows(await past())[0].querySelector('button')!)
+    await userEvent.click((await inDialog('Matematika')).getByRole('button', { name: 'OK' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(teacherApi.setNote).not.toHaveBeenCalled()
+  })
+
+  it('keeps the dialog open and says why when a note cannot be saved', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    await page('Časovi')
+    await userEvent.click(rows(await past())[0].querySelector('button')!)
+    const dialog = await inDialog('Matematika')
+    await userEvent.type(dialog.getByLabelText('Napomena za Ana Petrović'), '!')
+    teacherApi.failNext('setNote', new AdminError('23514', 'too long'))
+    await userEvent.click(dialog.getByRole('button', { name: 'OK' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Napomena je predugačka')
+    expect(dialog.getByLabelText('Napomena za Ana Petrović')).toHaveValue('Radili razlomke!')
+  })
+
+  it('is dropped with Odustani, so what was typed is not saved', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    await page('Časovi')
+    await userEvent.click(rows(await past())[0].querySelector('button')!)
+    const dialog = await inDialog('Matematika')
+    await userEvent.type(dialog.getByLabelText('Napomena za Ana Petrović'), '!')
+    await userEvent.click(dialog.getByRole('button', { name: 'Odustani' }))
+    expect(teacherApi.setNote).not.toHaveBeenCalled()
+  })
+})
+
 describe('working on a lesson from the list', () => {
   it('opens the same dialog as the calendar does, with the outcome, payment and notes', async () => {
     renderTeacher(PATH)
@@ -177,7 +260,10 @@ describe('working on a lesson from the list', () => {
     const dialog = await inDialog('Fizika')
     expect(dialog.getByRole('checkbox', { name: 'Plaćeno za Ana Petrović' })).toBeInTheDocument()
     expect(dialog.getByLabelText('Napomena za Luka Ilić')).toBeInTheDocument()
-    expect(dialog.getByRole('button', { name: 'Izmeni' })).toBeInTheDocument()
+    // no way to the form from here: that is the button on the card; the dialog ends in OK
+    expect(dialog.queryByRole('button', { name: 'Izmeni' })).not.toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'OK' })).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Odustani' })).toBeInTheDocument()
   })
 
   it('records an outcome, and the row says so', async () => {
@@ -206,13 +292,16 @@ describe('working on a lesson from the list', () => {
   it('changes the lesson from there, and shows the result in the list', async () => {
     const { teacherApi } = renderTeacher(PATH)
     await page('Časovi')
-    await userEvent.click(rows(await upcoming())[1].querySelector('button')!)
-    await userEvent.click((await inDialog('Fizika')).getByRole('button', { name: 'Izmeni' }))
+    await userEvent.click(
+      within(rows(await upcoming())[1]).getByRole('button', { name: /^Izmeni termin/ }),
+    )
     const form = await inDialog('Izmena časa')
     await userEvent.selectOptions(form.getByLabelText('Učionica'), 'Učionica 2')
     await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
     expect(teacherApi.updateLesson).toHaveBeenCalledWith('les-tomorrow', { roomId: 'r-2' })
-    expect(await screen.findByRole('status')).toHaveTextContent('Čas je izmenjen.')
+    // back on the list, with nothing said about the change
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(rows(await upcoming())[1]).toHaveTextContent('Učionica 2')
   })
 
@@ -222,8 +311,8 @@ describe('working on a lesson from the list', () => {
     await userEvent.click(rows(await upcoming())[1].querySelector('button')!)
     await userEvent.click((await inDialog('Fizika')).getByRole('button', { name: 'Obriši čas' }))
     await userEvent.click((await inDialog('Brisanje časa')).getByRole('button', { name: 'Obriši' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Čas je obrisan.')
     await waitFor(async () => expect(rows(await upcoming())).toHaveLength(1))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('declines a booking from there, with a reason', async () => {

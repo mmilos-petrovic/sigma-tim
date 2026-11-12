@@ -15,31 +15,36 @@ import type { LessonRow, Outcome, Participant, Reference, StudentRow } from '../
 const fullName = (student: StudentRow) => `${student.firstName} ${student.lastName}`
 const OUTCOME_TEXT: Record<Outcome, string> = { held: 'održan', not_held: 'nije održan' }
 
+/** The note of one student. The text is kept by the dialog, so that OK can save what was typed and not yet saved. */
 function NoteEditor({
   lesson,
   participant,
   student,
+  text,
+  onText,
 }: {
   lesson: LessonRow
   participant: Participant
   student: StudentRow | undefined
+  text: string
+  onText: (text: string) => void
 }) {
   const api = useTeacherApi()
   const refresh = useRefresh()
   const name = student ? fullName(student) : 'Nepoznat učenik'
-  const [text, setText] = useState(participant.note ?? '')
-  const [message, setMessage] = useState<{ text: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // a change is not announced: the button just has nothing left to save; a failure is said
   const save = async () => {
     if (busy) return
     setBusy(true)
-    setMessage(null)
+    setError(null)
     try {
       await api.setNote(lesson.id, participant.studentId, text.trim() || null)
       await refresh()
     } catch (failure) {
-      setMessage({ text: explainError(failure, 'setNote') })
+      setError(explainError(failure, 'setNote'))
     } finally {
       setBusy(false)
     }
@@ -54,8 +59,8 @@ function NoteEditor({
           maxLength={2000}
           rows={2}
           onChange={(event) => {
-            setText(event.target.value)
-            setMessage(null)
+            onText(event.target.value)
+            setError(null)
           }}
         />
       </label>
@@ -69,16 +74,20 @@ function NoteEditor({
       >
         Sačuvaj napomenu
       </button>
-      {message && (
+      {error && (
         <p role="alert" className="form-error">
-          {message.text}
+          {error}
         </p>
       )}
     </div>
   )
 }
 
-/** One lesson, slot or booking: what it is, notes per student, the outcome, and what can still be done with it. */
+/**
+ * One lesson, slot or booking: what it is, notes per student, the outcome, and what can still be done with it.
+ * With `onEdit` (the calendar) a lesson can be taken to the form that changes it; without it (the list of lessons, which
+ * has a button for that on each card) OK saves what was typed and closes.
+ */
 export function LessonDialog({
   lesson,
   reference,
@@ -91,9 +100,9 @@ export function LessonDialog({
   reference: Reference
   students: StudentRow[]
   onClose: () => void
-  onEdit: () => void
-  /** The lesson is gone or the teacher is done; the message is shown on the page. */
-  onDone: (message: string) => void
+  onEdit?: () => void
+  /** The lesson is gone or the teacher is done. */
+  onDone: () => void
 }) {
   const api = useTeacherApi()
   const refresh = useRefresh()
@@ -102,8 +111,11 @@ export function LessonDialog({
   const [confirming, setConfirming] = useState(false)
   const [declining, setDeclining] = useState(false)
   const [reason, setReason] = useState('')
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [notes, setNotes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(lesson.participants.map((p) => [p.studentId, p.note ?? ''])),
+  )
 
   const subject = reference.subjects.find((s) => s.id === lesson.subjectId)?.name ?? 'Čas'
   const location = reference.locations.find((l) => l.id === lesson.locationId)?.name ?? ''
@@ -111,6 +123,8 @@ export function LessonDialog({
   const isSlot = lesson.status === 'open'
   const bookedSlot = lesson.origin === 'slot' && !isSlot
   const title = isSlot ? 'Slobodan termin' : lesson.status === 'pending' ? 'Na čekanju' : subject
+  const canEdit = onEdit !== undefined && lesson.status === 'confirmed'
+  const hasOk = lesson.status === 'confirmed' && !canEdit
 
   const cancelKind = isSlot ? 'remove' : bookedSlot ? 'cancel' : 'delete'
   const CANCEL = {
@@ -119,21 +133,18 @@ export function LessonDialog({
       title: 'Uklanjanje termina',
       submit: 'Ukloni',
       text: 'Slobodan termin nestaje i učenici ga više ne vide.',
-      done: 'Termin je uklonjen.',
     },
     cancel: {
       open: 'Otkaži čas',
       title: 'Otkazivanje časa',
       submit: 'Otkaži čas',
       text: 'Učenik i roditelji dobijaju obaveštenje, a termin ponovo postaje slobodan.',
-      done: 'Čas je otkazan, termin je ponovo slobodan.',
     },
     delete: {
       open: 'Obriši čas',
       title: 'Brisanje časa',
       submit: 'Obriši',
       text: 'Čas se briše, a učenici i roditelji dobijaju obaveštenje.',
-      done: 'Čas je obrisan.',
     },
   }[cancelKind]
 
@@ -148,7 +159,7 @@ export function LessonDialog({
         onSubmit={async () => {
           await api.cancelLesson(lesson.id, cleanReason(reason))
           await refresh()
-          onDone(CANCEL.done)
+          onDone()
         }}
       >
         <p>
@@ -179,21 +190,38 @@ export function LessonDialog({
     )
   }
 
-  // A change is not announced (the screen shows it); a failure is. Only the answer to a request says so, in `text`.
-  const run = async (
-    action: () => Promise<void>,
-    key: Parameters<typeof explainError>[1],
-    text?: string,
-  ) => {
+  // A change is not announced (the screen shows it); a failure is.
+  const run = async (action: () => Promise<void>, key: Parameters<typeof explainError>[1]) => {
     if (busy) return
     setBusy(true)
-    setMessage(null)
+    setError(null)
     try {
       await action()
       await refresh()
-      if (text) setMessage({ text, error: false })
     } catch (failure) {
-      setMessage({ text: explainError(failure, key), error: true })
+      setError(explainError(failure, key))
+      await refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // OK: what was typed in a note and not saved yet is saved, then the dialog closes
+  const finish = async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      for (const participant of lesson.participants) {
+        const text = (notes[participant.studentId] ?? '').trim()
+        if (text !== (participant.note ?? '')) {
+          await api.setNote(lesson.id, participant.studentId, text || null)
+        }
+      }
+      await refresh()
+      onClose()
+    } catch (failure) {
+      setError(explainError(failure, 'setNote'))
       await refresh()
     } finally {
       setBusy(false)
@@ -256,7 +284,13 @@ export function LessonDialog({
                   />
                   <span>Plaćeno</span>
                 </label>
-                <NoteEditor lesson={lesson} participant={participant} student={student} />
+                <NoteEditor
+                  lesson={lesson}
+                  participant={participant}
+                  student={student}
+                  text={notes[participant.studentId] ?? ''}
+                  onText={(text) => setNotes((all) => ({ ...all, [participant.studentId]: text }))}
+                />
               </div>
             )
           })}
@@ -301,12 +335,9 @@ export function LessonDialog({
         </section>
       )}
 
-      {message && (
-        <p
-          role={message.error ? 'alert' : 'status'}
-          className={message.error ? 'form-error' : 'notice'}
-        >
-          {message.text}
+      {error && (
+        <p role="alert" className="form-error">
+          {error}
         </p>
       )}
 
@@ -317,13 +348,7 @@ export function LessonDialog({
               type="button"
               className="button"
               disabled={busy}
-              onClick={() =>
-                void run(
-                  () => api.confirmBooking(lesson.id),
-                  'confirmBooking',
-                  'Zahtev je potvrđen.',
-                )
-              }
+              onClick={() => void run(() => api.confirmBooking(lesson.id), 'confirmBooking')}
             >
               Potvrdi
             </button>
@@ -350,9 +375,14 @@ export function LessonDialog({
         <button type="button" className="button button--secondary" onClick={onClose}>
           Odustani
         </button>
-        {lesson.status === 'confirmed' && (
+        {canEdit && (
           <button type="button" className="button" onClick={onEdit}>
             Izmeni
+          </button>
+        )}
+        {hasOk && (
+          <button type="button" className="button" disabled={busy} onClick={() => void finish()}>
+            OK
           </button>
         )}
       </div>

@@ -124,7 +124,7 @@ test.describe("the teacher's schedule", () => {
         await chooseTime(form, 'Kraj', end)
         await form.getByRole('checkbox', { name: 'Luka Ilić' }).check()
         await submitThroughWarning(form, 'Zakaži')
-        await expect(page.getByRole('status')).toHaveText('Čas je zakazan.')
+        await expect(form).toHaveCount(0) // nothing is said about it: the form just closes
 
         const block = await shown(page, lessonBlock(page, start, end, 'Luka Ilić'))
         await expect(block).toContainText('Učionica 3')
@@ -171,7 +171,7 @@ test.describe("the teacher's schedule", () => {
         // the new place is free, so no warning; if a leftover clashes, accept it
         const anyway = page.getByRole('button', { name: 'Sačuvaj i pored upozorenja' })
         if (await anyway.isVisible({ timeout: 1500 }).catch(() => false)) await anyway.click()
-        await expect(page.getByRole('status')).toHaveText('Čas je pomeren.')
+        await expect.poll(async () => clock((await lessons())[0].start_at)).toBe(dragged)
 
         const [first] = await lessons()
         expect(clock(first.start_at)).toBe(dragged)
@@ -200,7 +200,7 @@ test.describe("the teacher's schedule", () => {
         const form = dialog(page, 'Izmena časa')
         await form.getByRole('checkbox', { name: 'Mina Ilić' }).check()
         await form.getByRole('button', { name: 'Sačuvaj' }).click()
-        await expect(page.getByRole('status')).toHaveText('Čas je izmenjen.')
+        await expect(form).toHaveCount(0)
         const [first] = await lessons()
         expect(first.participants).toHaveLength(2)
         expect(first.participants.find((p) => p.note)?.note).toBe('Ponoviti razlomke') // kept
@@ -210,7 +210,7 @@ test.describe("the teacher's schedule", () => {
         await lessonBlock(page, start, end, 'Mina Ilić').first().click()
         await dialog(page, 'Matematika').getByRole('button', { name: 'Obriši čas' }).click()
         await dialog(page, 'Brisanje časa').getByRole('button', { name: 'Obriši' }).click()
-        await expect(page.getByRole('status')).toHaveText('Čas je obrisan.')
+        await expect(dialog(page, 'Brisanje časa')).toHaveCount(0)
         expect(await lessons()).toHaveLength(1)
       })
 
@@ -221,7 +221,7 @@ test.describe("the teacher's schedule", () => {
         await chooseTime(form, 'Početak', '19:00')
         await form.getByRole('radio', { name: '45 minuta' }).check()
         await form.getByRole('button', { name: 'Objavi' }).click()
-        await expect(page.getByRole('status')).toHaveText('Slobodan termin je objavljen.')
+        await expect(form).toHaveCount(0)
 
         const slot = await shown(
           page,
@@ -236,7 +236,7 @@ test.describe("the teacher's schedule", () => {
         await slot.click()
         await dialog(page, 'Slobodan termin').getByRole('button', { name: 'Ukloni termin' }).click()
         await dialog(page, 'Uklanjanje termina').getByRole('button', { name: 'Ukloni' }).click()
-        await expect(page.getByRole('status')).toHaveText('Termin je uklonjen.')
+        await expect(dialog(page, 'Uklanjanje termina')).toHaveCount(0)
         expect(await lessons()).toHaveLength(1)
       })
 
@@ -288,7 +288,6 @@ test.describe("the teacher's schedule", () => {
           .getByRole('listitem', { name: /Luka Ilić/ })
           .getByRole('button', { name: 'Potvrdi' })
           .click()
-        await expect(page.getByRole('status')).toHaveText('Zahtev je potvrđen.')
         await expect(page.getByRole('heading', { name: 'Zahtevi na čekanju' })).toHaveCount(0)
 
         const booked = (await lessons()).find((l) => l.id === slot.id)
@@ -316,7 +315,7 @@ test.describe("the teacher's schedule", () => {
         await form.getByLabel('Učionica').selectOption({ label: 'Bez učionice' })
         await form.getByRole('checkbox', { name: 'Luka Ilić' }).check()
         await submitThroughWarning(form, 'Zakaži')
-        await expect(page.getByRole('status')).toHaveText('Čas je zakazan.')
+        await expect(form).toHaveCount(0) // nothing is said about it: the form just closes
 
         // back to this week, in case an earlier step looked at the next one
         const today = page.getByRole('button', { name: 'Idi na današnji dan' })
@@ -445,13 +444,16 @@ test.describe('a teacher abroad, on a touch screen', () => {
         await touch('touchMove', y + (step * 60 * pxPerMinute) / 10)
       await touch('touchEnd', y + 60 * pxPerMinute)
 
-      await expect(page.getByRole('status')).toHaveText('Čas je pomeren.')
-      const [moved] = await select<{ start_at: string }>(
-        request,
-        ana,
-        `lessons?select=start_at&created_at=gte.${started}`,
-      )
-      expect(clock(moved.start_at)).toBe(plus(start, 60))
+      await expect
+        .poll(async () => {
+          const [moved] = await select<{ start_at: string }>(
+            request,
+            ana,
+            `lessons?select=start_at&created_at=gte.${started}`,
+          )
+          return clock(moved.start_at)
+        })
+        .toBe(plus(start, 60))
     } finally {
       const open = await select<{ id: string }>(
         request,

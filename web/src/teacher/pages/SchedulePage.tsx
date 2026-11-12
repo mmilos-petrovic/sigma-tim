@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { explainError } from '../../admin/errors'
 import { AddIcon, IconButton } from '../../components/ActionIcons'
 import { SelectField } from '../../components/FormDialog'
-import { Loaded, Loading, LoadError, Notice, PageHeader } from '../../components/Loaded'
+import { Loaded, Loading, LoadError, PageHeader } from '../../components/Loaded'
 import { Link } from 'react-router'
 import { CONTEXT_LABEL, homePath } from '../../auth/roles'
 import { chosenColor, OWN_COLOR } from '../colors'
@@ -54,7 +54,6 @@ export function SchedulePage() {
   const busy = useBusy(range)
 
   const [dialog, setDialog] = useState<Dialog>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [conflicts, setConflicts] = useState<Conflict[] | null>(null)
   // the location whose colleagues are shown; remembered by the browser
@@ -94,10 +93,7 @@ export function SchedulePage() {
     [lessons.data, busy.data, students.data, reference.data, teacherId, now, activeLocation],
   )
 
-  const done = (message: string | null) => {
-    setDialog(null)
-    setNotice(message)
-  }
+  const done = () => setDialog(null)
 
   const askAbout = (found: Conflict[]) =>
     new Promise<boolean>((resolve) => {
@@ -118,7 +114,6 @@ export function SchedulePage() {
     const start = new Date(next.start).toISOString()
     const end = new Date(next.end).toISOString()
     setError(null)
-    setNotice(null)
     try {
       const found = await api.findConflicts({
         teacherId,
@@ -130,7 +125,6 @@ export function SchedulePage() {
       if (found.length > 0 && !(await askAbout(found))) throw new DeclinedError()
       await api.updateLesson(id, { start, end })
       await refresh()
-      setNotice('Čas je pomeren.')
     } catch (failure) {
       if (!(failure instanceof DeclinedError)) setError(explainError(failure, 'updateLesson'))
       throw failure
@@ -165,7 +159,6 @@ export function SchedulePage() {
           <AddIcon />
         </IconButton>
       </PageHeader>
-      <Notice message={notice} />
       {error && (
         <p role="alert" className="form-error">
           {error}
@@ -193,14 +186,8 @@ export function SchedulePage() {
                   bookings={pending.data ?? []}
                   reference={ref}
                   students={people}
-                  onNotice={(message) => {
-                    setError(null)
-                    setNotice(message)
-                  }}
-                  onError={(message) => {
-                    setNotice(null)
-                    setError(message)
-                  }}
+                  onChange={() => setError(null)}
+                  onError={setError}
                 />
 
                 {lessons.isError && (

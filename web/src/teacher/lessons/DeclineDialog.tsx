@@ -20,7 +20,7 @@ export function DeclineDialog({
   reference: Reference
   students: StudentRow[]
   onClose: () => void
-  onDone: (message: string) => void
+  onDone: () => void
 }) {
   const api = useTeacherApi()
   const refresh = useRefresh()
@@ -43,7 +43,7 @@ export function DeclineDialog({
           throw failure
         }
         await refresh()
-        onDone('Zahtev je odbijen, termin je ponovo slobodan.')
+        onDone()
       }}
     >
       <p>

@@ -418,6 +418,9 @@ function ParentCell({
         type="button"
         className="button button--small button--secondary person-cell__add"
         aria-label={`${second ? 'Dodaj drugog roditelja' : 'Dodaj roditelja'} učeniku ${fullName(student)}`}
+        // the second parent can only be added once there is a first one
+        disabled={second && student.parents.length === 0}
+        title={second && student.parents.length === 0 ? 'Prvo dodajte prvog roditelja' : undefined}
         onClick={() => onDialog({ kind: 'addParent', student })}
       >
         <AddIcon /> Dodaj
