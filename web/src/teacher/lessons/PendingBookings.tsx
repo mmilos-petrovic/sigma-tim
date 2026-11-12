@@ -12,13 +12,14 @@ export function PendingBookings({
   bookings,
   reference,
   students,
-  onNotice,
+  onChange,
   onError,
 }: {
   bookings: LessonRow[]
   reference: Reference
   students: StudentRow[]
-  onNotice: (message: string) => void
+  /** A request was answered. */
+  onChange: () => void
   onError: (message: string) => void
 }) {
   const api = useTeacherApi()
@@ -33,7 +34,7 @@ export function PendingBookings({
     setBusyId(booking.id)
     try {
       await api.confirmBooking(booking.id)
-      onNotice('Zahtev je potvrđen.')
+      onChange()
       await refresh()
     } catch (failure) {
       onError(explainError(failure, 'confirmBooking'))
@@ -87,9 +88,9 @@ export function PendingBookings({
           reference={reference}
           students={students}
           onClose={() => setDeclining(null)}
-          onDone={(message) => {
+          onDone={() => {
             setDeclining(null)
-            onNotice(message)
+            onChange()
           }}
         />
       )}

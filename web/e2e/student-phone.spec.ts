@@ -139,7 +139,10 @@ test.describe('student and parent on a phone', () => {
         .getByRole('listitem', { name: /Luka Ilić/ })
         .getByRole('button', { name: 'Potvrdi' })
         .click()
-      await expect(teacherPage.getByText('Zahtev je potvrđen.')).toBeVisible()
+      // answered: the request is no longer in the list of requests
+      await expect(
+        teacherPage.getByRole('heading', { name: 'Zahtevi na čekanju', level: 2 }),
+      ).toHaveCount(0)
 
       // 7. the student sees it confirmed
       await page.reload()

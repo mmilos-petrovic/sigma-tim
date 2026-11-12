@@ -237,7 +237,7 @@ describe('deleting, cancelling and removing', () => {
     await userEvent.click(confirm.getByRole('button', { name: 'Obriši' }))
 
     expect(teacherApi.cancelLesson).toHaveBeenCalledWith('les-tomorrow', null)
-    expect(await screen.findByRole('status')).toHaveTextContent('Čas je obrisan.')
+    // no notice about the change: the lesson is just gone
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: TOMORROW })).not.toBeInTheDocument(),
     )
@@ -323,7 +323,8 @@ describe('deleting, cancelling and removing', () => {
       (await inDialog('Uklanjanje termina')).getByRole('button', { name: 'Ukloni' }),
     )
     expect(teacherApi.cancelLesson).toHaveBeenCalledWith('slot-open', null)
-    expect(await screen.findByRole('status')).toHaveTextContent('Termin je uklonjen.')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('cancels a booked slot, which becomes free again instead of disappearing', async () => {
@@ -343,10 +344,8 @@ describe('deleting, cancelling and removing', () => {
     await userEvent.click(confirm.getByRole('button', { name: 'Otkaži čas' }))
 
     expect(teacherApi.cancelLesson).toHaveBeenCalledWith('slot-open', 'Prezauzet sam')
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Čas je otkazan, termin je ponovo slobodan.',
-    )
     expect(await block(/^Slobodan termin$/)).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })
 
@@ -357,7 +356,11 @@ describe('answering a booking from its dialog', () => {
     expect(dialog.queryByRole('button', { name: /Obriši|Otkaži|Izmeni/ })).not.toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Potvrdi' }))
     expect(teacherApi.confirmBooking).toHaveBeenCalledWith('booking-pending')
-    expect(await dialog.findByText('Zahtev je potvrđen.')).toBeInTheDocument()
+    // answered: the buttons of a request are gone, and nothing is said about it
+    await waitFor(() =>
+      expect(dialog.queryByRole('button', { name: 'Potvrdi' })).not.toBeInTheDocument(),
+    )
+    expect(dialog.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('declines it after asking for a reason, which is optional', async () => {
@@ -374,9 +377,8 @@ describe('answering a booking from its dialog', () => {
       'booking-pending',
       'Termin nije slobodan',
     )
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Zahtev je odbijen, termin je ponovo slobodan.',
-    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('declines it without a reason when none is given', async () => {
@@ -428,7 +430,8 @@ describe('editing a lesson', () => {
 
     expect(teacherApi.updateLesson).toHaveBeenCalledWith('les-tomorrow', { roomId: 'r-2' })
     expect(teacherApi.setLessonStudents).not.toHaveBeenCalled()
-    expect(await screen.findByRole('status')).toHaveTextContent('Čas je izmenjen.')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('can drop the room', async () => {
@@ -591,7 +594,6 @@ describe('publishing a free slot', () => {
       start: '2026-11-06T14:00:00.000Z',
       minutes: 45,
     })
-    expect(await screen.findByRole('status')).toHaveTextContent('Slobodan termin je objavljen.')
     await waitFor(() =>
       expect(screen.getAllByRole('button', { name: /^Slobodan termin/ })).toHaveLength(2),
     )

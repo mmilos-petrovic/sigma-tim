@@ -428,6 +428,11 @@
   border-radius: 50%;
 }
 
+/* The button under a card of the list of lessons. */
+.lesson__actions {
+  padding: 0 1rem 0.75rem;
+}
+
 .icon-button:disabled {
   opacity: 0.5;
   cursor: default;

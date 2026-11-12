@@ -22,7 +22,7 @@ export function SlotDialog({
   /** A stretch of time selected on the calendar: only its start is used, the length is chosen here. */
   initial?: TimeRange
   onClose: () => void
-  onDone: (message: string | null) => void
+  onDone: () => void
 }) {
   const api = useTeacherApi()
   const refresh = useRefresh()
@@ -62,7 +62,7 @@ export function SlotDialog({
           minutes,
         })
         await refresh()
-        onDone('Slobodan termin je objavljen.')
+        onDone()
       }}
     >
       <p>Vide ga samo vaši učenici i njihovi roditelji.</p>

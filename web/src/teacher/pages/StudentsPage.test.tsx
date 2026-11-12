@@ -307,10 +307,12 @@ describe("the teacher's students", () => {
       expect(screen.getByRole('status')).toHaveTextContent('Roditelj je dodat.')
     })
 
-    it('adds a second parent from the second place', async () => {
-      const { teacherApi } = renderTeacher(PATH)
+    it('adds a second parent from the second place, once there is a first', async () => {
+      const state = seedTeacher()
+      state.students[0].parents = state.students[0].parents.slice(0, 1) // Ana has only Mira
+      const { teacherApi } = renderTeacher(PATH, { api: createFakeTeacherApi(state) })
       await page('Učenici')
-      await userEvent.click(await button('Dodaj drugog roditelja učeniku Luka Ilić'))
+      await userEvent.click(await button('Dodaj drugog roditelja učeniku Ana Petrović'))
       const form = await inDialog('Novi roditelj')
       await userEvent.type(form.getByLabelText(EMAIL), 'drugi@example.test')
       await userEvent.type(form.getByLabelText('Ime'), 'Drugi')
@@ -318,10 +320,37 @@ describe("the teacher's students", () => {
       await userEvent.type(form.getByLabelText('Telefon roditelja'), '+381 64 123 4567')
       await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
       expect(teacherApi.addParent).toHaveBeenCalledWith(
-        'st-luka',
+        'st-ana',
         expect.objectContaining({ email: 'drugi@example.test' }),
       )
-      expect(await within(await row('Luka Ilić')).findByText('Drugi Roditelj')).toBeInTheDocument()
+      expect(
+        await within(await row('Ana Petrović')).findByText('Drugi Roditelj'),
+      ).toBeInTheDocument()
+    })
+
+    it('does not offer the second parent before the first: that button is off', async () => {
+      renderTeacher(PATH)
+      await page('Učenici')
+      const luka = within(await row('Luka Ilić'))
+      expect(
+        luka.getByRole('button', { name: 'Dodaj drugog roditelja učeniku Luka Ilić' }),
+      ).toBeDisabled()
+      expect(luka.getByRole('button', { name: 'Dodaj roditelja učeniku Luka Ilić' })).toBeEnabled()
+      // with a first parent it is on
+      await userEvent.click(luka.getByRole('button', { name: 'Dodaj roditelja učeniku Luka Ilić' }))
+      const form = await inDialog('Novi roditelj')
+      await userEvent.type(form.getByLabelText(EMAIL), 'prvi@example.test')
+      await userEvent.type(form.getByLabelText('Ime'), 'Prvi')
+      await userEvent.type(form.getByLabelText('Prezime'), 'Roditelj')
+      await userEvent.type(form.getByLabelText('Telefon roditelja'), '+381 64 123 4567')
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      await waitFor(() =>
+        expect(
+          within(screen.getByRole('row', { name: /Luka Ilić/ })).getByRole('button', {
+            name: 'Dodaj drugog roditelja učeniku Luka Ilić',
+          }),
+        ).toBeEnabled(),
+      )
     })
 
     it('requires the number of a parent, and wants it in the international form', async () => {

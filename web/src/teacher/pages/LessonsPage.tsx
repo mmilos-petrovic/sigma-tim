@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Field } from '../../components/FormDialog'
-import { Loaded, Notice, PageHeader } from '../../components/Loaded'
+import { Loaded, PageHeader } from '../../components/Loaded'
 import { PAST_PAGE_SIZE } from '../../student/studentApi'
-import { sortPast, sortUpcoming } from '../../student/lessonList'
+import { isPast, sortPast, sortUpcoming } from '../../student/lessonList'
 import { useNow } from '../clock'
 import { formatDay, formatRange } from '../format'
+import { LessonFormDialog } from '../lessons/LessonFormDialog'
 import { LessonViewer } from '../lessons/LessonViewer'
 import { matchesStudent, needsPayment, outcomeChip, paidChip } from '../lessonsList'
 import { usePastLessons, useReference, useStudents, useUpcomingLessons } from '../queries'
@@ -20,12 +21,14 @@ function Row({
   students,
   now,
   onOpen,
+  onEdit,
 }: {
   lesson: LessonRow
   reference: Reference
   students: StudentRow[]
   now: Date
   onOpen: () => void
+  onEdit: () => void
 }) {
   // what is the same for every lesson of a teacher (the one subject, the one location) is not repeated on each row
   const subject =
@@ -61,6 +64,19 @@ function Row({
           ))}
         </span>
       </button>
+      {/* a lesson that has not ended can be moved from its card; one that has ended is only worked on in its dialog */}
+      {lesson.status === 'confirmed' && !isPast(lesson, now) && (
+        <div className="lesson__actions">
+          <button
+            type="button"
+            className="button button--small button--secondary"
+            aria-label={`Izmeni termin: ${studentNames(lesson, students)}, ${formatDay(lesson.start)}`}
+            onClick={onEdit}
+          >
+            Izmeni termin
+          </button>
+        </div>
+      )}
     </li>
   )
 }
@@ -72,7 +88,7 @@ export function LessonsPage() {
   const [unpaidOnly, setUnpaidOnly] = useState(false)
   const [shown, setShown] = useState(PAST_PAGE_SIZE)
   const [openId, setOpenId] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
 
   const filtering = query.trim() !== '' || unpaidOnly
   const reference = useReference()
@@ -83,7 +99,6 @@ export function LessonsPage() {
   return (
     <>
       <PageHeader title="Časovi" />
-      <Notice message={notice} />
 
       <Loaded query={reference}>
         {(ref) => (
@@ -100,7 +115,9 @@ export function LessonsPage() {
                           (lesson) => keep(lesson) && (!unpaidOnly || needsPayment(lesson, now)),
                         ),
                       )
-                      const opened = [...coming, ...behind.lessons].find((l) => l.id === openId)
+                      const all = [...coming, ...behind.lessons]
+                      const opened = all.find((l) => l.id === openId)
+                      const editing = all.find((l) => l.id === editId)
                       const row = (lesson: LessonRow) => (
                         <Row
                           key={lesson.id}
@@ -109,6 +126,7 @@ export function LessonsPage() {
                           students={people}
                           now={now}
                           onOpen={() => setOpenId(lesson.id)}
+                          onEdit={() => setEditId(lesson.id)}
                         />
                       )
 
@@ -170,11 +188,18 @@ export function LessonsPage() {
                               lesson={opened}
                               reference={ref}
                               students={people}
+                              editable={false}
                               onClose={() => setOpenId(null)}
-                              onDone={(message) => {
-                                setOpenId(null)
-                                setNotice(message)
-                              }}
+                              onDone={() => setOpenId(null)}
+                            />
+                          )}
+                          {editing && (
+                            <LessonFormDialog
+                              lesson={editing}
+                              reference={ref}
+                              students={people}
+                              onClose={() => setEditId(null)}
+                              onDone={() => setEditId(null)}
                             />
                           )}
                         </>

@@ -248,10 +248,10 @@ describe('bookings that wait for an answer', () => {
     const { teacherApi } = renderTeacher(PATH)
     await userEvent.click((await entry()).getByRole('button', { name: 'Potvrdi' }))
     expect(teacherApi.confirmBooking).toHaveBeenCalledWith('booking-pending')
-    expect(await screen.findByRole('status')).toHaveTextContent('Zahtev je potvrđen.')
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: 'Zahtevi na čekanju' })).not.toBeInTheDocument(),
     )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument() // nothing is said about it
     expect(await block(/^Luka Ilić$/)).toHaveAttribute('data-variant', 'own')
   })
 
@@ -262,12 +262,10 @@ describe('bookings that wait for an answer', () => {
     await userEvent.type(decline.getByLabelText('Razlog (nije obavezan)'), 'Nisam u gradu')
     await userEvent.click(decline.getByRole('button', { name: 'Odbij zahtev' }))
     expect(teacherApi.declineBooking).toHaveBeenCalledWith('booking-pending', 'Nisam u gradu')
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Zahtev je odbijen, termin je ponovo slobodan.',
-    )
     await waitFor(() =>
       expect(screen.getAllByRole('button', { name: /^Slobodan termin/ })).toHaveLength(2),
     )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('explains it when the booking is no longer waiting', async () => {
@@ -315,8 +313,8 @@ describe('scheduling a lesson', () => {
       end: '2026-11-06T09:15:00.000Z',
       studentIds: ['st-luka'],
     })
-    expect(await screen.findByRole('status')).toHaveTextContent('Čas je zakazan.')
     expect(await block('Luka Ilić – Učionica 2')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument() // no notice that it was scheduled
   })
 
   it('offers only the subjects the teacher teaches, the rooms of the chosen location, and no room', async () => {
@@ -471,7 +469,7 @@ describe('scheduling a lesson', () => {
 
       await userEvent.click(form.getByRole('button', { name: 'Sačuvaj i pored upozorenja' }))
       await waitFor(() => expect(teacherApi.scheduleLesson).toHaveBeenCalledTimes(1))
-      expect(await screen.findByRole('status')).toHaveTextContent('Čas je zakazan.')
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     })
 
     it('asks again if something changed after the warning', async () => {
@@ -527,7 +525,7 @@ describe('moving a lesson by dragging it', () => {
       start: '2026-11-04T08:00:00.000Z',
       end: '2026-11-04T09:00:00.000Z',
     })
-    expect(await screen.findByRole('status')).toHaveTextContent('Čas je pomeren.')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument() // a move is not announced
   })
 
   it('warns about a clash before saving, and puts the lesson back if the teacher declines', async () => {
