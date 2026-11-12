@@ -65,7 +65,7 @@ export function SlotDialog({
         onDone('Slobodan termin je objavljen.')
       }}
     >
-      <p>Vide ga i mogu da ga zauzmu samo vaši učenici i njihovi roditelji.</p>
+      <p>Vide ga samo vaši učenici i njihovi roditelji.</p>
       <PlaceFields reference={reference} place={place} />
       <DateField label="Datum" value={date} onChange={setDate} />
       <TimeField label="Početak" value={time} onChange={setTime} />

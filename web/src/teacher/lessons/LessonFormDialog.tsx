@@ -190,12 +190,6 @@ export function LessonFormDialog({ lesson, initial, reference, students, onClose
       }
       onSubmit={submit}
     >
-      {placeLocked && (
-        <p className="notice notice--locked">
-          Dan ovog časa je prošao ili je upisan ishod: predmet, mesto i vreme se više ne menjaju.
-          Učenike i napomene i dalje možete da menjate.
-        </p>
-      )}
       <PlaceFields reference={reference} place={place} disabled={placeLocked} />
       <DateField label="Datum" value={date} onChange={setDate} disabled={placeLocked} />
       <div className="field-row">

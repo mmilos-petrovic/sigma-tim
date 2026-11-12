@@ -22,6 +22,61 @@ const TODAY = /^Ana Petrović – Učionica 2/ // 08:00-09:00 today: over, still
 const TOMORROW = /^Ana Petrović, Luka Ilić – Učionica 1/ // Thursday 16:00-17:00, Ana and Luka
 const LOCKED = /^Ana Petrović$/ // Monday, outcome recorded
 
+describe('the buttons at the bottom of a lesson', () => {
+  const buttonsOf = (dialog: Awaited<ReturnType<typeof open>>) =>
+    dialog.getAllByRole('button').filter((button) => button.closest('.actions--end'))
+
+  it('are Odustani and a blue Izmeni, with the red cancelling on the left of them', async () => {
+    renderTeacher(PATH)
+    const dialog = await open(TOMORROW, 'Fizika')
+    const names = buttonsOf(dialog).map((button) => button.textContent)
+    expect(names).toEqual(['Obriši čas', 'Odustani', 'Izmeni'])
+    expect(dialog.queryByRole('button', { name: 'Zatvori' })).not.toBeInTheDocument()
+    expect(dialog.queryByRole('button', { name: 'Izmeni čas' })).not.toBeInTheDocument()
+
+    // blue: the main button, not the secondary one; red with white letters: the danger one
+    const edit = dialog.getByRole('button', { name: 'Izmeni' })
+    expect(edit).toHaveClass('button')
+    expect(edit).not.toHaveClass('button--secondary')
+    expect(dialog.getByRole('button', { name: 'Obriši čas' })).toHaveClass('button--danger')
+    expect(dialog.getByRole('button', { name: 'Odustani' })).toHaveClass('button--secondary')
+  })
+
+  it('close the dialog with Odustani and open the form with Izmeni', async () => {
+    renderTeacher(PATH)
+    let dialog = await open(TOMORROW, 'Fizika')
+    await userEvent.click(dialog.getByRole('button', { name: 'Odustani' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    dialog = await open(TOMORROW, 'Fizika')
+    await userEvent.click(dialog.getByRole('button', { name: 'Izmeni' }))
+    await inDialog('Izmena časa')
+  })
+
+  it('make the cancelling of a slot red too, and offer no edit for it', async () => {
+    renderTeacher(PATH)
+    const dialog = await open(/^Slobodan termin/, 'Slobodan termin')
+    expect(dialog.getByRole('button', { name: 'Ukloni termin' })).toHaveClass('button--danger')
+    expect(dialog.queryByRole('button', { name: 'Izmeni' })).not.toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Odustani' })).toBeInTheDocument()
+  })
+
+  it('say nothing about a change that was made, only about one that failed', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const dialog = await open(TODAY, 'Matematika')
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Plaćeno za Ana Petrović' }))
+    expect(teacherApi.setPaid).toHaveBeenCalledWith('les-today', 'st-ana', true)
+    await waitFor(() =>
+      expect(dialog.getByRole('checkbox', { name: 'Plaćeno za Ana Petrović' })).toBeEnabled(),
+    )
+    expect(dialog.queryByRole('status')).not.toBeInTheDocument()
+
+    teacherApi.failNext('setPaid', new AdminError('network'))
+    await userEvent.click(dialog.getByRole('checkbox', { name: 'Plaćeno za Ana Petrović' }))
+    expect(await dialog.findByRole('alert')).toBeInTheDocument()
+  })
+})
+
 describe('looking at a lesson', () => {
   it('shows when and where, and each student with their note', async () => {
     renderTeacher(PATH)
@@ -48,7 +103,9 @@ describe('looking at a lesson', () => {
     await userEvent.type(dialog.getByLabelText('Napomena za Ana Petrović'), '  Domaći: strana 40 ')
     await userEvent.click(save)
     expect(teacherApi.setNote).toHaveBeenCalledWith('les-today', 'st-ana', 'Domaći: strana 40')
-    expect(await dialog.findByText('Napomena je sačuvana.')).toBeInTheDocument()
+    // the change is not announced: the button just waits for the next one
+    await waitFor(() => expect(save).toBeDisabled())
+    expect(dialog.queryByText(/Napomena je sačuvana/)).not.toBeInTheDocument()
 
     await userEvent.clear(dialog.getByLabelText('Napomena za Ana Petrović'))
     await userEvent.click(save)
@@ -81,7 +138,6 @@ describe('recording what happened', () => {
     const dialog = await open(TODAY, 'Matematika')
     await userEvent.click(dialog.getByRole('button', { name: 'Održan' }))
     expect(teacherApi.setOutcome).toHaveBeenCalledWith('les-today', 'held')
-    expect(await dialog.findByText('Ishod je upisan.')).toBeInTheDocument()
     await waitFor(() => expect(dialog.getByRole('button', { name: 'Održan' })).toBeDisabled())
 
     await userEvent.click(dialog.getByRole('button', { name: 'Nije održan' }))
@@ -89,7 +145,9 @@ describe('recording what happened', () => {
 
     await userEvent.click(await dialog.findByRole('button', { name: 'Obriši ishod' }))
     expect(teacherApi.setOutcome).toHaveBeenLastCalledWith('les-today', null)
-    expect(await dialog.findByText('Ishod je obrisan.')).toBeInTheDocument()
+    await waitFor(() => expect(dialog.getByRole('button', { name: 'Održan' })).toBeEnabled())
+    expect(dialog.queryByText(/Ishod je (upisan|obrisan)/)).not.toBeInTheDocument()
+    expect(dialog.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('does not offer an outcome before the lesson is over', async () => {
@@ -102,7 +160,9 @@ describe('recording what happened', () => {
   it('still lets the outcome of a frozen lesson be changed', async () => {
     const { teacherApi } = renderTeacher(PATH)
     const dialog = await open(LOCKED, 'Matematika')
-    expect(dialog.getByText(/Dan ovog časa je prošao ili je upisan ishod/)).toBeInTheDocument()
+    expect(
+      dialog.queryByText(/Dan ovog časa je prošao ili je upisan ishod/),
+    ).not.toBeInTheDocument()
     await userEvent.click(dialog.getByRole('button', { name: 'Obriši ishod' }))
     expect(teacherApi.setOutcome).toHaveBeenCalledWith('les-locked', null)
   })
@@ -344,7 +404,7 @@ describe('answering a booking from its dialog', () => {
 describe('editing a lesson', () => {
   const edit = async (name: string | RegExp = TOMORROW, title = 'Fizika') => {
     const dialog = await open(name, title)
-    await userEvent.click(dialog.getByRole('button', { name: 'Izmeni čas' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Izmeni' }))
     return inDialog('Izmena časa')
   }
 
@@ -447,7 +507,7 @@ describe('editing a lesson', () => {
     const { teacherApi } = renderTeacher(PATH)
     // Monday, 'held': locked twice over; the outcome has to be cleared first to change anything else
     const form = await edit(LOCKED, 'Matematika')
-    expect(form.getByText(/Dan ovog časa je prošao ili je upisan ishod/)).toBeInTheDocument()
+    expect(form.queryByText(/Dan ovog časa je prošao ili je upisan ishod/)).not.toBeInTheDocument()
     for (const label of ['Predmet', 'Lokacija', 'Učionica', 'Datum', 'Početak', 'Kraj']) {
       expect(form.getByLabelText(label)).toBeDisabled()
     }

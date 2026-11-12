@@ -68,6 +68,15 @@ describe('the two actions of the page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Objavi slobodan termin' }))
     await inDialog('Novi slobodan termin')
   })
+
+  it('tell who sees a free slot, in few words', async () => {
+    renderTeacher(PATH)
+    await page('Moj raspored')
+    await userEvent.click(await screen.findByRole('button', { name: 'Objavi slobodan termin' }))
+    const form = await inDialog('Novi slobodan termin')
+    expect(form.getByText('Vide ga samo vaši učenici i njihovi roditelji.')).toBeInTheDocument()
+    expect(form.queryByText(/mogu da ga zauzmu/)).not.toBeInTheDocument()
+  })
 })
 
 describe('the reminder about a missing phone number', () => {
