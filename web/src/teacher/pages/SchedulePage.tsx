@@ -1,9 +1,11 @@
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { explainError } from '../../admin/errors'
+import { AddIcon, IconButton } from '../../components/ActionIcons'
 import { SelectField } from '../../components/FormDialog'
 import { Loaded, Loading, LoadError, Notice, PageHeader } from '../../components/Loaded'
 import { Link } from 'react-router'
 import { CONTEXT_LABEL, homePath } from '../../auth/roles'
+import { chosenColor, OWN_COLOR } from '../colors'
 import { useNow } from '../clock'
 import { chooseLocation, readLastLocation, writeLastLocation } from '../locationFilter'
 import { ConflictDialog } from '../lessons/ConflictDialog'
@@ -141,22 +143,24 @@ export function SchedulePage() {
   return (
     <>
       <PageHeader title={CONTEXT_LABEL.teacher}>
-        <button
-          type="button"
-          className="button"
+        {/* a plus in the colour of the teacher's lessons for a lesson, a plain one for a free slot */}
+        <IconButton
+          label="Novi čas"
+          large
+          color={chosenColor(reference.data?.color) ?? OWN_COLOR}
           disabled={cannotSchedule}
           onClick={() => setDialog({ kind: 'new' })}
         >
-          Novi čas
-        </button>
-        <button
-          type="button"
-          className="button button--secondary"
+          <AddIcon />
+        </IconButton>
+        <IconButton
+          label="Objavi slobodan termin"
+          large
           disabled={cannotSchedule}
           onClick={() => setDialog({ kind: 'slot' })}
         >
-          Objavi slobodan termin
-        </button>
+          <AddIcon />
+        </IconButton>
       </PageHeader>
       <Notice message={notice} />
       {error && (

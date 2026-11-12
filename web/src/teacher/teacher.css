@@ -410,3 +410,19 @@
     text-transform: uppercase;
   }
 }
+
+/* The two actions of the schedule page, as plus signs: a little bigger than the icons of a table. */
+.icon-button--large {
+  width: 40px;
+  height: 40px;
+}
+
+.icon-button--large svg {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

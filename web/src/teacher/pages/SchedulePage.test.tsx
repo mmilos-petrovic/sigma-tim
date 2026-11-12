@@ -20,6 +20,55 @@ async function openNewLesson() {
   return inDialog('Novi čas')
 }
 
+describe('the two actions of the page', () => {
+  it('are plus signs on the right of the title, with the words only as names', async () => {
+    renderTeacher(PATH)
+    await page('Moj raspored')
+    for (const name of ['Novi čas', 'Objavi slobodan termin']) {
+      const button = await screen.findByRole('button', { name })
+      expect(button).toHaveTextContent('')
+      expect(button).toHaveAttribute('title', name)
+      expect(button.querySelector('svg')).not.toBeNull()
+      // in the row of the title, which is the first thing in the page header
+      expect(button.closest('.page-header')).toContainElement(
+        screen.getByRole('heading', { name: 'Moj raspored', level: 1 }),
+      )
+      expect(button.closest('.page-header__actions')).not.toBeNull()
+    }
+  })
+
+  it('draw the plus of a lesson in the colour of the teacher, and the plus of a slot in none', async () => {
+    const state = seedTeacher()
+    state.reference.color = 'purple'
+    renderTeacher(PATH, { api: createFakeTeacherApi(state) })
+    await page('Moj raspored')
+    expect(await screen.findByRole('button', { name: 'Novi čas' })).toHaveStyle({
+      color: '#6b3fa0',
+    })
+    expect(screen.getByRole('button', { name: 'Objavi slobodan termin' })).not.toHaveAttribute(
+      'style',
+    )
+  })
+
+  it('draw the plus of a lesson in the blue of the lessons until a colour is chosen', async () => {
+    renderTeacher(PATH)
+    await page('Moj raspored')
+    expect(await screen.findByRole('button', { name: 'Novi čas' })).toHaveStyle({
+      color: '#1f4fd8',
+    })
+  })
+
+  it('open the forms', async () => {
+    renderTeacher(PATH)
+    await page('Moj raspored')
+    await userEvent.click(await screen.findByRole('button', { name: 'Novi čas' }))
+    await inDialog('Novi čas')
+    await userEvent.click(screen.getByRole('button', { name: 'Odustani' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Objavi slobodan termin' }))
+    await inDialog('Novi slobodan termin')
+  })
+})
+
 describe('the reminder about a missing phone number', () => {
   it('asks a teacher who has no number to give one, and links to where', async () => {
     renderTeacher(PATH, { api: createFakeTeacherApi({ myPhone: null }) })

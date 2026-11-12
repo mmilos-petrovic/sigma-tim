@@ -54,19 +54,29 @@ export function IconButton({
   label,
   onClick,
   danger = false,
+  large = false,
+  disabled = false,
+  color,
   children,
 }: {
   label: string
   onClick: () => void
   danger?: boolean
+  /** A bigger button, for the main actions of a page. */
+  large?: boolean
+  disabled?: boolean
+  /** Draws the icon and the edge in this colour instead of the text colour. */
+  color?: string
   children: ReactNode
 }) {
   return (
     <button
       type="button"
-      className={`icon-button${danger ? ' icon-button--danger' : ''}`}
+      className={`icon-button${danger ? ' icon-button--danger' : ''}${large ? ' icon-button--large' : ''}`}
+      style={color ? { color, borderColor: color } : undefined}
       aria-label={label}
       title={label}
+      disabled={disabled}
       onClick={onClick}
     >
       {children}
