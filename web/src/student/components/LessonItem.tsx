@@ -3,7 +3,7 @@ import { formatDay, formatRange } from '../../teacher/format'
 import { canCancel, mapsUrl, showsPaid, statusChip } from '../lessonList'
 import { useTeacherPhone } from '../queries'
 import type { MyLesson } from '../studentApi'
-import { PhoneLink } from './PhoneLink'
+import { PhoneLink } from '../../components/PhoneLink'
 import { cancelLabel } from './labels'
 
 const where = (lesson: MyLesson) =>

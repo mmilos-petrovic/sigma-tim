@@ -37,24 +37,25 @@ describe('the two actions of the page', () => {
     }
   })
 
-  it('draw the plus of a lesson in the colour of the teacher, and the plus of a slot in none', async () => {
+  it('fill the round button of a lesson with the colour of the teacher, with a white plus, and leave the one of a slot plain', async () => {
     const state = seedTeacher()
     state.reference.color = 'purple'
     renderTeacher(PATH, { api: createFakeTeacherApi(state) })
     await page('Moj raspored')
-    expect(await screen.findByRole('button', { name: 'Novi čas' })).toHaveStyle({
-      color: '#6b3fa0',
-    })
-    expect(screen.getByRole('button', { name: 'Objavi slobodan termin' })).not.toHaveAttribute(
-      'style',
-    )
+    const lesson = await screen.findByRole('button', { name: 'Novi čas' })
+    expect(lesson).toHaveStyle({ backgroundColor: '#6b3fa0', color: '#ffffff' })
+    const slot = screen.getByRole('button', { name: 'Objavi slobodan termin' })
+    expect(slot).not.toHaveAttribute('style')
+    // both are round
+    expect(lesson).toHaveClass('icon-button--round')
+    expect(slot).toHaveClass('icon-button--round')
   })
 
-  it('draw the plus of a lesson in the blue of the lessons until a colour is chosen', async () => {
+  it('fill the button of a lesson with the blue of the lessons until a colour is chosen', async () => {
     renderTeacher(PATH)
     await page('Moj raspored')
     expect(await screen.findByRole('button', { name: 'Novi čas' })).toHaveStyle({
-      color: '#1f4fd8',
+      backgroundColor: '#1f4fd8',
     })
   })
 

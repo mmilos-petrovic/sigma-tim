@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { explainError } from '../../admin/errors'
 import { Field } from '../../components/FormDialog'
 import { Loaded, Notice, PageHeader } from '../../components/Loaded'
-import { formatPhone, normalizePhone, PHONE_EXAMPLE, phoneProblem } from '../../lib/phone'
+import { formatPhone, normalizePhone, phoneProblem } from '../../lib/phone'
 import { COLOR_KEYS, COLORS, OWN_COLOR, type ColorKey } from '../colors'
 import { useMyPhone, useRefresh, useReference, useTeacherId } from '../queries'
 import { useTeacherApi } from '../TeacherApiProvider'
@@ -57,10 +57,6 @@ function PhoneForm({ saved }: { saved: string | null }) {
       <Notice message={notice} />
       <fieldset className="choice">
         <legend>Moj broj telefona</legend>
-        <p className="muted">
-          Potreban je za obaveštenja i poziv u vezi sa časovima. Upišite broj na primer ovako:{' '}
-          {PHONE_EXAMPLE}.
-        </p>
         {saved === null && (
           <p>
             <strong>Nemate upisan broj telefona.</strong> Upišite ga ovde.
@@ -121,10 +117,6 @@ function ColorForm({ saved }: { saved: ColorKey | null }) {
       <Notice message={notice} />
       <fieldset className="choice colors">
         <legend>Boja u kalendaru</legend>
-        <p className="muted">
-          Kolege vide ovu boju na vašim časovima. Menja se na svim vašim časovima, prošlim i
-          budućim. Dva nastavnika mogu imati istu boju.
-        </p>
         <label className="check color-option">
           <input
             type="radio"

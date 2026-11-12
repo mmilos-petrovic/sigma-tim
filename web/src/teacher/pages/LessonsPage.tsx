@@ -9,7 +9,7 @@ import { LessonViewer } from '../lessons/LessonViewer'
 import { matchesStudent, needsPayment, outcomeChip, paidChip } from '../lessonsList'
 import { usePastLessons, useReference, useStudents, useUpcomingLessons } from '../queries'
 import { roomName, studentNames } from '../scheduleItems'
-import type { LessonRow, Reference, StudentRow } from '../teacherApi'
+import { ownLocations, type LessonRow, type Reference, type StudentRow } from '../teacherApi'
 
 /** With a search or a filter the whole history is looked through, since what is wanted can be anywhere in it. */
 const EVERYTHING = 1000
@@ -27,9 +27,17 @@ function Row({
   now: Date
   onOpen: () => void
 }) {
-  const subject = reference.subjects.find((s) => s.id === lesson.subjectId)?.name ?? 'Čas'
-  const location = reference.locations.find((l) => l.id === lesson.locationId)?.name
+  // what is the same for every lesson of a teacher (the one subject, the one location) is not repeated on each row
+  const subject =
+    reference.subjects.length === 1
+      ? undefined
+      : (reference.subjects.find((s) => s.id === lesson.subjectId)?.name ?? 'Čas')
+  const location =
+    ownLocations(reference).length === 1
+      ? undefined
+      : reference.locations.find((l) => l.id === lesson.locationId)?.name
   const room = roomName(reference, lesson.locationId, lesson.roomId)
+  const what = [subject, [location, room].filter(Boolean).join(', ')].filter(Boolean).join(' · ')
   const chips = [outcomeChip(lesson, now), paidChip(lesson, now)].filter(
     (chip): chip is string => chip !== null,
   )
@@ -43,9 +51,7 @@ function Row({
         </span>
         <span className="lesson__what">
           <strong>{studentNames(lesson, students)}</strong>
-          <span>
-            {subject} · {[location, room].filter(Boolean).join(', ')}
-          </span>
+          {what && <span>{what}</span>}
         </span>
         <span className="lesson__marks">
           {chips.map((chip) => (

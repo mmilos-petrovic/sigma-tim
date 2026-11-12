@@ -3,7 +3,8 @@ import { useMember } from '../../components/guards'
 import { Field, FormDialog, LocationChoice, SubjectChoice } from '../../components/FormDialog'
 import { LoadError, Loaded, Loading, Notice, PageHeader } from '../../components/Loaded'
 import { PhoneDialog, PhoneLine } from '../../components/PhoneDialog'
-import { formatPhone, normalizePhone, phoneProblem } from '../../lib/phone'
+import { PhoneLink } from '../../components/PhoneLink'
+import { normalizePhone, phoneProblem } from '../../lib/phone'
 
 import { formatDay, formatRange } from '../../teacher/format'
 import { useAdminApi } from '../AdminApiProvider'
@@ -498,7 +499,7 @@ export function TeachersPage() {
                                 <td>{locationsOf(teacher)}</td>
                                 <td>
                                   {teacher.phone ? (
-                                    formatPhone(teacher.phone)
+                                    <PhoneLink phone={teacher.phone} />
                                   ) : (
                                     <PhoneLine phone={null} required />
                                   )}

@@ -55,6 +55,8 @@ export function IconButton({
   onClick,
   danger = false,
   large = false,
+  round = false,
+  solid = false,
   disabled = false,
   color,
   children,
@@ -65,15 +67,25 @@ export function IconButton({
   /** A bigger button, for the main actions of a page. */
   large?: boolean
   disabled?: boolean
-  /** Draws the icon and the edge in this colour instead of the text colour. */
+  /** A circle instead of a rounded square. */
+  round?: boolean
+  /** With a colour: the button is filled with it and the icon is white. */
+  solid?: boolean
+  /** Draws the icon and the edge in this colour instead of the text colour (or the button itself, when solid). */
   color?: string
   children: ReactNode
 }) {
   return (
     <button
       type="button"
-      className={`icon-button${danger ? ' icon-button--danger' : ''}${large ? ' icon-button--large' : ''}`}
-      style={color ? { color, borderColor: color } : undefined}
+      className={`icon-button${danger ? ' icon-button--danger' : ''}${large ? ' icon-button--large' : ''}${round ? ' icon-button--round' : ''}`}
+      style={
+        color
+          ? solid
+            ? { color: '#ffffff', backgroundColor: color, borderColor: color }
+            : { color, borderColor: color }
+          : undefined
+      }
       aria-label={label}
       title={label}
       disabled={disabled}

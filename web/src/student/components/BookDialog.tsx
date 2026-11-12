@@ -5,7 +5,7 @@ import { isLateBooking } from '../lessonList'
 import { useRefresh, useTeacherPhone } from '../queries'
 import { useStudentApi } from '../StudentApiProvider'
 import type { LessonStatus, OpenSlot, StudentContext, StudentRecord } from '../studentApi'
-import { PhoneLink } from './PhoneLink'
+import { PhoneLink } from '../../components/PhoneLink'
 
 /** Asks before a slot is booked; a late booking says beforehand that the teacher has to confirm it. */
 export function BookDialog({

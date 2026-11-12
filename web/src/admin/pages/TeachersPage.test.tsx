@@ -42,6 +42,10 @@ describe('teachers list', () => {
     await open()
     expect(screen.getByRole('columnheader', { name: 'Telefon' })).toBeInTheDocument()
     expect(within(await row('Ana Nikolić')).getByText('064 1110 003')).toBeInTheDocument()
+    // a number can be tapped to call it
+    expect(
+      within(await row('Ana Nikolić')).getByRole('link', { name: '064 1110 003' }),
+    ).toHaveAttribute('href', 'tel:+381641110003')
     expect(within(await row('Marko Jovanović')).getByText('064 1110 004')).toBeInTheDocument()
     expect(within(await row('Goran Savić')).getByText('nedostaje broj')).toBeInTheDocument()
     expect(within(await row('Ana Nikolić')).queryByText('nedostaje broj')).not.toBeInTheDocument()

@@ -68,6 +68,19 @@ describe("the teacher's students", () => {
     expect(ana.queryByRole('button', { name: /^Obriši/ })).not.toBeInTheDocument()
   })
 
+  it('adds a student with the same round plus, in the colour of the teacher, as a lesson', async () => {
+    const state = seedTeacher()
+    state.reference.color = 'teal'
+    renderTeacher(PATH, { api: createFakeTeacherApi(state) })
+    await page('Učenici')
+    const add = await button('Dodaj učenika')
+    expect(add).toHaveTextContent('')
+    expect(add).toHaveClass('icon-button--round')
+    await waitFor(() => expect(add).toHaveStyle({ backgroundColor: '#006a6a', color: '#ffffff' }))
+    await userEvent.click(add)
+    await inDialog('Novi učenik')
+  })
+
   it('says so when there are no students yet', async () => {
     renderTeacher(PATH, { api: createFakeTeacherApi({ students: [] }) })
     expect(await screen.findByText('Još nemate učenika. Dodajte prvog.')).toBeInTheDocument()
@@ -100,6 +113,11 @@ describe("the teacher's students", () => {
       // the section of the class (the seed has "a") is not shown
       expect(view.queryByText('Odeljenje')).not.toBeInTheDocument()
       expect(view.queryByRole('textbox')).not.toBeInTheDocument()
+      // the number can be tapped to call it
+      expect(view.getByRole('link', { name: '064 1110 001' })).toHaveAttribute(
+        'href',
+        'tel:+381641110001',
+      )
 
       await userEvent.click(view.getByRole('button', { name: 'Zatvori' }))
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

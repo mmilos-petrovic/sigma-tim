@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { AdminError } from '../../admin/adminApi'
 import { explainError } from '../../admin/errors'
 import { AddIcon, DeleteIcon, EditIcon, IconButton, ViewIcon } from '../../components/ActionIcons'
@@ -6,10 +6,12 @@ import { DeleteStudentDialog } from '../../components/DeleteStudentDialog'
 import { Dialog } from '../../components/Dialog'
 import { Field, FormDialog } from '../../components/FormDialog'
 import { Loaded, Notice, PageHeader } from '../../components/Loaded'
+import { PhoneLink } from '../../components/PhoneLink'
 import { formatGrade, gradeProblem } from '../../lib/grade'
 import { formatPhone, normalizePhone, phoneProblem } from '../../lib/phone'
 import { useTeacherApi } from '../TeacherApiProvider'
-import { useRefresh, useStudentCounts, useStudents, useUnassigned } from '../queries'
+import { chosenColor, OWN_COLOR } from '../colors'
+import { useReference, useRefresh, useStudentCounts, useStudents, useUnassigned } from '../queries'
 import { type ParentRow, type StudentRow, type UnassignedStudent } from '../teacherApi'
 
 const EMAIL_FORMAT = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
@@ -125,10 +127,10 @@ function AddStudentDialog({
 }
 
 function ViewStudentDialog({ student, onClose }: { student: StudentRow; onClose: () => void }) {
-  const rows: [string, string | null][] = [
+  const rows: [string, ReactNode][] = [
     ['Ime i prezime', fullName(student)],
     ['Email adresa', student.email],
-    ['Broj telefona', student.phone ? formatPhone(student.phone) : null],
+    ['Broj telefona', student.phone ? <PhoneLink phone={student.phone} /> : null],
     ['Škola', student.school],
     ['Razred', formatGrade(student.grade)],
   ]
@@ -560,6 +562,7 @@ export function StudentsPage() {
   const students = useStudents()
   const unassigned = useUnassigned()
   const studentCounts = useStudentCounts()
+  const reference = useReference()
   const counts = new Map((studentCounts.data ?? []).map((count) => [count.studentId, count]))
   const [dialog, setDialog] = useState<Shown>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -591,9 +594,17 @@ export function StudentsPage() {
   return (
     <>
       <PageHeader title="Učenici">
-        <button type="button" className="button" onClick={() => setDialog({ kind: 'addStudent' })}>
-          Dodaj učenika
-        </button>
+        {/* the same round plus, in the colour of the teacher, as the one that adds a lesson */}
+        <IconButton
+          label="Dodaj učenika"
+          large
+          round
+          solid
+          color={chosenColor(reference.data?.color) ?? OWN_COLOR}
+          onClick={() => setDialog({ kind: 'addStudent' })}
+        >
+          <AddIcon />
+        </IconButton>
       </PageHeader>
       <Notice message={notice} />
 
