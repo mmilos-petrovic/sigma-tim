@@ -81,7 +81,7 @@ describe("the teacher's students", () => {
   })
 
   describe('viewing a student', () => {
-    it('shows name, email, number, school, class and section, and nothing to change', async () => {
+    it('shows name, email, number, school and the class as "7 razred", and nothing to change', async () => {
       renderTeacher(PATH)
       await page('Učenici')
       await userEvent.click(await button('Prikaži učenika Ana Petrović'))
@@ -94,8 +94,9 @@ describe("the teacher's students", () => {
       ]) {
         expect(view.getByText(text)).toBeInTheDocument()
       }
-      expect(view.getByText('Razred').nextSibling).toHaveTextContent('7')
-      expect(view.getByText('Odeljenje').nextSibling).toHaveTextContent('a')
+      expect(view.getByText('Razred').nextSibling).toHaveTextContent('7 razred')
+      // the section of the class (the seed has "a") is not shown
+      expect(view.queryByText('Odeljenje')).not.toBeInTheDocument()
       expect(view.queryByRole('textbox')).not.toBeInTheDocument()
 
       await userEvent.click(view.getByRole('button', { name: 'Zatvori' }))
@@ -126,7 +127,7 @@ describe("the teacher's students", () => {
       await userEvent.type(form.getByLabelText('Prezime'), 'Nikolić')
       await userEvent.type(form.getByLabelText('Škola'), 'OŠ Sveti Sava')
       await userEvent.type(form.getByLabelText('Razred'), '5')
-      await userEvent.type(form.getByLabelText('Odeljenje'), 'b')
+      expect(form.queryByLabelText('Odeljenje')).not.toBeInTheDocument()
       await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
 
       expect(teacherApi.addStudent).toHaveBeenCalledWith({
@@ -135,7 +136,7 @@ describe("the teacher's students", () => {
         lastName: 'Nikolić',
         school: 'OŠ Sveti Sava',
         grade: '5',
-        section: 'b',
+        section: null,
         phone: null,
       })
       expect(await row('Sara Nikolić')).toBeInTheDocument()
@@ -143,7 +144,7 @@ describe("the teacher's students", () => {
       expect(screen.getByRole('status')).toHaveTextContent('Učenik je dodat.')
     })
 
-    it('school, class and section are optional', async () => {
+    it('school and class are optional', async () => {
       const { teacherApi } = renderTeacher(PATH)
       const form = await open()
       await userEvent.type(form.getByLabelText(EMAIL), 'novi@example.test')
@@ -153,6 +154,18 @@ describe("the teacher's students", () => {
       expect(teacherApi.addStudent).toHaveBeenCalledWith(
         expect.objectContaining({ school: null, grade: null, section: null }),
       )
+    })
+
+    it('wants the class as a number', async () => {
+      const { teacherApi } = renderTeacher(PATH)
+      const form = await open()
+      await userEvent.type(form.getByLabelText(EMAIL), 'novi@example.test')
+      await userEvent.type(form.getByLabelText('Ime'), 'Novi')
+      await userEvent.type(form.getByLabelText('Prezime'), 'Učenik')
+      await userEvent.type(form.getByLabelText('Razred'), 'a7')
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      expect(form.getByRole('alert')).toHaveTextContent('Razred je broj, na primer 7.')
+      expect(teacherApi.addStudent).not.toHaveBeenCalled()
     })
 
     it('takes a phone number for the student, which is optional, and sends it in the usual form', async () => {
@@ -461,7 +474,7 @@ describe("the teacher's students", () => {
       return inDialog('Izmena učenika')
     }
 
-    it('has name, email, number, school, class and section as fields', async () => {
+    it('has name, email, number, school and class as fields, and no section', async () => {
       renderTeacher(PATH)
       const form = await open()
       expect(form.getByLabelText('Ime')).toHaveValue('Ana')
@@ -470,7 +483,7 @@ describe("the teacher's students", () => {
       expect(form.getByLabelText('Broj telefona (nije obavezan)')).toHaveValue('064 1110 001')
       expect(form.getByLabelText('Škola')).toHaveValue('OŠ Vuk Karadžić')
       expect(form.getByLabelText('Razred')).toHaveValue('7')
-      expect(form.getByLabelText('Odeljenje')).toHaveValue('a')
+      expect(form.queryByLabelText('Odeljenje')).not.toBeInTheDocument()
     })
 
     it('saves only what changed', async () => {
@@ -487,7 +500,7 @@ describe("the teacher's students", () => {
       expect(await row('Anja Petrović')).toBeInTheDocument()
     })
 
-    it('changes school, class and section, and clears them when emptied', async () => {
+    it('changes school and class, clears them when emptied, and leaves the stored section alone', async () => {
       const { teacherApi } = renderTeacher(PATH)
       const form = await open()
       await userEvent.clear(form.getByLabelText('Škola'))
@@ -501,6 +514,28 @@ describe("the teacher's students", () => {
         section: 'a',
       })
       expect(teacherApi.renamePerson).not.toHaveBeenCalled()
+    })
+
+    it('wants the class as a number', async () => {
+      const { teacherApi } = renderTeacher(PATH)
+      const form = await open()
+      await userEvent.clear(form.getByLabelText('Razred'))
+      await userEvent.type(form.getByLabelText('Razred'), 'sedmi')
+      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+      expect(form.getByRole('alert')).toHaveTextContent('Razred je broj, na primer 7.')
+      expect(teacherApi.updateStudentDetails).not.toHaveBeenCalled()
+    })
+
+    it('lets an old class that is not a number stay while it is not touched', async () => {
+      const state = seedTeacher()
+      state.students[0].grade = '7a'
+      const { teacherApi } = renderTeacher(PATH, { api: createFakeTeacherApi(state) })
+      const form = await open()
+      await userEvent.clear(form.getByLabelText('Ime'))
+      await userEvent.type(form.getByLabelText('Ime'), 'Anja')
+      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+      expect(teacherApi.renamePerson).toHaveBeenCalledWith('pr-ana', 'Anja', 'Petrović')
+      expect(teacherApi.updateStudentDetails).not.toHaveBeenCalled()
     })
 
     it('does nothing and closes when nothing changed', async () => {
@@ -689,6 +724,7 @@ describe("the teacher's students", () => {
       await page('Učenici')
       const neda = within(await row('Neda Marković'))
       expect(neda.getByText(/Gimnazija/)).toBeInTheDocument()
+      expect(neda.getByText('2 razred')).toBeInTheDocument() // the section "c" is not shown
       // already asked for
       const vuk = within(await row('Vuk Vasić'))
       expect(vuk.getByText('Zahtev je poslat')).toBeInTheDocument()

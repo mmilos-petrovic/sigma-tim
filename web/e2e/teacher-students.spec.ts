@@ -145,7 +145,7 @@ test.describe("the teacher's students and parents", () => {
       const view = dialog(page, 'Učenik')
       await expect(
         view.getByText('Razred', { exact: true }).locator('xpath=following-sibling::dd'),
-      ).toHaveText('7')
+      ).toHaveText('7 razred')
       await view.getByRole('button', { name: 'Zatvori' }).click()
 
       // Jelena is the parent of two students: renaming her in one row changes it in the other

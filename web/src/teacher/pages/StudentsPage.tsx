@@ -6,6 +6,7 @@ import { DeleteStudentDialog } from '../../components/DeleteStudentDialog'
 import { Dialog } from '../../components/Dialog'
 import { Field, FormDialog } from '../../components/FormDialog'
 import { Loaded, Notice, PageHeader } from '../../components/Loaded'
+import { formatGrade, gradeProblem } from '../../lib/grade'
 import { formatPhone, normalizePhone, phoneProblem } from '../../lib/phone'
 import { useTeacherApi } from '../TeacherApiProvider'
 import { useRefresh, useStudentCounts, useStudents, useUnassigned } from '../queries'
@@ -63,7 +64,6 @@ function AddStudentDialog({
   const [lastName, setLastName] = useState('')
   const [school, setSchool] = useState('')
   const [grade, setGrade] = useState('')
-  const [section, setSection] = useState('')
   const [phone, setPhone] = useState('')
 
   return (
@@ -73,7 +73,10 @@ function AddStudentDialog({
       submitLabel="Dodaj"
       onClose={onClose}
       validate={() => {
-        const problem = personProblem(email, firstName, lastName) ?? phoneProblem(phone, false)
+        const problem =
+          personProblem(email, firstName, lastName) ??
+          phoneProblem(phone, false) ??
+          gradeProblem(grade)
         if (problem) return problem
         const lower = normalizeEmail(email)
         if (students.some((student) => student.email === lower)) {
@@ -92,7 +95,7 @@ function AddStudentDialog({
           lastName: lastName.trim(),
           school: orNull(school),
           grade: orNull(grade),
-          section: orNull(section),
+          section: null,
           phone: normalizePhone(phone),
         })
         await refresh()
@@ -109,8 +112,7 @@ function AddStudentDialog({
       <Field label="Ime" value={firstName} onChange={setFirstName} maxLength={100} />
       <Field label="Prezime" value={lastName} onChange={setLastName} maxLength={100} />
       <Field label="Škola" value={school} onChange={setSchool} maxLength={200} />
-      <Field label="Razred" value={grade} onChange={setGrade} maxLength={50} />
-      <Field label="Odeljenje" value={section} onChange={setSection} maxLength={50} />
+      <Field label="Razred" value={grade} onChange={setGrade} maxLength={2} />
       <Field
         label="Telefon učenika (nije obavezan)"
         type="tel"
@@ -128,8 +130,7 @@ function ViewStudentDialog({ student, onClose }: { student: StudentRow; onClose:
     ['Email adresa', student.email],
     ['Broj telefona', student.phone ? formatPhone(student.phone) : null],
     ['Škola', student.school],
-    ['Razred', student.grade],
-    ['Odeljenje', student.section],
+    ['Razred', formatGrade(student.grade)],
   ]
   return (
     <Dialog title="Učenik" onClose={onClose}>
@@ -171,7 +172,6 @@ function EditStudentDialog({
   const [phone, setPhone] = useState(student.phone ? formatPhone(student.phone) : '')
   const [school, setSchool] = useState(student.school ?? '')
   const [grade, setGrade] = useState(student.grade ?? '')
-  const [section, setSection] = useState(student.section ?? '')
   // which of the saves is under way, to explain the one that fails in its own words
   const step = useRef<'email' | 'name' | 'details' | 'phone'>('details')
   const emailChanged = normalizeEmail(email) !== student.email
@@ -182,7 +182,11 @@ function EditStudentDialog({
       action="updateStudent"
       submitLabel="Sačuvaj"
       onClose={onClose}
-      validate={() => personProblem(email, firstName, lastName) ?? phoneProblem(phone, false)}
+      validate={() =>
+        personProblem(email, firstName, lastName) ??
+        phoneProblem(phone, false) ??
+        gradeProblem(grade, student.grade)
+      }
       explain={(failure) => {
         if (step.current === 'email') return explainError(failure, 'changeStudentEmail')
         if (step.current === 'name') return explainError(failure, 'renamePerson')
@@ -194,11 +198,9 @@ function EditStudentDialog({
         const nextPhone = phone.trim() === '' ? null : normalizePhone(phone)
         const nameChanged =
           firstName.trim() !== student.firstName || lastName.trim() !== student.lastName
-        const details = { school: orNull(school), grade: orNull(grade), section: orNull(section) }
-        const detailsChanged =
-          details.school !== student.school ||
-          details.grade !== student.grade ||
-          details.section !== student.section
+        // the section of the class is no longer asked for or shown, and what is stored stays as it is
+        const details = { school: orNull(school), grade: orNull(grade), section: student.section }
+        const detailsChanged = details.school !== student.school || details.grade !== student.grade
         const phoneChanged = nextPhone !== student.phone
         if (!emailChanged && !nameChanged && !detailsChanged && !phoneChanged) {
           onDone(null)
@@ -247,8 +249,7 @@ function EditStudentDialog({
         maxLength={30}
       />
       <Field label="Škola" value={school} onChange={setSchool} maxLength={200} />
-      <Field label="Razred" value={grade} onChange={setGrade} maxLength={50} />
-      <Field label="Odeljenje" value={section} onChange={setSection} maxLength={50} />
+      <Field label="Razred" value={grade} onChange={setGrade} maxLength={2} />
       {canDelete && (
         <div className="danger-zone">
           <IconButton label={`Obriši učenika ${fullName(student)}`} danger onClick={onDelete}>
@@ -392,9 +393,8 @@ function RemoveParentDialog({
   )
 }
 
-function ClassCell({ grade, section }: { grade: string | null; section: string | null }) {
-  const text = [grade, section].filter(Boolean).join(' ')
-  return <>{text || '—'}</>
+function ClassCell({ grade }: { grade: string | null }) {
+  return <>{formatGrade(grade) ?? '—'}</>
 }
 
 /** A parent in the table: the name with an edit and a delete icon, or a button to add one. */
@@ -454,7 +454,7 @@ function StudentsTable({
   onDialog: (dialog: Shown) => void
 }) {
   return (
-    <table className="table students-table">
+    <table className="table table--stack students-table">
       <thead>
         <tr>
           <th>Učenik</th>
@@ -484,10 +484,10 @@ function StudentsTable({
                 </IconButton>
               </div>
             </td>
-            <td>
+            <td data-label="Roditelj">
               <ParentCell student={student} parent={student.parents[0]} onDialog={onDialog} />
             </td>
-            <td>
+            <td data-label="Drugi roditelj">
               <ParentCell
                 student={student}
                 parent={student.parents[1]}
@@ -512,7 +512,7 @@ function UnassignedTable({
   onRequest: (student: UnassignedStudent) => void
 }) {
   return (
-    <table className="table">
+    <table className="table table--stack">
       <thead>
         <tr>
           <th>Učenik</th>
@@ -530,9 +530,9 @@ function UnassignedTable({
               <strong>{fullName(student)}</strong>
               <div className="muted">{student.email}</div>
             </td>
-            <td>{student.school ?? '—'}</td>
-            <td>
-              <ClassCell grade={student.grade} section={student.section} />
+            <td data-label="Škola">{student.school ?? '—'}</td>
+            <td data-label="Razred">
+              <ClassCell grade={student.grade} />
             </td>
             <td className="table__actions">
               {student.requested ? (

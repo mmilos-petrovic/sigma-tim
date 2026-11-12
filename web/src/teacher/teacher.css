@@ -347,3 +347,52 @@
   padding-top: 0.75rem;
   border-top: 1px dashed var(--border);
 }
+
+/*
+ * On a phone a row of the tables of students is stacked instead of scrolled sideways: the name first, then each of the
+ * other cells under it with a small label (the head of the table is kept for screen readers only).
+ */
+@media (max-width: 700px) {
+  .table--stack,
+  .table--stack tbody,
+  .table--stack tr,
+  .table--stack td,
+  .table--stack td.table__actions {
+    display: block;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .table--stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .table--stack tr {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table--stack tr:last-child {
+    border-bottom: 0;
+  }
+
+  .table--stack td,
+  .table--stack td.table__actions {
+    width: auto;
+    padding: 0.2rem 0.75rem;
+    border: 0;
+  }
+
+  .table--stack td[data-label]::before {
+    display: block;
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
