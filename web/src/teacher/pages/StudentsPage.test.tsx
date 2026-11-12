@@ -19,7 +19,9 @@ describe("the teacher's students", () => {
     const headers = Array.from(screen.getAllByRole('table')[0].querySelectorAll('th')).map(
       (cell) => cell.textContent,
     )
-    expect(headers).toEqual(['Učenik', 'Roditelj', 'Drugi roditelj'])
+    // one head over the two places for a parent, and no "second parent" label anywhere
+    expect(headers).toEqual(['Učenik', 'Roditelji'])
+    expect(screen.queryByText(/Drugi roditelj/)).not.toBeInTheDocument()
     expect(ana.getByText('Mira Petrović')).toBeInTheDocument()
     expect(ana.getByText('Zoran Petrović')).toBeInTheDocument()
     // two parents: nothing to add

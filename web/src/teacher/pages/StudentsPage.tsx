@@ -458,8 +458,7 @@ function StudentsTable({
       <thead>
         <tr>
           <th>Učenik</th>
-          <th>Roditelj</th>
-          <th>Drugi roditelj</th>
+          <th colSpan={2}>Roditelji</th>
         </tr>
       </thead>
       <tbody>
@@ -484,10 +483,10 @@ function StudentsTable({
                 </IconButton>
               </div>
             </td>
-            <td data-label="Roditelj">
+            <td data-label="Roditelji">
               <ParentCell student={student} parent={student.parents[0]} onDialog={onDialog} />
             </td>
-            <td data-label="Drugi roditelj">
+            <td>
               <ParentCell
                 student={student}
                 parent={student.parents[1]}
