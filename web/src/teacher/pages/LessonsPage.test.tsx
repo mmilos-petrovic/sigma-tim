@@ -177,7 +177,7 @@ describe('working on a lesson from the list', () => {
     const dialog = await inDialog('Fizika')
     expect(dialog.getByRole('checkbox', { name: 'Plaćeno za Ana Petrović' })).toBeInTheDocument()
     expect(dialog.getByLabelText('Napomena za Luka Ilić')).toBeInTheDocument()
-    expect(dialog.getByRole('button', { name: 'Izmeni čas' })).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Izmeni' })).toBeInTheDocument()
   })
 
   it('records an outcome, and the row says so', async () => {
@@ -187,7 +187,7 @@ describe('working on a lesson from the list', () => {
     const dialog = await inDialog('Matematika')
     await userEvent.click(dialog.getByRole('button', { name: 'Održan' }))
     expect(teacherApi.setOutcome).toHaveBeenCalledWith('les-today', 'held')
-    await userEvent.click(dialog.getByRole('button', { name: 'Zatvori' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Odustani' }))
     await waitFor(async () => expect(rows(await past())[0]).toHaveTextContent('Održan'))
   })
 
@@ -198,7 +198,7 @@ describe('working on a lesson from the list', () => {
     const dialog = await inDialog('Matematika')
     await userEvent.click(dialog.getByRole('checkbox', { name: 'Plaćeno za Ana Petrović' }))
     expect(teacherApi.setPaid).toHaveBeenCalledWith('les-today', 'st-ana', true)
-    await userEvent.click(dialog.getByRole('button', { name: 'Zatvori' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Odustani' }))
     await waitFor(async () => expect(rows(await past())[0]).toHaveTextContent('Plaćeno'))
     expect(rows(await past())[0].textContent).not.toContain('Nije plaćeno')
   })
@@ -207,7 +207,7 @@ describe('working on a lesson from the list', () => {
     const { teacherApi } = renderTeacher(PATH)
     await page('Časovi')
     await userEvent.click(rows(await upcoming())[1].querySelector('button')!)
-    await userEvent.click((await inDialog('Fizika')).getByRole('button', { name: 'Izmeni čas' }))
+    await userEvent.click((await inDialog('Fizika')).getByRole('button', { name: 'Izmeni' }))
     const form = await inDialog('Izmena časa')
     await userEvent.selectOptions(form.getByLabelText('Učionica'), 'Učionica 2')
     await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
@@ -309,7 +309,7 @@ describe('only the lessons that were not paid for', () => {
     await userEvent.click(
       (await inDialog('Matematika')).getByRole('checkbox', { name: 'Plaćeno za Ana Petrović' }),
     )
-    await userEvent.click((await inDialog('Matematika')).getByRole('button', { name: 'Zatvori' }))
+    await userEvent.click((await inDialog('Matematika')).getByRole('button', { name: 'Odustani' }))
     await waitFor(async () => expect(rows(await past())).toHaveLength(1))
   })
 

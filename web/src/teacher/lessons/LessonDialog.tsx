@@ -28,7 +28,7 @@ function NoteEditor({
   const refresh = useRefresh()
   const name = student ? fullName(student) : 'Nepoznat učenik'
   const [text, setText] = useState(participant.note ?? '')
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
+  const [message, setMessage] = useState<{ text: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
   const save = async () => {
@@ -38,9 +38,8 @@ function NoteEditor({
     try {
       await api.setNote(lesson.id, participant.studentId, text.trim() || null)
       await refresh()
-      setMessage({ text: 'Napomena je sačuvana.', error: false })
     } catch (failure) {
-      setMessage({ text: explainError(failure, 'setNote'), error: true })
+      setMessage({ text: explainError(failure, 'setNote') })
     } finally {
       setBusy(false)
     }
@@ -71,10 +70,7 @@ function NoteEditor({
         Sačuvaj napomenu
       </button>
       {message && (
-        <p
-          role={message.error ? 'alert' : 'status'}
-          className={message.error ? 'form-error' : 'muted'}
-        >
+        <p role="alert" className="form-error">
           {message.text}
         </p>
       )}
@@ -183,10 +179,11 @@ export function LessonDialog({
     )
   }
 
+  // A change is not announced (the screen shows it); a failure is. Only the answer to a request says so, in `text`.
   const run = async (
     action: () => Promise<void>,
     key: Parameters<typeof explainError>[1],
-    text: string,
+    text?: string,
   ) => {
     if (busy) return
     setBusy(true)
@@ -194,7 +191,7 @@ export function LessonDialog({
     try {
       await action()
       await refresh()
-      setMessage({ text, error: false })
+      if (text) setMessage({ text, error: false })
     } catch (failure) {
       setMessage({ text: explainError(failure, key), error: true })
       await refresh()
@@ -234,12 +231,6 @@ export function LessonDialog({
         )}
       </dl>
 
-      {state.locked && !isSlot && (
-        <p className="notice notice--locked">
-          Dan ovog časa je prošao ili je upisan ishod: predmet, mesto i vreme se više ne menjaju.
-        </p>
-      )}
-
       {!isSlot && (
         <section>
           <h3>Učenici</h3>
@@ -260,9 +251,6 @@ export function LessonDialog({
                       void run(
                         () => api.setPaid(lesson.id, participant.studentId, event.target.checked),
                         'setPaid',
-                        event.target.checked
-                          ? 'Označeno je da je čas plaćen.'
-                          : 'Oznaka je uklonjena.',
                       )
                     }
                   />
@@ -284,13 +272,7 @@ export function LessonDialog({
                 type="button"
                 className="button button--small button--secondary"
                 disabled={busy || lesson.outcome === 'held'}
-                onClick={() =>
-                  void run(
-                    () => api.setOutcome(lesson.id, 'held'),
-                    'setOutcome',
-                    'Ishod je upisan.',
-                  )
-                }
+                onClick={() => void run(() => api.setOutcome(lesson.id, 'held'), 'setOutcome')}
               >
                 Održan
               </button>
@@ -298,13 +280,7 @@ export function LessonDialog({
                 type="button"
                 className="button button--small button--secondary"
                 disabled={busy || lesson.outcome === 'not_held'}
-                onClick={() =>
-                  void run(
-                    () => api.setOutcome(lesson.id, 'not_held'),
-                    'setOutcome',
-                    'Ishod je upisan.',
-                  )
-                }
+                onClick={() => void run(() => api.setOutcome(lesson.id, 'not_held'), 'setOutcome')}
               >
                 Nije održan
               </button>
@@ -313,13 +289,7 @@ export function LessonDialog({
                   type="button"
                   className="button button--small button--secondary"
                   disabled={busy}
-                  onClick={() =>
-                    void run(
-                      () => api.setOutcome(lesson.id, null),
-                      'setOutcome',
-                      'Ishod je obrisan.',
-                    )
-                  }
+                  onClick={() => void run(() => api.setOutcome(lesson.id, null), 'setOutcome')}
                 >
                   Obriši ishod
                 </button>
@@ -367,23 +337,24 @@ export function LessonDialog({
             </button>
           </>
         )}
-        {lesson.status === 'confirmed' && (
-          <button type="button" className="button button--secondary" onClick={onEdit}>
-            Izmeni čas
-          </button>
-        )}
+        {/* cancelling, removing or deleting is red and stays apart on the left of the two usual buttons */}
         {state.canCancel && lesson.status !== 'pending' && (
           <button
             type="button"
-            className="button button--secondary"
+            className="button button--danger actions__apart"
             onClick={() => setConfirming(true)}
           >
             {CANCEL.open}
           </button>
         )}
         <button type="button" className="button button--secondary" onClick={onClose}>
-          Zatvori
+          Odustani
         </button>
+        {lesson.status === 'confirmed' && (
+          <button type="button" className="button" onClick={onEdit}>
+            Izmeni
+          </button>
+        )}
       </div>
     </Dialog>
   )

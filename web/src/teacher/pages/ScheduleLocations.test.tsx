@@ -212,9 +212,7 @@ describe('the forms', () => {
     renderTeacher(PATH, { api: createFakeTeacherApi(school(['l-zemun'])) })
     await page('Moj raspored')
     await userEvent.click(await block(AT_MAIN))
-    await userEvent.click(
-      (await inDialog('Matematika')).getByRole('button', { name: 'Izmeni čas' }),
-    )
+    await userEvent.click((await inDialog('Matematika')).getByRole('button', { name: 'Izmeni' }))
     const form = await inDialog('Izmena časa')
     expect(form.getByLabelText('Lokacija')).toHaveValue('l-main')
     expect(optionNames(form.getByLabelText('Lokacija'))).toEqual(['Glavna lokacija', 'Zemun'])
@@ -224,9 +222,7 @@ describe('the forms', () => {
     renderTeacher(PATH, { api: createFakeTeacherApi(school(['l-main', 'l-novi'])) })
     await page('Moj raspored')
     await userEvent.click(await block(AT_MAIN))
-    await userEvent.click(
-      (await inDialog('Matematika')).getByRole('button', { name: 'Izmeni čas' }),
-    )
+    await userEvent.click((await inDialog('Matematika')).getByRole('button', { name: 'Izmeni' }))
     const form = await inDialog('Izmena časa')
     expect(optionNames(form.getByLabelText('Lokacija'))).toEqual([
       'Glavna lokacija',
@@ -258,9 +254,7 @@ describe('the forms', () => {
     await userEvent.click(form.getByRole('button', { name: 'Odustani' }))
 
     await userEvent.click(await block(AT_MAIN))
-    await userEvent.click(
-      (await inDialog('Matematika')).getByRole('button', { name: 'Izmeni čas' }),
-    )
+    await userEvent.click((await inDialog('Matematika')).getByRole('button', { name: 'Izmeni' }))
     form = await inDialog('Izmena časa')
     await userEvent.selectOptions(form.getByLabelText('Lokacija'), 'Zemun')
     api.failNext('updateLesson', refusal())

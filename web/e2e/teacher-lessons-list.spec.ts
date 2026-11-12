@@ -115,14 +115,13 @@ test.describe("the teacher's list of lessons", () => {
         const box = open.getByRole('checkbox', { name: 'Plaćeno za Luka Ilić' })
         await box.click()
         await expect(box).toBeChecked()
-        await expect(open.getByText('Označeno je da je čas plaćen.')).toBeVisible()
         const [mark] = await select<{ paid_at: string | null }>(
           request,
           ana,
           `lesson_students?select=paid_at&lesson_id=eq.${past[0]}`,
         )
         expect(mark.paid_at).not.toBeNull()
-        await open.getByRole('button', { name: 'Zatvori' }).click()
+        await open.getByRole('button', { name: 'Odustani' }).click()
         await expect(unpaidRow).toHaveCount(0)
         await page.getByLabel('Samo nenaplaćeni').uncheck()
         await expect(unpaidRow.first()).toContainText('Plaćeno')

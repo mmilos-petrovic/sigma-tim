@@ -186,14 +186,17 @@ test.describe("the teacher's schedule", () => {
         const lesson = dialog(page, 'Matematika')
         await lesson.getByLabel('Napomena za Luka Ilić').fill('Ponoviti razlomke')
         await lesson.getByRole('button', { name: 'Sačuvaj napomenu za Luka Ilić' }).click()
-        await expect(lesson.getByText('Napomena je sačuvana.')).toBeVisible()
+        // saved: the button has nothing left to save (a change is not announced)
+        await expect(
+          lesson.getByRole('button', { name: 'Sačuvaj napomenu za Luka Ilić' }),
+        ).toBeDisabled()
         const [first] = await lessons()
         expect(first.participants.map((p) => p.note)).toEqual(['Ponoviti razlomke'])
       })
 
       await test.step('changes who attends', async () => {
         const lesson = dialog(page, 'Matematika')
-        await lesson.getByRole('button', { name: 'Izmeni čas' }).click()
+        await lesson.getByRole('button', { name: 'Izmeni', exact: true }).click()
         const form = dialog(page, 'Izmena časa')
         await form.getByRole('checkbox', { name: 'Mina Ilić' }).check()
         await form.getByRole('button', { name: 'Sačuvaj' }).click()
@@ -323,7 +326,7 @@ test.describe("the teacher's schedule", () => {
         await block.click()
         const lesson = dialog(page, 'Matematika')
         await lesson.getByRole('button', { name: 'Održan', exact: true }).click()
-        await expect(lesson.getByText('Ishod je upisan.')).toBeVisible()
+        await expect(lesson.getByRole('button', { name: 'Održan', exact: true })).toBeDisabled()
         const mine = (await lessons()).find(
           (l) => clock(l.start_at) === from && l.status === 'confirmed',
         )!
@@ -334,10 +337,9 @@ test.describe("the teacher's schedule", () => {
         )
         expect(held.length).toBeGreaterThanOrEqual(1)
 
-        // an outcome freezes the lesson: the form says so, and the database would refuse anyway
-        await lesson.getByRole('button', { name: 'Izmeni čas' }).click()
+        // an outcome freezes the lesson: the form disables what is frozen, and the database would refuse anyway
+        await lesson.getByRole('button', { name: 'Izmeni', exact: true }).click()
         const edit = dialog(page, 'Izmena časa')
-        await expect(edit.getByText(/Dan ovog časa je prošao ili je upisan ishod/)).toBeVisible()
         await expect(edit.getByLabel('Početak', { exact: true })).toBeDisabled()
         await edit.getByRole('button', { name: 'Odustani' }).click()
 
@@ -345,7 +347,9 @@ test.describe("the teacher's schedule", () => {
         // lesson of a day that has begun cannot be deleted
         await block.click()
         await dialog(page, 'Matematika').getByRole('button', { name: 'Obriši ishod' }).click()
-        await expect(dialog(page, 'Matematika').getByText('Ishod je obrisan.')).toBeVisible()
+        await expect(
+          dialog(page, 'Matematika').getByRole('button', { name: 'Obriši ishod' }),
+        ).toHaveCount(0)
         const cleared = await select<{ id: string }>(
           request,
           ana,

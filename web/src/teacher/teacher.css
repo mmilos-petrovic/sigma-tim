@@ -432,3 +432,8 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* In a row of buttons that ends on the right, one that sits apart on the left (cancelling a lesson). */
+.actions__apart {
+  margin-right: auto;
+}
