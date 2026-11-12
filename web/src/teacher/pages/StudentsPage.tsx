@@ -1,20 +1,16 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { AdminError } from '../../admin/adminApi'
 import { explainError } from '../../admin/errors'
+import { AddIcon, DeleteIcon, EditIcon, IconButton, ViewIcon } from '../../components/ActionIcons'
 import { DeleteStudentDialog } from '../../components/DeleteStudentDialog'
+import { Dialog } from '../../components/Dialog'
 import { Field, FormDialog } from '../../components/FormDialog'
 import { Loaded, Notice, PageHeader } from '../../components/Loaded'
-import { PhoneDialog, PhoneLine } from '../../components/PhoneDialog'
-import { normalizePhone, phoneProblem } from '../../lib/phone'
+import { formatGrade, gradeProblem } from '../../lib/grade'
+import { formatPhone, normalizePhone, phoneProblem } from '../../lib/phone'
 import { useTeacherApi } from '../TeacherApiProvider'
 import { useRefresh, useStudentCounts, useStudents, useUnassigned } from '../queries'
-import {
-  MAX_PARENTS,
-  type ParentRow,
-  type StudentCount,
-  type StudentRow,
-  type UnassignedStudent,
-} from '../teacherApi'
+import { type ParentRow, type StudentRow, type UnassignedStudent } from '../teacherApi'
 
 const EMAIL_FORMAT = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
@@ -31,15 +27,14 @@ function personProblem(email: string | null, firstName: string, lastName: string
   return null
 }
 
-type Dialog =
+type Shown =
   | { kind: 'addStudent' }
+  | { kind: 'viewStudent'; student: StudentRow }
   | { kind: 'editStudent'; student: StudentRow }
-  | { kind: 'changeEmail'; student: StudentRow }
   | { kind: 'addParent'; student: StudentRow }
   | { kind: 'editParent'; parent: ParentRow }
   | { kind: 'removeParent'; student: StudentRow; parent: ParentRow }
   | { kind: 'deleteStudent'; student: StudentRow; upcoming: number }
-  | { kind: 'phone'; profileId: string; name: string; phone: string | null; required: boolean }
   | null
 
 interface DialogProps {
@@ -69,7 +64,6 @@ function AddStudentDialog({
   const [lastName, setLastName] = useState('')
   const [school, setSchool] = useState('')
   const [grade, setGrade] = useState('')
-  const [section, setSection] = useState('')
   const [phone, setPhone] = useState('')
 
   return (
@@ -79,7 +73,10 @@ function AddStudentDialog({
       submitLabel="Dodaj"
       onClose={onClose}
       validate={() => {
-        const problem = personProblem(email, firstName, lastName) ?? phoneProblem(phone, false)
+        const problem =
+          personProblem(email, firstName, lastName) ??
+          phoneProblem(phone, false) ??
+          gradeProblem(grade)
         if (problem) return problem
         const lower = normalizeEmail(email)
         if (students.some((student) => student.email === lower)) {
@@ -98,7 +95,7 @@ function AddStudentDialog({
           lastName: lastName.trim(),
           school: orNull(school),
           grade: orNull(grade),
-          section: orNull(section),
+          section: null,
           phone: normalizePhone(phone),
         })
         await refresh()
@@ -115,8 +112,7 @@ function AddStudentDialog({
       <Field label="Ime" value={firstName} onChange={setFirstName} maxLength={100} />
       <Field label="Prezime" value={lastName} onChange={setLastName} maxLength={100} />
       <Field label="Škola" value={school} onChange={setSchool} maxLength={200} />
-      <Field label="Razred" value={grade} onChange={setGrade} maxLength={50} />
-      <Field label="Odeljenje" value={section} onChange={setSection} maxLength={50} />
+      <Field label="Razred" value={grade} onChange={setGrade} maxLength={2} />
       <Field
         label="Telefon učenika (nije obavezan)"
         type="tel"
@@ -128,14 +124,57 @@ function AddStudentDialog({
   )
 }
 
-function EditStudentDialog({ student, onClose, onDone }: DialogProps & { student: StudentRow }) {
+function ViewStudentDialog({ student, onClose }: { student: StudentRow; onClose: () => void }) {
+  const rows: [string, string | null][] = [
+    ['Ime i prezime', fullName(student)],
+    ['Email adresa', student.email],
+    ['Broj telefona', student.phone ? formatPhone(student.phone) : null],
+    ['Škola', student.school],
+    ['Razred', formatGrade(student.grade)],
+  ]
+  return (
+    <Dialog title="Učenik" onClose={onClose}>
+      <dl className="details">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value || '—'}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="actions actions--end">
+        <button type="button" className="button" onClick={onClose}>
+          Zatvori
+        </button>
+      </div>
+    </Dialog>
+  )
+}
+
+/** Name, email, number, school and class of a student; also where a student without a held lesson is deleted. */
+function EditStudentDialog({
+  student,
+  canDelete,
+  onDelete,
+  onClose,
+  onDone,
+}: DialogProps & {
+  student: StudentRow
+  /** Only a student with no lesson recorded as held can be deleted. */
+  canDelete: boolean
+  onDelete: () => void
+}) {
   const api = useTeacherApi()
   const refresh = useRefresh()
   const [firstName, setFirstName] = useState(student.firstName)
   const [lastName, setLastName] = useState(student.lastName)
+  const [email, setEmail] = useState(student.email)
+  const [phone, setPhone] = useState(student.phone ? formatPhone(student.phone) : '')
   const [school, setSchool] = useState(student.school ?? '')
   const [grade, setGrade] = useState(student.grade ?? '')
-  const [section, setSection] = useState(student.section ?? '')
+  // which of the saves is under way, to explain the one that fails in its own words
+  const step = useRef<'email' | 'name' | 'details' | 'phone'>('details')
+  const emailChanged = normalizeEmail(email) !== student.email
 
   return (
     <FormDialog
@@ -143,24 +182,48 @@ function EditStudentDialog({ student, onClose, onDone }: DialogProps & { student
       action="updateStudent"
       submitLabel="Sačuvaj"
       onClose={onClose}
-      validate={() => personProblem(null, firstName, lastName)}
+      validate={() =>
+        personProblem(email, firstName, lastName) ??
+        phoneProblem(phone, false) ??
+        gradeProblem(grade, student.grade)
+      }
+      explain={(failure) => {
+        if (step.current === 'email') return explainError(failure, 'changeStudentEmail')
+        if (step.current === 'name') return explainError(failure, 'renamePerson')
+        if (step.current === 'phone') return explainError(failure, 'setPhone')
+        return null
+      }}
       onSubmit={async () => {
+        const nextEmail = normalizeEmail(email)
+        const nextPhone = phone.trim() === '' ? null : normalizePhone(phone)
         const nameChanged =
           firstName.trim() !== student.firstName || lastName.trim() !== student.lastName
-        const details = { school: orNull(school), grade: orNull(grade), section: orNull(section) }
-        const detailsChanged =
-          details.school !== student.school ||
-          details.grade !== student.grade ||
-          details.section !== student.section
-        if (!nameChanged && !detailsChanged) {
+        // the section of the class is no longer asked for or shown, and what is stored stays as it is
+        const details = { school: orNull(school), grade: orNull(grade), section: student.section }
+        const detailsChanged = details.school !== student.school || details.grade !== student.grade
+        const phoneChanged = nextPhone !== student.phone
+        if (!emailChanged && !nameChanged && !detailsChanged && !phoneChanged) {
           onDone(null)
           return
         }
         try {
+          // the email first: it is the one most likely to be refused, and then nothing else has been saved
+          if (emailChanged) {
+            step.current = 'email'
+            await api.changeStudentEmail(student.id, nextEmail)
+          }
           if (nameChanged) {
+            step.current = 'name'
             await api.renamePerson(student.profileId, firstName.trim(), lastName.trim())
           }
-          if (detailsChanged) await api.updateStudentDetails(student.id, details)
+          if (detailsChanged) {
+            step.current = 'details'
+            await api.updateStudentDetails(student.id, details)
+          }
+          if (phoneChanged) {
+            step.current = 'phone'
+            await api.setPhone(student.profileId, nextPhone)
+          }
         } finally {
           // whatever was saved before a failure is shown as it is
           await refresh()
@@ -168,52 +231,33 @@ function EditStudentDialog({ student, onClose, onDone }: DialogProps & { student
         onDone('Podaci su sačuvani.')
       }}
     >
-      <ReadOnly label="Email adresa" value={student.email} />
       <Field label="Ime" value={firstName} onChange={setFirstName} maxLength={100} />
       <Field label="Prezime" value={lastName} onChange={setLastName} maxLength={100} />
-      <Field label="Škola" value={school} onChange={setSchool} maxLength={200} />
-      <Field label="Razred" value={grade} onChange={setGrade} maxLength={50} />
-      <Field label="Odeljenje" value={section} onChange={setSection} maxLength={50} />
-    </FormDialog>
-  )
-}
-
-function ChangeEmailDialog({ student, onClose, onDone }: DialogProps & { student: StudentRow }) {
-  const api = useTeacherApi()
-  const refresh = useRefresh()
-  const [email, setEmail] = useState('')
-
-  return (
-    <FormDialog
-      title="Promena email adrese"
-      action="changeStudentEmail"
-      submitLabel="Promeni"
-      onClose={onClose}
-      validate={() => {
-        if (!EMAIL_FORMAT.test(normalizeEmail(email))) return 'Email adresa nije ispravna.'
-        if (normalizeEmail(email) === student.email) return 'To je trenutna email adresa učenika.'
-        return null
-      }}
-      onSubmit={async () => {
-        await api.changeStudentEmail(student.id, normalizeEmail(email))
-        await refresh()
-        onDone('Email adresa je promenjena.')
-      }}
-    >
-      <ReadOnly label="Učenik" value={fullName(student)} />
-      <ReadOnly label="Trenutna email adresa" value={student.email} />
-      <p>
-        Stari Google nalog odmah gubi pristup. Učenik se posle promene prijavljuje novom adresom.
-        {student.hasSignedIn &&
-          ' Ovaj učenik se već prijavljivao: bez nove adrese neće moći da uđe.'}
-      </p>
+      <Field label="Email adresa" type="email" value={email} onChange={setEmail} maxLength={254} />
+      {emailChanged && (
+        <p className="notice notice--locked">
+          Stari Google nalog odmah gubi pristup. Učenik se posle promene prijavljuje novom adresom.
+          {student.hasSignedIn &&
+            ' Ovaj učenik se već prijavljivao: bez nove adrese neće moći da uđe.'}
+        </p>
+      )}
       <Field
-        label="Nova email adresa"
-        type="email"
-        value={email}
-        onChange={setEmail}
-        maxLength={254}
+        label="Broj telefona (nije obavezan)"
+        type="tel"
+        value={phone}
+        onChange={setPhone}
+        maxLength={30}
       />
+      <Field label="Škola" value={school} onChange={setSchool} maxLength={200} />
+      <Field label="Razred" value={grade} onChange={setGrade} maxLength={2} />
+      {canDelete && (
+        <div className="danger-zone">
+          <IconButton label={`Obriši učenika ${fullName(student)}`} danger onClick={onDelete}>
+            <DeleteIcon />
+          </IconButton>
+          <span className="muted">Briše učenika; roditelji gube pristup njegovim podacima.</span>
+        </div>
+      )}
     </FormDialog>
   )
 }
@@ -273,6 +317,8 @@ function EditParentDialog({ parent, onClose, onDone }: DialogProps & { parent: P
   const refresh = useRefresh()
   const [firstName, setFirstName] = useState(parent.firstName)
   const [lastName, setLastName] = useState(parent.lastName)
+  const [phone, setPhone] = useState(parent.phone ? formatPhone(parent.phone) : '')
+  const step = useRef<'name' | 'phone'>('name')
 
   return (
     <FormDialog
@@ -280,20 +326,36 @@ function EditParentDialog({ parent, onClose, onDone }: DialogProps & { parent: P
       action="renamePerson"
       submitLabel="Sačuvaj"
       onClose={onClose}
-      validate={() => personProblem(null, firstName, lastName)}
+      validate={() => personProblem(null, firstName, lastName) ?? phoneProblem(phone, true)}
+      explain={(failure) => (step.current === 'phone' ? explainError(failure, 'setPhone') : null)}
       onSubmit={async () => {
-        if (firstName.trim() === parent.firstName && lastName.trim() === parent.lastName) {
+        const nextPhone = normalizePhone(phone)
+        const nameChanged =
+          firstName.trim() !== parent.firstName || lastName.trim() !== parent.lastName
+        const phoneChanged = nextPhone !== parent.phone
+        if (!nameChanged && !phoneChanged) {
           onDone(null)
           return
         }
-        await api.renamePerson(parent.id, firstName.trim(), lastName.trim())
-        await refresh()
+        try {
+          if (nameChanged) {
+            step.current = 'name'
+            await api.renamePerson(parent.id, firstName.trim(), lastName.trim())
+          }
+          if (phoneChanged) {
+            step.current = 'phone'
+            await api.setPhone(parent.id, nextPhone)
+          }
+        } finally {
+          await refresh()
+        }
         onDone('Podaci su sačuvani.')
       }}
     >
       <ReadOnly label="Email adresa" value={parent.email} />
       <Field label="Ime" value={firstName} onChange={setFirstName} maxLength={100} />
       <Field label="Prezime" value={lastName} onChange={setLastName} maxLength={100} />
+      <Field label="Broj telefona" type="tel" value={phone} onChange={setPhone} maxLength={30} />
     </FormDialog>
   )
 }
@@ -331,178 +393,107 @@ function RemoveParentDialog({
   )
 }
 
-/** The number of a student (optional) or of a parent (required). */
-function PersonPhoneDialog({
-  profileId,
-  name,
-  phone,
-  required,
-  onClose,
-  onDone,
-}: DialogProps & { profileId: string; name: string; phone: string | null; required: boolean }) {
-  const api = useTeacherApi()
-  const refresh = useRefresh()
+function ClassCell({ grade }: { grade: string | null }) {
+  return <>{formatGrade(grade) ?? '—'}</>
+}
+
+/** A parent in the table: the name with an edit and a delete icon, or a button to add one. */
+function ParentCell({
+  student,
+  parent,
+  second = false,
+  onDialog,
+}: {
+  student: StudentRow
+  parent: ParentRow | undefined
+  /** The place for the second parent: its button is named so, since a student with no parent has two. */
+  second?: boolean
+  onDialog: (dialog: Shown) => void
+}) {
+  if (!parent) {
+    return (
+      <button
+        type="button"
+        className="button button--small button--secondary person-cell__add"
+        aria-label={`${second ? 'Dodaj drugog roditelja' : 'Dodaj roditelja'} učeniku ${fullName(student)}`}
+        onClick={() => onDialog({ kind: 'addParent', student })}
+      >
+        <AddIcon /> Dodaj
+      </button>
+    )
+  }
   return (
-    <PhoneDialog
-      personName={name}
-      current={phone}
-      required={required}
-      save={async (next) => {
-        await api.setPhone(profileId, next)
-        await refresh()
-      }}
-      onClose={onClose}
-      onDone={onDone}
-    />
+    <div className="person-cell">
+      <span className="person-cell__name">
+        {fullName(parent)}
+        {!parent.phone && <span className="badge badge--warn">nedostaje broj</span>}
+      </span>
+      <IconButton
+        label={`Izmeni roditelja ${fullName(parent)}`}
+        onClick={() => onDialog({ kind: 'editParent', parent })}
+      >
+        <EditIcon />
+      </IconButton>
+      <IconButton
+        label={`Ukloni roditelja ${fullName(parent)}`}
+        danger
+        onClick={() => onDialog({ kind: 'removeParent', student, parent })}
+      >
+        <DeleteIcon />
+      </IconButton>
+    </div>
   )
 }
 
-function ClassCell({ grade, section }: { grade: string | null; section: string | null }) {
-  const text = [grade, section].filter(Boolean).join(' ')
-  return <>{text || '—'}</>
-}
-
+/** A row a student: the student with a view and an edit icon, then the two places for a parent. */
 function StudentsTable({
   rows,
-  counts,
   onDialog,
 }: {
   rows: StudentRow[]
-  /** What each student has in lessons; empty while unknown, and then nobody can be deleted. */
-  counts: ReadonlyMap<string, StudentCount>
-  onDialog: (dialog: Dialog) => void
+  onDialog: (dialog: Shown) => void
 }) {
   return (
-    <table className="table">
+    <table className="table table--stack students-table">
       <thead>
         <tr>
           <th>Učenik</th>
-          <th>Škola</th>
-          <th>Razred</th>
-          <th>Roditelji</th>
-          <th>
-            <span className="visually-hidden">Radnje</span>
-          </th>
+          <th>Roditelj</th>
+          <th>Drugi roditelj</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((student) => (
           <tr key={student.id}>
             <td>
-              <strong>{fullName(student)}</strong>
-              <div className="muted">{student.email}</div>
-              <PhoneLine phone={student.phone} required={false} />
-            </td>
-            <td>{student.school ?? '—'}</td>
-            <td>
-              <ClassCell grade={student.grade} section={student.section} />
-            </td>
-            <td>
-              {student.parents.length === 0 ? (
-                <span className="muted">Nema roditelja</span>
-              ) : (
-                <ul className="plain-list">
-                  {student.parents.map((parent) => (
-                    <li key={parent.id}>
-                      <span>{fullName(parent)}</span>
-                      <div className="muted">{parent.email}</div>
-                      <PhoneLine phone={parent.phone} required />
-                      <button
-                        type="button"
-                        className="button button--small button--secondary"
-                        aria-label={`Telefon roditelja ${fullName(parent)}`}
-                        onClick={() =>
-                          onDialog({
-                            kind: 'phone',
-                            profileId: parent.id,
-                            name: fullName(parent),
-                            phone: parent.phone,
-                            required: true,
-                          })
-                        }
-                      >
-                        Telefon
-                      </button>
-                      <button
-                        type="button"
-                        className="button button--small button--secondary"
-                        aria-label={`Izmeni roditelja ${fullName(parent)}`}
-                        onClick={() => onDialog({ kind: 'editParent', parent })}
-                      >
-                        Izmeni
-                      </button>
-                      <button
-                        type="button"
-                        className="button button--small button--secondary"
-                        aria-label={`Ukloni roditelja ${fullName(parent)}`}
-                        onClick={() => onDialog({ kind: 'removeParent', student, parent })}
-                      >
-                        Ukloni
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </td>
-            <td className="table__actions">
-              <button
-                type="button"
-                className="button button--small button--secondary"
-                aria-label={`Izmeni učenika ${fullName(student)}`}
-                onClick={() => onDialog({ kind: 'editStudent', student })}
-              >
-                Izmeni
-              </button>
-              <button
-                type="button"
-                className="button button--small button--secondary"
-                aria-label={`Promeni email učeniku ${fullName(student)}`}
-                onClick={() => onDialog({ kind: 'changeEmail', student })}
-              >
-                Promeni email
-              </button>
-              <button
-                type="button"
-                className="button button--small button--secondary"
-                aria-label={`Telefon učenika ${fullName(student)}`}
-                onClick={() =>
-                  onDialog({
-                    kind: 'phone',
-                    profileId: student.profileId,
-                    name: fullName(student),
-                    phone: student.phone,
-                    required: false,
-                  })
-                }
-              >
-                Telefon
-              </button>
-              {student.parents.length < MAX_PARENTS && (
-                <button
-                  type="button"
-                  className="button button--small button--secondary"
-                  aria-label={`Dodaj roditelja učeniku ${fullName(student)}`}
-                  onClick={() => onDialog({ kind: 'addParent', student })}
+              <div className="person-cell">
+                <span className="person-cell__name">
+                  <strong>{fullName(student)}</strong>
+                </span>
+                <IconButton
+                  label={`Prikaži učenika ${fullName(student)}`}
+                  onClick={() => onDialog({ kind: 'viewStudent', student })}
                 >
-                  Dodaj roditelja
-                </button>
-              )}
-              {counts.get(student.id)?.heldLessons === 0 && (
-                <button
-                  type="button"
-                  className="button button--small button--secondary"
-                  aria-label={`Obriši učenika ${fullName(student)}`}
-                  onClick={() =>
-                    onDialog({
-                      kind: 'deleteStudent',
-                      student,
-                      upcoming: counts.get(student.id)?.upcomingLessons ?? 0,
-                    })
-                  }
+                  <ViewIcon />
+                </IconButton>
+                <IconButton
+                  label={`Izmeni učenika ${fullName(student)}`}
+                  onClick={() => onDialog({ kind: 'editStudent', student })}
                 >
-                  Obriši
-                </button>
-              )}
+                  <EditIcon />
+                </IconButton>
+              </div>
+            </td>
+            <td data-label="Roditelj">
+              <ParentCell student={student} parent={student.parents[0]} onDialog={onDialog} />
+            </td>
+            <td data-label="Drugi roditelj">
+              <ParentCell
+                student={student}
+                parent={student.parents[1]}
+                second
+                onDialog={onDialog}
+              />
             </td>
           </tr>
         ))}
@@ -521,7 +512,7 @@ function UnassignedTable({
   onRequest: (student: UnassignedStudent) => void
 }) {
   return (
-    <table className="table">
+    <table className="table table--stack">
       <thead>
         <tr>
           <th>Učenik</th>
@@ -539,9 +530,9 @@ function UnassignedTable({
               <strong>{fullName(student)}</strong>
               <div className="muted">{student.email}</div>
             </td>
-            <td>{student.school ?? '—'}</td>
-            <td>
-              <ClassCell grade={student.grade} section={student.section} />
+            <td data-label="Škola">{student.school ?? '—'}</td>
+            <td data-label="Razred">
+              <ClassCell grade={student.grade} />
             </td>
             <td className="table__actions">
               {student.requested ? (
@@ -571,7 +562,7 @@ export function StudentsPage() {
   const unassigned = useUnassigned()
   const studentCounts = useStudentCounts()
   const counts = new Map((studentCounts.data ?? []).map((count) => [count.studentId, count]))
-  const [dialog, setDialog] = useState<Dialog>(null)
+  const [dialog, setDialog] = useState<Shown>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [requestError, setRequestError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -612,7 +603,7 @@ export function StudentsPage() {
           rows.length === 0 ? (
             <p className="empty-note">Još nemate učenika. Dodajte prvog.</p>
           ) : (
-            <StudentsTable rows={rows} counts={counts} onDialog={setDialog} />
+            <StudentsTable rows={rows} onDialog={setDialog} />
           )
         }
       </Loaded>
@@ -646,27 +637,30 @@ export function StudentsPage() {
           onDone={done}
         />
       )}
-      {dialog?.kind === 'editStudent' && (
-        <EditStudentDialog student={dialog.student} onClose={() => setDialog(null)} onDone={done} />
+      {dialog?.kind === 'viewStudent' && (
+        <ViewStudentDialog student={dialog.student} onClose={() => setDialog(null)} />
       )}
-      {dialog?.kind === 'changeEmail' && (
-        <ChangeEmailDialog student={dialog.student} onClose={() => setDialog(null)} onDone={done} />
+      {dialog?.kind === 'editStudent' && (
+        <EditStudentDialog
+          student={dialog.student}
+          // while the lessons are not known, nobody is offered for deletion
+          canDelete={counts.get(dialog.student.id)?.heldLessons === 0}
+          onDelete={() =>
+            setDialog({
+              kind: 'deleteStudent',
+              student: dialog.student,
+              upcoming: counts.get(dialog.student.id)?.upcomingLessons ?? 0,
+            })
+          }
+          onClose={() => setDialog(null)}
+          onDone={done}
+        />
       )}
       {dialog?.kind === 'addParent' && (
         <AddParentDialog student={dialog.student} onClose={() => setDialog(null)} onDone={done} />
       )}
       {dialog?.kind === 'editParent' && (
         <EditParentDialog parent={dialog.parent} onClose={() => setDialog(null)} onDone={done} />
-      )}
-      {dialog?.kind === 'phone' && (
-        <PersonPhoneDialog
-          profileId={dialog.profileId}
-          name={dialog.name}
-          phone={dialog.phone}
-          required={dialog.required}
-          onClose={() => setDialog(null)}
-          onDone={done}
-        />
       )}
       {dialog?.kind === 'deleteStudent' && (
         <DeleteStudentDialog
