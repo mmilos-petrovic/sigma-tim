@@ -105,11 +105,23 @@ test.describe('deleting a student', () => {
       await expect(page.getByRole('heading', { name: 'Učenici', level: 1 })).toBeVisible()
 
       const rowOf = (key: string) => page.getByRole('row', { name: new RegExp(name(key)) })
+      // deleting is offered in the form that edits the student
+      const editOf = async (key: string) => {
+        await rowOf(key)
+          .getByRole('button', { name: /^Izmeni učenika/ })
+          .click()
+        return dialog(page, 'Izmena učenika')
+      }
       await expect(rowOf('a')).toBeVisible()
-      await expect(rowOf('a').getByRole('button', { name: /^Obriši učenika/ })).toBeVisible()
+      let edit = await editOf('a')
+      await expect(edit.getByRole('button', { name: /^Obriši učenika/ })).toBeVisible()
+      await edit.getByRole('button', { name: 'Odustani' }).click()
       // b has had a lesson that took place: no button, and the database says no however it is asked
       await expect(rowOf('b')).toBeVisible()
-      await expect(rowOf('b').getByRole('button', { name: /^Obriši učenika/ })).toHaveCount(0)
+      edit = await editOf('b')
+      await expect(edit).toBeVisible()
+      await expect(edit.getByRole('button', { name: /^Obriši učenika/ })).toHaveCount(0)
+      await edit.getByRole('button', { name: 'Odustani' }).click()
       const { url, key } = localEnv()
       const refused = await request.post(`${url}/rest/v1/rpc/delete_student`, {
         headers: { apikey: key, Authorization: `Bearer ${ana}` },
@@ -118,9 +130,8 @@ test.describe('deleting a student', () => {
       expect(refused.status()).toBe(409)
       expect(count(`select count(*) from public.students where id = '${b}'`)).toBe(1)
 
-      await rowOf('a')
-        .getByRole('button', { name: /^Obriši učenika/ })
-        .click()
+      edit = await editOf('a')
+      await edit.getByRole('button', { name: /^Obriši učenika/ }).click()
       const confirm = dialog(page, 'Brisanje učenika')
       await expect(confirm).toContainText(name('a'))
       await expect(confirm.getByText(/Zakazani časovi koji će biti otkazani/)).toContainText('1')

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AdminError } from '../../admin/adminApi'
 import { INVALID_PHONE } from '../../lib/phone'
 import { createFakeTeacherApi, seedTeacher } from '../../test/fakeTeacherApi'
@@ -12,31 +12,58 @@ const button = (name: string | RegExp) => screen.findByRole('button', { name })
 const EMAIL = 'Email adresa (Google nalog)'
 
 describe("the teacher's students", () => {
-  it('lists the students with school, class and parents', async () => {
+  it('lists a student a row, with the parents next to them', async () => {
     renderTeacher(PATH)
     await page('Učenici')
-
     const ana = within(await row('Ana Petrović'))
-    expect(ana.getByText('ana.petrovic@example.test')).toBeInTheDocument()
-    expect(ana.getByText(/OŠ Vuk Karadžić/)).toBeInTheDocument()
-    expect(ana.getByText(/7\s*a/)).toBeInTheDocument()
+    const headers = Array.from(screen.getAllByRole('table')[0].querySelectorAll('th')).map(
+      (cell) => cell.textContent,
+    )
+    expect(headers).toEqual(['Učenik', 'Roditelj', 'Drugi roditelj'])
     expect(ana.getByText('Mira Petrović')).toBeInTheDocument()
     expect(ana.getByText('Zoran Petrović')).toBeInTheDocument()
+    // two parents: nothing to add
+    expect(ana.queryByRole('button', { name: /^Dodaj/ })).not.toBeInTheDocument()
 
+    // no parent: a place to add the first and one to add the second
     const luka = within(await row('Luka Ilić'))
-    expect(luka.getByText('Nema roditelja')).toBeInTheDocument()
+    expect(luka.getByRole('button', { name: 'Dodaj roditelja učeniku Luka Ilić' })).toBeVisible()
+    expect(
+      luka.getByRole('button', { name: 'Dodaj drugog roditelja učeniku Luka Ilić' }),
+    ).toBeVisible()
   })
 
-  it('shows the phone numbers, and marks a parent who has none', async () => {
+  it('keeps the row short: email, number, school and class are only in the view of the student', async () => {
+    renderTeacher(PATH)
+    await page('Učenici')
+    const ana = await row('Ana Petrović')
+    for (const text of ['ana.petrovic@example.test', 'OŠ Vuk Karadžić', '064 1110 001']) {
+      expect(ana).not.toHaveTextContent(text)
+    }
+  })
+
+  it('marks a parent who has no number, and nobody else', async () => {
     renderTeacher(PATH)
     await page('Učenici')
     const ana = within(await row('Ana Petrović'))
-    expect(ana.getByText('064 1110 001')).toBeInTheDocument() // the student's
-    expect(ana.getByText('064 1110 002')).toBeInTheDocument() // Mira's
     // Zoran has none: a parent is meant to have one
     expect(ana.getAllByText('nedostaje broj')).toHaveLength(1)
-    // a student without one is not a problem
     expect(within(await row('Luka Ilić')).queryByText('nedostaje broj')).not.toBeInTheDocument()
+  })
+
+  it('offers a view and an edit for a student, and an edit and a delete for a parent, no view', async () => {
+    renderTeacher(PATH)
+    await page('Učenici')
+    const ana = within(await row('Ana Petrović'))
+    expect(ana.getByRole('button', { name: 'Prikaži učenika Ana Petrović' })).toBeVisible()
+    expect(ana.getByRole('button', { name: 'Izmeni učenika Ana Petrović' })).toBeVisible()
+    for (const parent of ['Mira Petrović', 'Zoran Petrović']) {
+      expect(ana.getByRole('button', { name: `Izmeni roditelja ${parent}` })).toBeVisible()
+      expect(ana.getByRole('button', { name: `Ukloni roditelja ${parent}` })).toBeVisible()
+      expect(ana.queryByRole('button', { name: `Prikaži roditelja ${parent}` })).toBeNull()
+    }
+    // deleting a student is not in the row: it is in the form that edits them
+    expect(ana.queryByRole('button', { name: /^Obriši/ })).not.toBeInTheDocument()
   })
 
   it('says so when there are no students yet', async () => {
@@ -51,6 +78,37 @@ describe("the teacher's students", () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Nema veze sa serverom.')
     await userEvent.click(screen.getByRole('button', { name: 'Pokušaj ponovo' }))
     expect(await row('Ana Petrović')).toBeInTheDocument()
+  })
+
+  describe('viewing a student', () => {
+    it('shows name, email, number, school, class and section, and nothing to change', async () => {
+      renderTeacher(PATH)
+      await page('Učenici')
+      await userEvent.click(await button('Prikaži učenika Ana Petrović'))
+      const view = await inDialog('Učenik')
+      for (const text of [
+        'Ana Petrović',
+        'ana.petrovic@example.test',
+        '064 1110 001',
+        'OŠ Vuk Karadžić',
+      ]) {
+        expect(view.getByText(text)).toBeInTheDocument()
+      }
+      expect(view.getByText('Razred').nextSibling).toHaveTextContent('7')
+      expect(view.getByText('Odeljenje').nextSibling).toHaveTextContent('a')
+      expect(view.queryByRole('textbox')).not.toBeInTheDocument()
+
+      await userEvent.click(view.getByRole('button', { name: 'Zatvori' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('writes a dash for what is not known', async () => {
+      renderTeacher(PATH)
+      await page('Učenici')
+      await userEvent.click(await button('Prikaži učenika Luka Ilić'))
+      const view = await inDialog('Učenik')
+      expect(view.getByText('Broj telefona').nextSibling).toHaveTextContent('—')
+    })
   })
 
   describe('adding a student', () => {
@@ -112,7 +170,8 @@ describe("the teacher's students", () => {
       expect(teacherApi.addStudent).toHaveBeenCalledWith(
         expect.objectContaining({ phone: '+381651112222' }),
       )
-      expect(await within(await row('Novi Učenik')).findByText('065 1112 222')).toBeInTheDocument()
+      await userEvent.click(await button('Prikaži učenika Novi Učenik'))
+      expect(await (await inDialog('Učenik')).findByText('065 1112 222')).toBeInTheDocument()
     })
 
     it('does not accept something that is not a phone number, even though it is optional', async () => {
@@ -203,8 +262,33 @@ describe("the teacher's students", () => {
         lastName: 'Ilić',
         phone: '+381641234567',
       })
-      expect(within(await row('Luka Ilić')).getByText('Jelena Ilić')).toBeInTheDocument()
+      const luka = within(await row('Luka Ilić'))
+      expect(luka.getByText('Jelena Ilić')).toBeInTheDocument()
+      // the second place is still free, the first is not
+      expect(
+        luka.getByRole('button', { name: 'Dodaj drugog roditelja učeniku Luka Ilić' }),
+      ).toBeVisible()
+      expect(
+        luka.queryByRole('button', { name: 'Dodaj roditelja učeniku Luka Ilić' }),
+      ).not.toBeInTheDocument()
       expect(screen.getByRole('status')).toHaveTextContent('Roditelj je dodat.')
+    })
+
+    it('adds a second parent from the second place', async () => {
+      const { teacherApi } = renderTeacher(PATH)
+      await page('Učenici')
+      await userEvent.click(await button('Dodaj drugog roditelja učeniku Luka Ilić'))
+      const form = await inDialog('Novi roditelj')
+      await userEvent.type(form.getByLabelText(EMAIL), 'drugi@example.test')
+      await userEvent.type(form.getByLabelText('Ime'), 'Drugi')
+      await userEvent.type(form.getByLabelText('Prezime'), 'Roditelj')
+      await userEvent.type(form.getByLabelText('Telefon roditelja'), '+381 64 123 4567')
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      expect(teacherApi.addParent).toHaveBeenCalledWith(
+        'st-luka',
+        expect.objectContaining({ email: 'drugi@example.test' }),
+      )
+      expect(await within(await row('Luka Ilić')).findByText('Drugi Roditelj')).toBeInTheDocument()
     })
 
     it('requires the number of a parent, and wants it in the international form', async () => {
@@ -241,18 +325,6 @@ describe("the teacher's students", () => {
       await waitFor(() => expect(form.getByRole('alert')).toHaveTextContent(INVALID_PHONE))
     })
 
-    it('offers no more once a student has two parents', async () => {
-      renderTeacher(PATH)
-      await page('Učenici')
-      await row('Ana Petrović')
-      expect(
-        screen.queryByRole('button', { name: 'Dodaj roditelja učeniku Ana Petrović' }),
-      ).not.toBeInTheDocument()
-      expect(
-        screen.getByRole('button', { name: 'Dodaj roditelja učeniku Luka Ilić' }),
-      ).toBeInTheDocument()
-    })
-
     it("explains the database's limit if a second parent was added a moment ago", async () => {
       const { teacherApi } = renderTeacher(PATH)
       await page('Učenici')
@@ -277,41 +349,125 @@ describe("the teacher's students", () => {
       await userEvent.click(form.getByRole('button', { name: 'Ukloni' }))
 
       expect(teacherApi.removeParent).toHaveBeenCalledWith('st-ana', 'pr-zoran')
-      await screen.findByRole('button', { name: 'Dodaj roditelja učeniku Ana Petrović' }) // room for the corrected parent
+      // room for the corrected parent, in the second place
+      await screen.findByRole('button', { name: 'Dodaj drugog roditelja učeniku Ana Petrović' })
       const ana = within(await row('Ana Petrović'))
       expect(ana.queryByText('Zoran Petrović')).not.toBeInTheDocument()
       expect(ana.getByText('Mira Petrović')).toBeInTheDocument()
     })
 
-    it('renames a parent but shows the email only as text', async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      await page('Učenici')
-      await userEvent.click(await button('Izmeni roditelja Mira Petrović'))
-      const form = await inDialog('Izmena roditelja')
-      expect(form.getByText('mira.petrovic@example.test')).toBeInTheDocument()
-      expect(form.queryByLabelText(/Email/)).not.toBeInTheDocument()
-      await userEvent.clear(form.getByLabelText('Prezime'))
-      await userEvent.type(form.getByLabelText('Prezime'), 'Petrović-Jović')
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+    describe('editing a parent', () => {
+      const open = async (name = 'Mira Petrović') => {
+        await page('Učenici')
+        await userEvent.click(await button(`Izmeni roditelja ${name}`))
+        return inDialog('Izmena roditelja')
+      }
 
-      expect(teacherApi.renamePerson).toHaveBeenCalledWith('pr-mira', 'Mira', 'Petrović-Jović')
-      expect(await screen.findByText('Mira Petrović-Jović')).toBeInTheDocument()
+      it('shows the email only as text, and the name and the number as fields', async () => {
+        renderTeacher(PATH)
+        const form = await open()
+        expect(form.getByText('mira.petrovic@example.test')).toBeInTheDocument()
+        expect(form.queryByLabelText(/Email/)).not.toBeInTheDocument()
+        expect(form.getByLabelText('Ime')).toHaveValue('Mira')
+        expect(form.getByLabelText('Prezime')).toHaveValue('Petrović')
+        expect(form.getByLabelText('Broj telefona')).toHaveValue('064 1110 002')
+      })
+
+      it('renames a parent', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Prezime'))
+        await userEvent.type(form.getByLabelText('Prezime'), 'Petrović-Jović')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+
+        expect(teacherApi.renamePerson).toHaveBeenCalledWith('pr-mira', 'Mira', 'Petrović-Jović')
+        expect(teacherApi.setPhone).not.toHaveBeenCalled()
+        expect(await screen.findByText('Mira Petrović-Jović')).toBeInTheDocument()
+      })
+
+      it('changes the number, and gives one to a parent who has none so the marker goes', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        let form = await open()
+        await userEvent.clear(form.getByLabelText('Broj telefona'))
+        await userEvent.type(form.getByLabelText('Broj telefona'), '+381 65 222 3333')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(teacherApi.setPhone).toHaveBeenCalledWith('pr-mira', '+381652223333')
+        expect(teacherApi.renamePerson).not.toHaveBeenCalled()
+        expect(await screen.findByRole('status')).toHaveTextContent('Podaci su sačuvani.')
+
+        await userEvent.click(await button('Izmeni roditelja Zoran Petrović'))
+        form = await inDialog('Izmena roditelja')
+        expect(form.getByLabelText('Broj telefona')).toHaveValue('')
+        await userEvent.type(form.getByLabelText('Broj telefona'), '063 777 8888')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(teacherApi.setPhone).toHaveBeenLastCalledWith('pr-zoran', '+381637778888')
+        await waitFor(() =>
+          expect(
+            within(screen.getByRole('row', { name: /Ana Petrović/ })).queryByText('nedostaje broj'),
+          ).not.toBeInTheDocument(),
+        )
+      })
+
+      it("does not let a parent's number be taken away, or accept what is not a number", async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Broj telefona'))
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(form.getByRole('alert')).toHaveTextContent('Unesite broj telefona.')
+
+        await userEvent.type(form.getByLabelText('Broj telefona'), '381 65 222 3333')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(form.getByRole('alert')).toHaveTextContent(INVALID_PHONE)
+        expect(teacherApi.setPhone).not.toHaveBeenCalled()
+      })
+
+      it('does nothing and closes when nothing changed, also when the same number is typed another way', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Broj telefona'))
+        await userEvent.type(form.getByLabelText('Broj telefona'), '+381 64 111 0002')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+        expect(teacherApi.setPhone).not.toHaveBeenCalled()
+        expect(teacherApi.renamePerson).not.toHaveBeenCalled()
+      })
+
+      it("explains the database's refusals of a number", async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Broj telefona'))
+        await userEvent.type(form.getByLabelText('Broj telefona'), '+381641234567')
+        teacherApi.failNext('setPhone', new AdminError('PT403', 'not allowed'))
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(await form.findByRole('alert')).toHaveTextContent('Nemate dozvolu za ovu radnju.')
+        teacherApi.failNext(
+          'setPhone',
+          new AdminError('PT409', 'a teacher or parent needs a phone number'),
+        )
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        await waitFor(() =>
+          expect(form.getByRole('alert')).toHaveTextContent(
+            'Nastavnik i roditelj moraju da imaju broj telefona.',
+          ),
+        )
+      })
     })
   })
 
   describe('editing a student', () => {
-    const open = async () => {
+    const open = async (name = 'Ana Petrović') => {
       await page('Učenici')
-      await userEvent.click(await button('Izmeni učenika Ana Petrović'))
+      await userEvent.click(await button(`Izmeni učenika ${name}`))
       return inDialog('Izmena učenika')
     }
 
-    it('shows the email as text and the rest as fields', async () => {
+    it('has name, email, number, school, class and section as fields', async () => {
       renderTeacher(PATH)
       const form = await open()
-      expect(form.getByText('ana.petrovic@example.test')).toBeInTheDocument()
-      expect(form.queryByLabelText(/Email/)).not.toBeInTheDocument()
       expect(form.getByLabelText('Ime')).toHaveValue('Ana')
+      expect(form.getByLabelText('Prezime')).toHaveValue('Petrović')
+      expect(form.getByLabelText('Email adresa')).toHaveValue('ana.petrovic@example.test')
+      expect(form.getByLabelText('Broj telefona (nije obavezan)')).toHaveValue('064 1110 001')
       expect(form.getByLabelText('Škola')).toHaveValue('OŠ Vuk Karadžić')
       expect(form.getByLabelText('Razred')).toHaveValue('7')
       expect(form.getByLabelText('Odeljenje')).toHaveValue('a')
@@ -326,6 +482,8 @@ describe("the teacher's students", () => {
 
       expect(teacherApi.renamePerson).toHaveBeenCalledWith('pr-ana', 'Anja', 'Petrović')
       expect(teacherApi.updateStudentDetails).not.toHaveBeenCalled()
+      expect(teacherApi.setPhone).not.toHaveBeenCalled()
+      expect(teacherApi.changeStudentEmail).not.toHaveBeenCalled()
       expect(await row('Anja Petrović')).toBeInTheDocument()
     })
 
@@ -351,6 +509,8 @@ describe("the teacher's students", () => {
       await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
       expect(teacherApi.renamePerson).not.toHaveBeenCalled()
       expect(teacherApi.updateStudentDetails).not.toHaveBeenCalled()
+      expect(teacherApi.setPhone).not.toHaveBeenCalled()
+      expect(teacherApi.changeStudentEmail).not.toHaveBeenCalled()
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
@@ -362,179 +522,164 @@ describe("the teacher's students", () => {
       expect(form.getByRole('alert')).toHaveTextContent('Ime i prezime su obavezni.')
       expect(teacherApi.renamePerson).not.toHaveBeenCalled()
     })
-  })
 
-  describe('phone numbers of existing people', () => {
-    it("changes a student's number, starting from the one there is", async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      await page('Učenici')
-      await userEvent.click(await button('Telefon učenika Ana Petrović'))
-      const form = await inDialog('Broj telefona')
-      expect(form.getByLabelText('Broj telefona (nije obavezan)')).toHaveValue('064 1110 001')
-      await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
-      await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '+381 65 222 3333')
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+    describe('the number', () => {
+      it('changes it, starting from the one there is, in the usual form', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
+        await userEvent.type(
+          form.getByLabelText('Broj telefona (nije obavezan)'),
+          '00 381 65 222 3333',
+        )
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(teacherApi.setPhone).toHaveBeenCalledWith('pr-ana', '+381652223333')
+        expect(await screen.findByRole('status')).toHaveTextContent('Podaci su sačuvani.')
+        await userEvent.click(await button('Prikaži učenika Ana Petrović'))
+        expect(await (await inDialog('Učenik')).findByText('065 2223 333')).toBeInTheDocument()
+      })
 
-      expect(teacherApi.setPhone).toHaveBeenCalledWith('pr-ana', '+381652223333')
-      expect(await within(await row('Ana Petrović')).findByText('065 2223 333')).toBeInTheDocument()
-      expect(screen.getByRole('status')).toHaveTextContent('Broj telefona je sačuvan.')
+      it('gives a student who has none one, and takes it away with an empty field', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        let form = await open('Luka Ilić')
+        expect(form.getByLabelText('Broj telefona (nije obavezan)')).toHaveValue('')
+        await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '+381654445555')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        await waitFor(() =>
+          expect(teacherApi.setPhone).toHaveBeenCalledWith('pr-luka', '+381654445555'),
+        )
+
+        await screen.findByRole('status')
+        await userEvent.click(await button('Izmeni učenika Luka Ilić'))
+        form = await inDialog('Izmena učenika')
+        await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        await waitFor(() => expect(teacherApi.setPhone).toHaveBeenLastCalledWith('pr-luka', null))
+      })
+
+      it('does not call the backend for something that is not a number, or for the same number typed another way', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
+        await userEvent.type(
+          form.getByLabelText('Broj telefona (nije obavezan)'),
+          '381 65 222 3333',
+        )
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(form.getByRole('alert')).toHaveTextContent(INVALID_PHONE)
+
+        await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
+        await userEvent.type(
+          form.getByLabelText('Broj telefona (nije obavezan)'),
+          '+381 64 111 0001',
+        )
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+        expect(teacherApi.setPhone).not.toHaveBeenCalled()
+      })
     })
 
-    it("gives a student who has none one, and takes a student's number away with an empty one", async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      await page('Učenici')
-      await userEvent.click(await button('Telefon učenika Luka Ilić'))
-      let form = await inDialog('Broj telefona')
-      expect(form.getByLabelText('Broj telefona (nije obavezan)')).toHaveValue('')
-      await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '+381654445555')
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      expect(await within(await row('Luka Ilić')).findByText('065 4445 555')).toBeInTheDocument()
+    describe('the email', () => {
+      it('warns that the old account loses access once it is changed, more strongly for somebody who signed in', async () => {
+        renderTeacher(PATH)
+        let form = await open()
+        expect(form.queryByText(/Stari Google nalog/)).not.toBeInTheDocument()
+        await userEvent.type(form.getByLabelText('Email adresa'), 'x')
+        expect(form.getByText(/Stari Google nalog odmah gubi pristup/)).toBeInTheDocument()
+        // she has signed in before (the seed says so)
+        expect(form.getByText(/se već prijavljivao/)).toBeInTheDocument()
 
-      await userEvent.click(await button('Telefon učenika Luka Ilić'))
-      form = await inDialog('Broj telefona')
-      await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      expect(teacherApi.setPhone).toHaveBeenLastCalledWith('pr-luka', null)
-      expect(screen.getByRole('status')).toHaveTextContent('Broj telefona je uklonjen.')
-      await waitFor(() =>
+        await userEvent.click(form.getByRole('button', { name: 'Odustani' }))
+        await userEvent.click(await button('Izmeni učenika Luka Ilić'))
+        form = await inDialog('Izmena učenika')
+        await userEvent.type(form.getByLabelText('Email adresa'), 'x')
+        expect(form.getByText(/Stari Google nalog/)).toBeInTheDocument()
+        expect(form.queryByText(/se već prijavljivao/)).not.toBeInTheDocument()
+      })
+
+      it('saves the new address in lower case', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Email adresa'))
+        await userEvent.type(form.getByLabelText('Email adresa'), '  Ana.Nova@Example.test ')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+
+        expect(teacherApi.changeStudentEmail).toHaveBeenCalledWith(
+          'st-ana',
+          'ana.nova@example.test',
+        )
+        expect(await screen.findByRole('status')).toHaveTextContent('Podaci su sačuvani.')
+        await userEvent.click(await button('Prikaži učenika Ana Petrović'))
         expect(
-          within(screen.getByRole('row', { name: /Luka Ilić/ })).queryByText('065 4445 555'),
-        ).not.toBeInTheDocument(),
-      )
-    })
+          await (await inDialog('Učenik')).findByText('ana.nova@example.test'),
+        ).toBeInTheDocument()
+      })
 
-    it('gives a parent who has none a number, and the marker goes', async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      await page('Učenici')
-      await userEvent.click(await button('Telefon roditelja Zoran Petrović'))
-      const form = await inDialog('Broj telefona')
-      expect(form.getByLabelText('Broj telefona')).toHaveValue('')
-      await userEvent.type(form.getByLabelText('Broj telefona'), '063 777 8888')
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      expect(teacherApi.setPhone).toHaveBeenCalledWith('pr-zoran', '+381637778888')
-      const ana = within(await row('Ana Petrović'))
-      expect(await ana.findByText('063 7778 888')).toBeInTheDocument()
-      expect(ana.queryByText('nedostaje broj')).not.toBeInTheDocument()
-    })
+      it('does not call the backend for a bad address, or for the one already there in other letters', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Email adresa'))
+        await userEvent.type(form.getByLabelText('Email adresa'), 'nije-email')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(form.getByRole('alert')).toHaveTextContent('Email adresa nije ispravna.')
 
-    it("does not let a parent's number be taken away", async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      await page('Učenici')
-      await userEvent.click(await button('Telefon roditelja Mira Petrović'))
-      const form = await inDialog('Broj telefona')
-      await userEvent.clear(form.getByLabelText('Broj telefona'))
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      expect(form.getByRole('alert')).toHaveTextContent('Unesite broj telefona.')
-      expect(teacherApi.setPhone).not.toHaveBeenCalled()
-    })
+        await userEvent.clear(form.getByLabelText('Email adresa'))
+        await userEvent.type(form.getByLabelText('Email adresa'), 'ANA.petrovic@example.test')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+        expect(teacherApi.changeStudentEmail).not.toHaveBeenCalled()
+      })
 
-    it('does not call the backend for something that is not a number, or when nothing changed', async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      await page('Učenici')
-      await userEvent.click(await button('Telefon učenika Ana Petrović'))
-      const form = await inDialog('Broj telefona')
-      await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
-      await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '381 65 222 3333')
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      expect(form.getByRole('alert')).toHaveTextContent(INVALID_PHONE)
+      it("explains the database's refusals, keeps what was typed, and saves nothing else before it", async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Ime'))
+        await userEvent.type(form.getByLabelText('Ime'), 'Anja')
+        await userEvent.clear(form.getByLabelText('Email adresa'))
+        await userEvent.type(form.getByLabelText('Email adresa'), 'luka.ilic@example.test')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        expect(await form.findByRole('alert')).toHaveTextContent(
+          'Ova adresa već pripada drugoj osobi.',
+        )
+        // the email is tried first, so the rename did not happen either
+        expect(teacherApi.renamePerson).not.toHaveBeenCalled()
 
-      // the same number, typed another way: nothing to save
-      await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
-      await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '+381 64 111 0001')
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-      expect(teacherApi.setPhone).not.toHaveBeenCalled()
-    })
-
-    it("explains the database's refusals", async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      await page('Učenici')
-      await userEvent.click(await button('Telefon roditelja Mira Petrović'))
-      const form = await inDialog('Broj telefona')
-      await userEvent.clear(form.getByLabelText('Broj telefona'))
-      await userEvent.type(form.getByLabelText('Broj telefona'), '+381641234567')
-      teacherApi.failNext('setPhone', new AdminError('PT403', 'not allowed'))
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      expect(await form.findByRole('alert')).toHaveTextContent('Nemate dozvolu za ovu radnju.')
-      teacherApi.failNext(
-        'setPhone',
-        new AdminError('PT409', 'a teacher or parent needs a phone number'),
-      )
-      await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
-      await waitFor(() =>
+        teacherApi.failNext(
+          'changeStudentEmail',
+          new AdminError('PT409', 'this person is also connected to another teacher'),
+        )
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        await screen.findByText(/povezana i sa drugim nastavnikom/)
         expect(form.getByRole('alert')).toHaveTextContent(
-          'Nastavnik i roditelj moraju da imaju broj telefona.',
-        ),
-      )
-    })
-  })
+          'Email adresu može da promeni administrator.',
+        )
 
-  describe("changing a student's email", () => {
-    const open = async (name = 'Ana Petrović') => {
-      await page('Učenici')
-      await userEvent.click(await button(`Promeni email učeniku ${name}`))
-      return inDialog('Promena email adrese')
-    }
+        teacherApi.failNext('changeStudentEmail', new AdminError('PT403', 'not allowed'))
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
+        await screen.findByText('Email adresu ove osobe može da promeni samo administrator.')
+        expect(form.getByLabelText('Email adresa')).toHaveValue('luka.ilic@example.test')
+        expect(form.getByLabelText('Ime')).toHaveValue('Anja')
+      })
 
-    it('shows the current address, warns that the old account loses access, and saves the new one', async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      const form = await open()
-      expect(form.getByText('ana.petrovic@example.test')).toBeInTheDocument()
-      expect(form.getByText(/stari Google nalog odmah gubi pristup/i)).toBeInTheDocument()
-      // she has signed in before (the seed says so): the warning is stronger
-      expect(form.getByText(/se već prijavljivao/)).toBeInTheDocument()
+      it('saves email, name and number in one go, the email first', async () => {
+        const { teacherApi } = renderTeacher(PATH)
+        const form = await open()
+        await userEvent.clear(form.getByLabelText('Ime'))
+        await userEvent.type(form.getByLabelText('Ime'), 'Anja')
+        await userEvent.clear(form.getByLabelText('Email adresa'))
+        await userEvent.type(form.getByLabelText('Email adresa'), 'anja@example.test')
+        await userEvent.clear(form.getByLabelText('Broj telefona (nije obavezan)'))
+        await userEvent.type(form.getByLabelText('Broj telefona (nije obavezan)'), '065 111 2222')
+        await userEvent.click(form.getByRole('button', { name: 'Sačuvaj' }))
 
-      await userEvent.type(form.getByLabelText('Nova email adresa'), '  Ana.Nova@Example.test ')
-      await userEvent.click(form.getByRole('button', { name: 'Promeni' }))
-
-      expect(teacherApi.changeStudentEmail).toHaveBeenCalledWith('st-ana', 'ana.nova@example.test')
-      expect(await screen.findByText('ana.nova@example.test')).toBeInTheDocument()
-      expect(screen.getByRole('status')).toHaveTextContent('Email adresa je promenjena.')
-    })
-
-    it('does not warn about a previous sign-in for somebody who never signed in', async () => {
-      renderTeacher(PATH)
-      const form = await open('Luka Ilić')
-      expect(form.queryByText(/se već prijavljivao/)).not.toBeInTheDocument()
-    })
-
-    it('does not call the backend for a bad address, or for the one already there', async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      const form = await open()
-      await userEvent.type(form.getByLabelText('Nova email adresa'), 'nije-email')
-      await userEvent.click(form.getByRole('button', { name: 'Promeni' }))
-      expect(form.getByRole('alert')).toHaveTextContent('Email adresa nije ispravna.')
-
-      await userEvent.clear(form.getByLabelText('Nova email adresa'))
-      await userEvent.type(form.getByLabelText('Nova email adresa'), 'ANA.petrovic@example.test')
-      await userEvent.click(form.getByRole('button', { name: 'Promeni' }))
-      expect(form.getByRole('alert')).toHaveTextContent('To je trenutna email adresa učenika.')
-      expect(teacherApi.changeStudentEmail).not.toHaveBeenCalled()
-    })
-
-    it("explains the database's refusals", async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      const form = await open()
-      await userEvent.type(form.getByLabelText('Nova email adresa'), 'luka.ilic@example.test')
-      await userEvent.click(form.getByRole('button', { name: 'Promeni' }))
-      expect(await form.findByRole('alert')).toHaveTextContent(
-        'Ova adresa već pripada drugoj osobi.',
-      )
-
-      teacherApi.failNext(
-        'changeStudentEmail',
-        new AdminError('PT409', 'this person is also connected to another teacher'),
-      )
-      await userEvent.click(form.getByRole('button', { name: 'Promeni' }))
-      await screen.findByText(/povezana i sa drugim nastavnikom/)
-      expect(form.getByRole('alert')).toHaveTextContent(
-        'Email adresu može da promeni administrator.',
-      )
-
-      teacherApi.failNext('changeStudentEmail', new AdminError('PT403', 'not allowed'))
-      await userEvent.click(form.getByRole('button', { name: 'Promeni' }))
-      await screen.findByText('Email adresu ove osobe može da promeni samo administrator.')
-      expect(form.getByLabelText('Nova email adresa')).toHaveValue('luka.ilic@example.test') // kept
+        await waitFor(() => expect(teacherApi.setPhone).toHaveBeenCalled())
+        const calledAt = (fn: (...args: never[]) => unknown) =>
+          vi.mocked(fn).mock.invocationCallOrder[0]
+        expect(calledAt(teacherApi.changeStudentEmail)).toBeLessThan(
+          calledAt(teacherApi.renamePerson),
+        )
+        expect(calledAt(teacherApi.renamePerson)).toBeLessThan(calledAt(teacherApi.setPhone))
+      })
     })
   })
 
@@ -580,16 +725,20 @@ describe("the teacher's students", () => {
 })
 
 describe('deleting a student', () => {
-  const del = (name: string) => screen.findByRole('button', { name: `Obriši učenika ${name}` })
+  const edit = async (name: string) => {
+    await userEvent.click(await button(`Izmeni učenika ${name}`))
+    return inDialog('Izmena učenika')
+  }
+  const del = (form: Awaited<ReturnType<typeof edit>>, name: string) =>
+    form.queryByRole('button', { name: `Obriši učenika ${name}` })
 
-  it('is offered for a student who has no lesson that was held, and not for one who has', async () => {
+  it('is offered in the form that edits a student with no lesson that was held, and not for one who has', async () => {
     renderTeacher(PATH)
     await page('Učenici')
-    expect(await del('Luka Ilić')).toBeInTheDocument()
+    expect(del(await edit('Luka Ilić'), 'Luka Ilić')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Odustani' }))
     // Ana has a lesson that took place (on Monday), so she stays for good
-    expect(
-      screen.queryByRole('button', { name: 'Obriši učenika Ana Petrović' }),
-    ).not.toBeInTheDocument()
+    expect(del(await edit('Ana Petrović'), 'Ana Petrović')).not.toBeInTheDocument()
   })
 
   it('is not offered while the lessons of the students are not known', async () => {
@@ -598,17 +747,19 @@ describe('deleting a student', () => {
     renderTeacher(PATH, { api })
     await page('Učenici')
     await row('Luka Ilić')
-    expect(screen.queryByRole('button', { name: /^Obriši učenika/ })).not.toBeInTheDocument()
+    expect(del(await edit('Luka Ilić'), 'Luka Ilić')).not.toBeInTheDocument()
   })
 
   it('asks first, and says what is lost and how many lessons are cancelled', async () => {
     renderTeacher(PATH)
     await page('Učenici')
-    await userEvent.click(await del('Luka Ilić'))
+    await userEvent.click(del(await edit('Luka Ilić'), 'Luka Ilić')!)
     const dialog = await inDialog('Brisanje učenika')
     expect(dialog.getByText('Luka Ilić')).toBeInTheDocument()
     expect(dialog.getByText(/roditelji koji nemaju drugo dete/)).toBeInTheDocument()
     expect(dialog.getByText(/Zakazani časovi koji će biti otkazani/)).toHaveTextContent(': 2')
+    // the form that edits the student is replaced by the question
+    expect(screen.queryByRole('dialog', { name: 'Izmena učenika' })).not.toBeInTheDocument()
   })
 
   it('does not mention lessons when there are none to cancel', async () => {
@@ -616,7 +767,7 @@ describe('deleting a student', () => {
     state.lessons = []
     renderTeacher(PATH, { api: createFakeTeacherApi(state) })
     await page('Učenici')
-    await userEvent.click(await del('Luka Ilić'))
+    await userEvent.click(del(await edit('Luka Ilić'), 'Luka Ilić')!)
     const dialog = await inDialog('Brisanje učenika')
     expect(dialog.queryByText(/Zakazani časovi/)).not.toBeInTheDocument()
   })
@@ -624,7 +775,7 @@ describe('deleting a student', () => {
   it('deletes the student and the row goes', async () => {
     const { teacherApi } = renderTeacher(PATH)
     await page('Učenici')
-    await userEvent.click(await del('Luka Ilić'))
+    await userEvent.click(del(await edit('Luka Ilić'), 'Luka Ilić')!)
     await userEvent.click(
       (await inDialog('Brisanje učenika')).getByRole('button', { name: 'Obriši' }),
     )
@@ -638,7 +789,7 @@ describe('deleting a student', () => {
   it('changes nothing when the teacher backs out', async () => {
     const { teacherApi } = renderTeacher(PATH)
     await page('Učenici')
-    await userEvent.click(await del('Luka Ilić'))
+    await userEvent.click(del(await edit('Luka Ilić'), 'Luka Ilić')!)
     await userEvent.click(
       (await inDialog('Brisanje učenika')).getByRole('button', { name: 'Odustani' }),
     )
@@ -649,7 +800,7 @@ describe('deleting a student', () => {
   it('explains it when the database refuses a student who has had a lesson since', async () => {
     const { teacherApi } = renderTeacher(PATH)
     await page('Učenici')
-    await userEvent.click(await del('Luka Ilić'))
+    await userEvent.click(del(await edit('Luka Ilić'), 'Luka Ilić')!)
     const dialog = await inDialog('Brisanje učenika')
     teacherApi.failNext(
       'deleteStudent',
