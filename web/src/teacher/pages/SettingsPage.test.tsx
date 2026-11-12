@@ -43,11 +43,11 @@ describe('the settings page', () => {
     expect(label.querySelector('.swatch')).toHaveStyle({ backgroundColor: COLORS.teal.hex })
   })
 
-  it('explains who sees the colour and what it changes', async () => {
+  it('does not explain who sees the colour', async () => {
     await open()
-    expect(
-      screen.getByText(/Kolege vide ovu boju.*svim vašim časovima, prošlim i budućim/),
-    ).toBeInTheDocument()
+    await radio('Tirkizna')
+    expect(screen.queryByText(/Kolege vide ovu boju/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Dva nastavnika mogu imati istu boju/)).not.toBeInTheDocument()
   })
 
   it('starts from the colour the teacher has now', async () => {
@@ -68,10 +68,11 @@ describe("the teacher's own phone number", () => {
   const field = () => screen.findByLabelText('Broj telefona')
   const save = () => screen.getByRole('button', { name: 'Sačuvaj broj' })
 
-  it('shows the number the teacher has, and asks what it is for', async () => {
+  it('shows the number the teacher has, without a sentence about what it is for', async () => {
     await open()
     expect(await field()).toHaveValue('064 1110 099')
-    expect(screen.getByText(/obaveštenja i poziv u vezi sa časovima/)).toBeInTheDocument()
+    expect(screen.queryByText(/obaveštenja i poziv u vezi sa časovima/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Upišite broj na primer ovako/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Nemate upisan broj telefona/)).not.toBeInTheDocument()
   })
 

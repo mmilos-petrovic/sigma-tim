@@ -139,6 +139,8 @@
 .schedule {
   height: calc(100dvh - 17rem);
   min-height: 34rem;
+  /* room under the calendar, so its bottom edge is not at the edge of the page */
+  margin-bottom: 100px;
 }
 
 .pending {
@@ -420,6 +422,10 @@
 .icon-button--large svg {
   width: 24px;
   height: 24px;
+}
+
+.icon-button--round {
+  border-radius: 50%;
 }
 
 .icon-button:disabled {

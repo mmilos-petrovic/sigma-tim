@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatPhone, normalizePhone, PHONE_EXAMPLE, phoneProblem } from '../lib/phone'
 import { Field, FormDialog } from './FormDialog'
+import { PhoneLink } from './PhoneLink'
 
 /**
  * Sets or changes somebody's phone number. A number that is required (a teacher's, a parent's) cannot be emptied; an
@@ -59,7 +60,13 @@ export function PhoneDialog({
 
 /** A number under a name, or the mark that a person who should have one has none. */
 export function PhoneLine({ phone, required }: { phone: string | null; required: boolean }) {
-  if (phone) return <div className="muted">{formatPhone(phone)}</div>
+  if (phone) {
+    return (
+      <div className="muted">
+        <PhoneLink phone={phone} />
+      </div>
+    )
+  }
   return required ? (
     <div>
       <span className="badge badge--warn">nedostaje broj</span>

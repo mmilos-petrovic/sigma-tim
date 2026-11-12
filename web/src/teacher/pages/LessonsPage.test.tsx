@@ -68,6 +68,49 @@ describe('the teacher’s list of lessons', () => {
     expect(behind[1]).toContain('pon, 2. novembar')
   })
 
+  describe('what is the same for every lesson of the teacher', () => {
+    const rowsOf = async (state: ReturnType<typeof seedTeacher>) => {
+      renderTeacher(PATH, { api: createFakeTeacherApi(state) })
+      await page('Časovi')
+      return texts(await past())
+    }
+
+    it('is on each row while the teacher has more than one subject and one location', async () => {
+      const behind = await rowsOf(seedTeacher())
+      expect(behind[0]).toContain('Matematika')
+      expect(behind[0]).toContain('Glavna lokacija')
+    })
+
+    it('leaves the subject out when the teacher has only one', async () => {
+      const state = seedTeacher()
+      state.reference.subjects = [{ id: 's-mat', name: 'Matematika' }]
+      const behind = await rowsOf(state)
+      expect(behind[0]).not.toContain('Matematika')
+      expect(behind[0]).toContain('Glavna lokacija')
+    })
+
+    it('leaves the location out when the teacher may use only one', async () => {
+      const state = seedTeacher()
+      state.reference.ownLocationIds = ['l-main']
+      const behind = await rowsOf(state)
+      expect(behind[0]).not.toContain('Glavna lokacija')
+      expect(behind[0]).toContain('Matematika')
+      // the room is not the same for every lesson: it stays
+      expect(behind.join(' ')).toMatch(/Učionica \d/)
+    })
+
+    it('leaves both out, and keeps the day, the time, the students and the room', async () => {
+      const state = seedTeacher()
+      state.reference.subjects = [{ id: 's-mat', name: 'Matematika' }]
+      state.reference.ownLocationIds = ['l-main']
+      const behind = await rowsOf(state)
+      expect(behind[0]).not.toMatch(/Matematika|Glavna lokacija|·/)
+      expect(behind[0]).toContain('sre, 4. novembar')
+      expect(behind[0]).toContain('Ana Petrović')
+      expect(behind[0]).toMatch(/Učionica \d/)
+    })
+  })
+
   it('writes on each row the day, the time, the students, the subject and the place', async () => {
     renderTeacher(PATH)
     await page('Časovi')

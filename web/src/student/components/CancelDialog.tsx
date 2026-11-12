@@ -6,7 +6,7 @@ import { isLateBooking } from '../lessonList'
 import { useRefresh, useTeacherPhone } from '../queries'
 import { useStudentApi } from '../StudentApiProvider'
 import type { MyLesson } from '../studentApi'
-import { PhoneLink } from './PhoneLink'
+import { PhoneLink } from '../../components/PhoneLink'
 import { cancelLabel } from './labels'
 
 /** Says what cancelling does, and inside the last 12 hours asks the person to call the teacher too. */

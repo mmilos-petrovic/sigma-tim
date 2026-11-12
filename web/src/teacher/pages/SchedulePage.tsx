@@ -143,10 +143,12 @@ export function SchedulePage() {
   return (
     <>
       <PageHeader title={CONTEXT_LABEL.teacher}>
-        {/* a plus in the colour of the teacher's lessons for a lesson, a plain one for a free slot */}
+        {/* a round button in the colour of the teacher's lessons for a lesson, a plain round one for a free slot */}
         <IconButton
           label="Novi čas"
           large
+          round
+          solid
           color={chosenColor(reference.data?.color) ?? OWN_COLOR}
           disabled={cannotSchedule}
           onClick={() => setDialog({ kind: 'new' })}
@@ -156,6 +158,7 @@ export function SchedulePage() {
         <IconButton
           label="Objavi slobodan termin"
           large
+          round
           disabled={cannotSchedule}
           onClick={() => setDialog({ kind: 'slot' })}
         >
