@@ -20,8 +20,8 @@ select is(
   (select array_agg(p.proname::text order by p.proname)
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'execute')),
-  array['get_public_cv', 'list_public_cvs'],
-  'anon can only execute the two public CV functions'
+  array['enrolment_form_info', 'get_public_cv', 'list_public_cvs'],
+  'anon can only execute the two public CV functions and the subject list of the enrolment form'
 );
 
 select is(
