@@ -1,9 +1,10 @@
 -- Enrolment, part 4: students nobody teaches. The request is made by the database, the subject comes from the last lesson,
 -- teachers see the student by subject, and a student and the parents always read their own teacher's CV.
 begin;
-select plan(43);
+select plan(44);
 
 select tests.seed_basic();
+insert into public.subjects (name) values ('Test Hemija');
 insert into public.teacher_cv (teacher_id, about) values (tests.id('p:tc'), 'About Gama');
 -- ta hides her CV from everybody; the student of ta still reads it
 update public.teacher_cv set show_public = false, show_members = false where id = tests.id('cv:ta');
@@ -28,6 +29,7 @@ select tests.login_anon();
 select is(public.get_public_cv('test-alfa'), null, 'and the public does not: that switch is a different one');
 select tests.login_as('s1');
 select is(public.get_public_cv('test-alfa'), null, 'nor does a student of hers open it as a public CV');
+select is((select count(*)::int from public.list_public_cvs() where slug in ('test-alfa', 'test-beta')), 0, 'nor is it in the list of public CVs for her');
 select tests.logout();
 
 -- unassigned students have a request -------------------------------------------------------------------------------------------------------
@@ -99,7 +101,7 @@ select tests.login_as('s1');
 select throws_ok(format($$ select public.set_enrolment_subject(%L, %L) $$, tests.id('req:s2'), tests.id('subj:phys')), 'PT404', null, 'nobody changes the subject of somebody else''s request');
 select tests.login_as('p2');
 select throws_ok(format($$ select public.set_enrolment_subject(%L, null) $$, tests.id('req:s2')), 'PT400', null, 'a subject is needed');
-select throws_ok(format($$ select public.set_enrolment_subject(%L, (select id from public.subjects where name = 'Test Nista')) $$, tests.id('req:s2')), 'PT400', null, 'a subject somebody teaches');
+select throws_ok(format($$ select public.set_enrolment_subject(%L, (select id from public.subjects where name = 'Test Hemija')) $$, tests.id('req:s2')), 'PT400', null, 'a subject somebody teaches');
 select tests.logout();
 
 -- offers made before the subject was known stay only with teachers of that subject
@@ -128,7 +130,7 @@ select tests.logout();
 update public.enrolment_requests set source = 'legacy' where id = tests.id('req:s2');
 
 -- placed again, and left again ----------------------------------------------------------------------------------------------------------------------
-update public.enrolment_requests set restarts = 2, choice_opened_at = now() - interval '1 day' where id = tests.id('req:s1');
+update public.enrolment_requests set restarts = 2, choice_opened_at = now() - interval '1 day', listed_at = now() - interval '10 days' where id = tests.id('req:s1');
 select tests.login_as('admin');
 select is(public.admin_assign_enrolment(tests.id('req:s1'), tests.id('p:tc')), 'assigned', 'the administrator places a teacher');
 select tests.logout();
