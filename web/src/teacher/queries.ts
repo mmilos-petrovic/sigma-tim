@@ -125,3 +125,13 @@ export function usePending() {
     queryFn: () => api.listPending(teacherId),
   })
 }
+
+/** The teacher's own CV, or null when there is none yet. */
+export function useMyCv() {
+  const api = useTeacherApi()
+  const teacherId = useTeacherId()
+  return useQuery({
+    queryKey: [...teacher, 'cv', teacherId],
+    queryFn: () => api.getMyCv(teacherId),
+  })
+}

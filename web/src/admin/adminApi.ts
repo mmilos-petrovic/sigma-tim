@@ -278,3 +278,5 @@ export type ActionKey =
   | 'setPaid'
   | 'deleteStudent'
   | 'setColor'
+  | 'saveCv'
+  | 'setCvPhoto'

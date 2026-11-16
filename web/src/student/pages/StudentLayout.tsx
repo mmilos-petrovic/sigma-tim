@@ -59,6 +59,7 @@ export function StudentLayout({ context }: { context: StudentContext }) {
                     )}
                   </NavLink>
                 )}
+                <NavLink to={`${home}/nastavnici`}>CV nastavnika</NavLink>
               </nav>
 
               {!record.teacherId && (

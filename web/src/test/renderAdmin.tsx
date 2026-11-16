@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
+import { CvApiProvider } from '../cv/CvApiProvider'
 import { AdminApiProvider } from '../admin/AdminApiProvider'
 import { AppRoutes } from '../AppRoutes'
 import { AuthProvider } from '../auth/AuthProvider'
@@ -10,35 +11,39 @@ import { TeacherApiProvider } from '../teacher/TeacherApiProvider'
 import type { MyRoles } from '../auth/roles'
 import { createFakeAdminApi, type FakeAdminApi } from './fakeAdminApi'
 import { createFakeAuthApi } from './fakeAuthApi'
+import { createFakeCvApi, type FakeCvApi } from './fakeCvApi'
 import { createFakeTeacherApi } from './fakeTeacherApi'
 import { personas } from './fixtures'
 
 /** Renders the whole app at a path as a signed-in account, on top of an in-memory admin backend. */
 export function renderAdmin(
   path: string,
-  options: { api?: FakeAdminApi; roles?: MyRoles; push?: PushApi } = {},
+  options: { api?: FakeAdminApi; roles?: MyRoles; push?: PushApi; cvApi?: FakeCvApi } = {},
 ) {
   const adminApi = options.api ?? createFakeAdminApi()
+  const cvApi = options.cvApi ?? createFakeCvApi()
   const auth = createFakeAuthApi({ roles: options.roles ?? personas.admin })
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
   })
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <AdminApiProvider api={adminApi}>
-        <TeacherApiProvider api={createFakeTeacherApi()}>
-          <AuthProvider api={auth}>
-            <PushApiProvider api={options.push ?? null}>
-              <MemoryRouter initialEntries={[path]}>
-                <AppRoutes />
-              </MemoryRouter>
-            </PushApiProvider>
-          </AuthProvider>
-        </TeacherApiProvider>
-      </AdminApiProvider>
+      <CvApiProvider api={cvApi}>
+        <AdminApiProvider api={adminApi}>
+          <TeacherApiProvider api={createFakeTeacherApi()}>
+            <AuthProvider api={auth}>
+              <PushApiProvider api={options.push ?? null}>
+                <MemoryRouter initialEntries={[path]}>
+                  <AppRoutes />
+                </MemoryRouter>
+              </PushApiProvider>
+            </AuthProvider>
+          </TeacherApiProvider>
+        </AdminApiProvider>
+      </CvApiProvider>
     </QueryClientProvider>,
   )
-  return { ...view, adminApi, auth }
+  return { ...view, adminApi, auth, cvApi }
 }
 
 export const page = (name: string) => screen.findByRole('heading', { name, level: 1 })

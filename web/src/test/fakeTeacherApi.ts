@@ -8,7 +8,9 @@ import {
   SLOT_MINUTES,
   type BusyRow,
   type Conflict,
+  type CvInput,
   type LessonRow,
+  type MyCv,
   type ParentRow,
   type Reference,
   type StudentRow,
@@ -31,6 +33,8 @@ export interface FakeTeacherState {
   now: Date
   /** The signed-in teacher's own number; null when they have not given one. */
   myPhone: string | null
+  /** The signed-in teacher's own CV; null when they have not made one. */
+  cv: MyCv | null
 }
 
 type Methods = keyof TeacherApi
@@ -138,6 +142,7 @@ export const seedTeacher = (): FakeTeacherState => ({
   },
   now: TEST_NOW,
   myPhone: '+381641110099',
+  cv: null,
   lessons: [
     {
       // earlier today: over, still open to changes, no outcome yet
@@ -715,6 +720,48 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
     async setColor(_teacherId, color) {
       await gate('setColor')
       state.reference.color = color
+    },
+
+    async getMyCv() {
+      await gate('getMyCv')
+      return structuredClone(state.cv)
+    },
+    async saveMyCv(input: CvInput) {
+      await gate('saveMyCv')
+      const about = input.about.trim()
+      if ((input.showPublic || input.showMembers) && about === '')
+        throw new AdminError('PT409', 'write the about text before showing the CV')
+      if (input.experience.length > 20 || input.education.length > 20 || input.skills.length > 50)
+        throw new AdminError('PT400', 'invalid CV')
+      if (
+        input.experience.some((e) => !e.employer.trim() || !e.position.trim()) ||
+        input.education.some((e) => !e.institution.trim()) ||
+        input.skills.some((k) => !k.trim())
+      )
+        throw new AdminError('23514', 'empty field')
+      state.cv = {
+        ...input,
+        about,
+        slug: state.cv?.slug ?? 'petar-petrovic',
+        photoPath: state.cv?.photoPath ?? null,
+      }
+    },
+    async setCvPhoto(teacherId, image) {
+      await gate('setCvPhoto')
+      const path = image ? `${teacherId}/photo-${++counter}.jpg` : null
+      state.cv = state.cv
+        ? { ...state.cv, photoPath: path }
+        : {
+            slug: 'petar-petrovic',
+            about: '',
+            showPublic: false,
+            showMembers: false,
+            photoPath: path,
+            experience: [],
+            education: [],
+            skills: [],
+          }
+      return path
     },
   }
 

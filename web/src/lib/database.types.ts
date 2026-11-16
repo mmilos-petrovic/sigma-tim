@@ -65,6 +65,90 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"enrolment_offers": {
+                  Row: {
+                    "created_at": string,"request_id": string,"teacher_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"request_id": string,"teacher_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"request_id"?: string,"teacher_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "enrolment_offers_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "enrolment_requests"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "enrolment_offers_teacher_id_fkey"
+      columns: ["teacher_id"]
+isOneToOne: false
+      referencedRelation: "teachers"
+      referencedColumns: ["profile_id"]
+    }
+                  ]
+                },"enrolment_requests": {
+                  Row: {
+                    "added_by": string | null,"applicant_id": string,"applicant_role": Database["public"]['Enums']["enrolment_role"],"approved_at": string | null,"assigned_at": string | null,"choice_opened_at": string | null,"chosen_at": string | null,"chosen_by": string | null,"chosen_teacher_id": string | null,"city_part": string | null,"consent_at": string | null,"contact_phone": string | null,"created_at": string,"grade": string | null,"id": string,"listed_at": string | null,"needs_approval": boolean,"profile_completed_at": string | null,"restarts": number,"school": string | null,"situation": string | null,"source": string,"status": Database["public"]['Enums']["enrolment_status"],"student_first_name": string | null,"student_id": string | null,"student_last_name": string | null,"subject_id": string | null,"window_started_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_by"?: string | null,"applicant_id": string,"applicant_role": Database["public"]['Enums']["enrolment_role"],"approved_at"?: string | null,"assigned_at"?: string | null,"choice_opened_at"?: string | null,"chosen_at"?: string | null,"chosen_by"?: string | null,"chosen_teacher_id"?: string | null,"city_part"?: string | null,"consent_at"?: string | null,"contact_phone"?: string | null,"created_at"?: string,"grade"?: string | null,"id"?: string,"listed_at"?: string | null,"needs_approval"?: boolean,"profile_completed_at"?: string | null,"restarts"?: number,"school"?: string | null,"situation"?: string | null,"source": string,"status"?: Database["public"]['Enums']["enrolment_status"],"student_first_name"?: string | null,"student_id"?: string | null,"student_last_name"?: string | null,"subject_id"?: string | null,"window_started_at"?: string | null
+                  }
+                  Update: {
+                    "added_by"?: string | null,"applicant_id"?: string,"applicant_role"?: Database["public"]['Enums']["enrolment_role"],"approved_at"?: string | null,"assigned_at"?: string | null,"choice_opened_at"?: string | null,"chosen_at"?: string | null,"chosen_by"?: string | null,"chosen_teacher_id"?: string | null,"city_part"?: string | null,"consent_at"?: string | null,"contact_phone"?: string | null,"created_at"?: string,"grade"?: string | null,"id"?: string,"listed_at"?: string | null,"needs_approval"?: boolean,"profile_completed_at"?: string | null,"restarts"?: number,"school"?: string | null,"situation"?: string | null,"source"?: string,"status"?: Database["public"]['Enums']["enrolment_status"],"student_first_name"?: string | null,"student_id"?: string | null,"student_last_name"?: string | null,"subject_id"?: string | null,"window_started_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "enrolment_requests_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "enrolment_requests_applicant_id_fkey"
+      columns: ["applicant_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "enrolment_requests_chosen_teacher_id_fkey"
+      columns: ["chosen_teacher_id"]
+isOneToOne: false
+      referencedRelation: "teachers"
+      referencedColumns: ["profile_id"]
+    },{
+      foreignKeyName: "enrolment_requests_student_id_fkey"
+      columns: ["student_id"]
+isOneToOne: true
+      referencedRelation: "students"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "enrolment_requests_subject_id_fkey"
+      columns: ["subject_id"]
+isOneToOne: false
+      referencedRelation: "subjects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"enrolment_settings": {
+                  Row: {
+                    "choice_after_days": number,"choice_after_offers": number,"daily_cap": number,"form_enabled": boolean,"singleton": boolean,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "choice_after_days"?: number,"choice_after_offers"?: number,"daily_cap"?: number,"form_enabled"?: boolean,"singleton"?: boolean,"updated_at"?: string
+                  }
+                  Update: {
+                    "choice_after_days"?: number,"choice_after_offers"?: number,"daily_cap"?: number,"form_enabled"?: boolean,"singleton"?: boolean,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"lesson_students": {
                   Row: {
                     "created_at": string,"lesson_id": string,"note": string | null,"paid_at": string | null,"student_id": string
@@ -513,6 +597,17 @@ isOneToOne: true
 "add_student":
 { Args: { "p_class_section"?: string,"p_email": string,"p_first_name": string,"p_grade"?: string,"p_last_name": string,"p_phone"?: string,"p_school"?: string,"p_teacher_id"?: string }; Returns: string
                            },
+"add_unassigned_student":
+{ Args: { "p_city_part"?: string,"p_email": string,"p_first_name": string,"p_grade": string,"p_last_name": string,"p_phone": string,"p_school": string,"p_situation"?: string,"p_subject_id": string }; Returns: string
+                           },
+"admin_assign_enrolment":
+{ Args: { "p_child_email"?: string,"p_request_id": string,"p_teacher_id": string }; Returns: string
+                           },
+"admin_list_enrolments":
+{ Args: { "p_state"?: string }; Returns: {
+              "applicant_email": string,"applicant_role": Database["public"]['Enums']["enrolment_role"],"choice_opened_at": string,"chosen_teacher_id": string,"city_part": string,"created_at": string,"days_waiting": number,"grade": string,"listed_at": string,"offers": Json,"phone": string,"request_id": string,"restarts": number,"school": string,"situation": string,"source": string,"state": string,"status": Database["public"]['Enums']["enrolment_status"],"student_first_name": string,"student_last_name": string,"subject_name": string
+            }[]
+                           },
 "admin_list_notifications":
 { Args: { "p_before"?: number,"p_limit"?: number,"p_state"?: string }; Returns: {
               "attempts": number,"channel": string,"created_at": string,"deliver_after": string,"id": number,"kind": string,"last_error": string,"recipient_email": string,"recipient_name": string,"sent_at": string,"state": string
@@ -528,6 +623,9 @@ isOneToOne: true
                            },
 "admin_send_test_notification":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"approve_enrolment":
+{ Args: { "p_request_id": string }; Returns: undefined
                            },
 "approve_takeover":
 { Args: { "p_request_id": string }; Returns: undefined
@@ -546,11 +644,20 @@ isOneToOne: true
 "change_student_email":
 { Args: { "p_new_email": string,"p_student_id": string }; Returns: undefined
                            },
+"choose_enrolment_teacher":
+{ Args: { "p_request_id": string,"p_teacher_id": string }; Returns: string
+                           },
 "claim_notifications":
 { Args: { "p_limit"?: number }; Returns: Json
                            },
 "claim_slot":
 { Args: { "p_lesson_id": string,"p_student_ids": (string)[] }; Returns: Database["public"]['Enums']["lesson_status"]
+                           },
+"complete_chosen_enrolment":
+{ Args: { "p_child_email": string,"p_request_id": string }; Returns: undefined
+                           },
+"complete_enrolment_profile":
+{ Args: { "p_city_part"?: string,"p_consent"?: boolean,"p_first_name": string,"p_grade": string,"p_last_name": string,"p_phone": string,"p_request_id": string,"p_school": string,"p_situation"?: string }; Returns: undefined
                            },
 "complete_notification":
 { Args: { "p_channel": string,"p_id": number }; Returns: undefined
@@ -573,6 +680,9 @@ isOneToOne: true
 "delete_student":
 { Args: { "p_student_id": string }; Returns: undefined
                            },
+"enrolment_form_info":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "erase_teacher":
 { Args: { "p_teacher_id": string }; Returns: string
                            },
@@ -587,14 +697,30 @@ isOneToOne: true
 "forget_push_subscriptions":
 { Args: { "p_ids": (string)[] }; Returns: undefined
                            },
+"get_enrolment_settings":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "get_member_cv":
 { Args: { "p_slug": string }; Returns: Json
                            },
 "get_notification_settings":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"get_offered_cv":
+{ Args: { "p_request_id": string,"p_teacher_id": string }; Returns: Json
+                           },
 "get_public_cv":
 { Args: { "p_slug": string }; Returns: Json
+                           },
+"list_chosen_enrolments":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "applicant_email": string,"chosen_at": string,"grade": string,"phone": string,"request_id": string,"school": string,"student_first_name": string,"student_last_name": string,"subject_name": string
+            }[]
+                           },
+"list_enrolment_pool":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "applicant_email": string,"applicant_role": Database["public"]['Enums']["enrolment_role"],"city_part": string,"days_waiting": number,"grade": string,"listed_at": string,"offered": boolean,"phone": string,"request_id": string,"school": string,"situation": string,"source": string,"student_first_name": string,"student_last_name": string,"subject_id": string,"subject_name": string
+            }[]
                            },
 "list_member_cvs":
 { Args: Record<PropertyKey, never>; Returns: {
@@ -609,13 +735,29 @@ isOneToOne: true
 "max_lesson_students":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
+"my_enrolment_offers":
+{ Args: { "p_request_id": string }; Returns: {
+              "cv_slug": string,"first_name": string,"is_chosen": boolean,"last_name": string,"offered_at": string,"phone": string,"photo_path": string,"subjects": (string)[],"teacher_id": string
+            }[]
+                           },
+"my_enrolment_requests":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "applicant_role": Database["public"]['Enums']["enrolment_role"],"choice_open": boolean,"chosen_teacher_id": string,"city_part": string,"contact_phone": string,"days_waiting": number,"grade": string,"id": string,"listed": boolean,"offers_count": number,"profile_completed": boolean,"school": string,"situation": string,"source": string,"status": Database["public"]['Enums']["enrolment_status"],"student_first_name": string,"student_id": string,"student_last_name": string,"subject_id": string,"subject_name": string,"waiting_for_approval": boolean
+            }[]
+                           },
 "my_roles":
 { Args: Record<PropertyKey, never>; Returns: {
               "avatar_url": string,"email": string,"first_name": string,"is_admin": boolean,"is_parent": boolean,"is_student": boolean,"is_teacher": boolean,"last_name": string,"profile_id": string
             }[]
                            },
+"offer_enrolment":
+{ Args: { "p_request_id": string }; Returns: undefined
+                           },
 "reactivate_teacher":
 { Args: { "p_teacher_id": string }; Returns: undefined
+                           },
+"reject_enrolment":
+{ Args: { "p_request_id": string }; Returns: undefined
                            },
 "reject_takeover":
 { Args: { "p_request_id": string }; Returns: undefined
@@ -629,11 +771,20 @@ isOneToOne: true
 "request_takeover":
 { Args: { "p_student_id": string }; Returns: string
                            },
+"save_my_cv":
+{ Args: { "p_about": string,"p_education": Json,"p_experience": Json,"p_show_members": boolean,"p_show_public": boolean,"p_skills": Json }; Returns: undefined
+                           },
 "schedule_lesson":
 { Args: { "p_end_at": string,"p_location_id": string,"p_room_id": string,"p_start_at": string,"p_student_ids": (string)[],"p_subject_id": string }; Returns: string
                            },
 "set_email_fallback":
 { Args: { "p_enabled": boolean,"p_kind": string }; Returns: undefined
+                           },
+"set_enrolment_settings":
+{ Args: { "p_choice_after_days": number,"p_choice_after_offers": number,"p_daily_cap": number,"p_form_enabled": boolean }; Returns: undefined
+                           },
+"set_enrolment_subject":
+{ Args: { "p_request_id": string,"p_subject_id": string }; Returns: undefined
                            },
 "set_lesson_paid":
 { Args: { "p_lesson_id": string,"p_paid": boolean,"p_student_id": string }; Returns: undefined
@@ -650,14 +801,20 @@ isOneToOne: true
 "set_teacher_locations":
 { Args: { "p_location_ids": (string)[],"p_teacher_id": string }; Returns: undefined
                            },
+"start_enrolment":
+{ Args: { "p_role": string,"p_subject_id": string }; Returns: string
+                           },
 "student_lesson_counts":
 { Args: Record<PropertyKey, never>; Returns: {
               "held_lessons": number,"student_id": string,"upcoming_lessons": number
             }[]
+                           },
+"withdraw_enrolment_offer":
+{ Args: { "p_request_id": string }; Returns: undefined
                            }
           }
           Enums: {
-            "lesson_origin": "teacher"|"slot","lesson_outcome": "held"|"not_held","lesson_status": "open"|"pending"|"confirmed","takeover_status": "pending"|"approved"|"rejected"
+            "enrolment_role": "student"|"parent","enrolment_status": "open"|"chosen"|"assigned"|"rejected","lesson_origin": "teacher"|"slot","lesson_outcome": "held"|"not_held","lesson_status": "open"|"pending"|"confirmed","takeover_status": "pending"|"approved"|"rejected"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -773,7 +930,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "lesson_origin": ["teacher", "slot"],"lesson_outcome": ["held", "not_held"],"lesson_status": ["open", "pending", "confirmed"],"takeover_status": ["pending", "approved", "rejected"]
+            "enrolment_role": ["student", "parent"],"enrolment_status": ["open", "chosen", "assigned", "rejected"],"lesson_origin": ["teacher", "slot"],"lesson_outcome": ["held", "not_held"],"lesson_status": ["open", "pending", "confirmed"],"takeover_status": ["pending", "approved", "rejected"]
           }
         }
 } as const

@@ -4,6 +4,7 @@ import {
   mapConflict,
   mapLesson,
   mapLocation,
+  mapMyCv,
   mapPhones,
   mapReference,
   mapStudent,
@@ -290,5 +291,57 @@ describe('mapReference', () => {
   it('sorts the subjects by name and keeps what the teacher has no subjects for empty', () => {
     expect(mapReference(input).subjects.map((s) => s.name)).toEqual(['Fizika', 'Hemija'])
     expect(mapReference({ ...input, subjects: [] }).subjects).toEqual([])
+  })
+})
+
+describe('mapMyCv', () => {
+  const row = {
+    slug: 'petar-petrovic',
+    about: 'Predajem.',
+    photo_path: 'p-1/f.jpg',
+    show_public: true,
+    show_members: false,
+    experience: [
+      { employer: 'B', position: 'Drugo', period: null, description: null, sort_order: 2 },
+      { employer: 'A', position: 'Prvo', period: '2020', description: 'Opis', sort_order: 1 },
+    ],
+    education: [{ institution: 'Fakultet', degree: null, period: null, sort_order: 1 }],
+    skills: [
+      { skill: 'Druga', sort_order: 2 },
+      { skill: 'Prva', sort_order: 1 },
+    ],
+  }
+
+  it('keeps the order the teacher put the lists in', () => {
+    const cv = mapMyCv(row)
+    expect(cv.experience.map((e) => e.employer)).toEqual(['A', 'B'])
+    expect(cv.skills).toEqual(['Prva', 'Druga'])
+  })
+
+  it('turns a missing text into an empty one, which the editor shows as an empty field', () => {
+    const cv = mapMyCv({ ...row, about: null })
+    expect(cv.about).toBe('')
+    expect(cv.experience[1]).toEqual({
+      employer: 'B',
+      position: 'Drugo',
+      period: '',
+      description: '',
+    })
+    expect(cv.education[0]).toEqual({ institution: 'Fakultet', degree: '', period: '' })
+  })
+
+  it('carries the link, the photo and the two switches as they are', () => {
+    expect(mapMyCv(row)).toMatchObject({
+      slug: 'petar-petrovic',
+      photoPath: 'p-1/f.jpg',
+      showPublic: true,
+      showMembers: false,
+    })
+  })
+
+  it('does not change the rows it was given', () => {
+    const before = JSON.stringify(row)
+    mapMyCv(row)
+    expect(JSON.stringify(row)).toBe(before)
   })
 })

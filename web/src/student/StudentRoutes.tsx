@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router'
 import { CONTEXT_LABEL, homePath } from '../auth/roles'
 import { NotFoundContent } from '../components/NotFound'
+import { CvDetailPage } from '../cv/CvDetailPage'
+import { CvDirectoryPage } from '../cv/CvDirectoryPage'
 import { LessonsPanel } from './pages/LessonsPanel'
 import { SlotsPanel } from './pages/SlotsPanel'
 import { StudentLayout } from './pages/StudentLayout'
@@ -13,6 +15,14 @@ export function StudentRoutes({ context }: { context: StudentContext }) {
       <Route element={<StudentLayout context={context} />}>
         <Route index element={<LessonsPanel />} />
         <Route path="termini" element={<SlotsPanel />} />
+        <Route
+          path="nastavnici"
+          element={<CvDirectoryPage base={`${homePath(context)}/nastavnici`} />}
+        />
+        <Route
+          path="nastavnici/:slug"
+          element={<CvDetailPage base={`${homePath(context)}/nastavnici`} />}
+        />
       </Route>
       <Route
         path="*"
