@@ -2,15 +2,24 @@ import type { CvData } from './cvApi'
 import { CvPhoto } from './CvPhoto'
 
 /** What the teacher's CV looks like to a reader. The editor shows the same thing as a preview. */
-export function CvView({ cv, photoSrc }: { cv: CvData; photoSrc: string | null }) {
+export function CvView({
+  cv,
+  photoSrc,
+  heading: Heading = 'h2',
+}: {
+  cv: CvData
+  photoSrc: string | null
+  /** The level of the name: a page of its own makes it the main heading. */
+  heading?: 'h1' | 'h2'
+}) {
   return (
     <article className="cv">
       <header className="cv__head">
         <CvPhoto src={photoSrc} firstName={cv.firstName} lastName={cv.lastName} size="large" />
         <div>
-          <h2 className="cv__name">
+          <Heading className="cv__name">
             {cv.firstName} {cv.lastName}
-          </h2>
+          </Heading>
           {cv.subjects.length > 0 && (
             <ul className="chips" aria-label="Predmeti">
               {cv.subjects.map((subject) => (

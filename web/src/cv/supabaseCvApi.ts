@@ -27,7 +27,7 @@ export function mapSummary(row: SummaryRow): CvSummary {
 
 const text = (value: unknown): string | null => (typeof value === 'string' ? value : null)
 
-/** `get_member_cv` answers with one JSON object; a field it does not have is simply empty. */
+/** `get_member_cv` and `get_public_cv` answer with one JSON object; a field it does not have is simply empty. */
 export function mapCv(value: unknown): CvData | null {
   if (value === null || typeof value !== 'object') return null
   const json = value as Record<string, unknown>
@@ -73,6 +73,16 @@ export function createSupabaseCvApi(client: SupabaseClient<Database>): CvApi {
 
     async getMemberCv(slug) {
       const { data } = await run(client.rpc('get_member_cv', { p_slug: slug }))
+      return mapCv(data)
+    },
+
+    async listPublicCvs() {
+      const { data } = await run(client.rpc('list_public_cvs'))
+      return (data ?? []).map(mapSummary)
+    },
+
+    async getPublicCv(slug) {
+      const { data } = await run(client.rpc('get_public_cv', { p_slug: slug }))
       return mapCv(data)
     },
 

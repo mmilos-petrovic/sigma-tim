@@ -17,6 +17,8 @@ import { PushApiProvider } from './notifications/PushDevice'
 import { createPushApi } from './notifications/pushApi'
 import { CvApiProvider } from './cv/CvApiProvider'
 import { createSupabaseCvApi } from './cv/supabaseCvApi'
+import { EnrolmentApiProvider } from './enrolment/EnrolmentApiProvider'
+import { createSupabaseEnrolmentApi } from './enrolment/supabaseEnrolmentApi'
 import { StudentApiProvider } from './student/StudentApiProvider'
 import { createSupabaseStudentApi } from './student/supabaseStudentApi'
 import { TeacherApiProvider } from './teacher/TeacherApiProvider'
@@ -30,6 +32,7 @@ const services = client
       teacher: createSupabaseTeacherApi(client),
       student: createSupabaseStudentApi(client),
       cv: createSupabaseCvApi(client),
+      enrolment: createSupabaseEnrolmentApi(client),
       push: createPushApi({
         env: createBrowserEnv(),
         store: createSupabasePushStore(client),
@@ -51,13 +54,15 @@ export default function App() {
             <TeacherApiProvider api={services.teacher}>
               <StudentApiProvider api={services.student}>
                 <CvApiProvider api={services.cv}>
-                  <AuthProvider api={services.auth}>
-                    <PushApiProvider api={services.push}>
-                      <BrowserRouter>
-                        <AppRoutes />
-                      </BrowserRouter>
-                    </PushApiProvider>
-                  </AuthProvider>
+                  <EnrolmentApiProvider api={services.enrolment}>
+                    <AuthProvider api={services.auth}>
+                      <PushApiProvider api={services.push}>
+                        <BrowserRouter>
+                          <AppRoutes />
+                        </BrowserRouter>
+                      </PushApiProvider>
+                    </AuthProvider>
+                  </EnrolmentApiProvider>
                 </CvApiProvider>
               </StudentApiProvider>
             </TeacherApiProvider>

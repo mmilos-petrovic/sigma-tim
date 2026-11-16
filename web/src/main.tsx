@@ -5,6 +5,7 @@ import './admin/admin.css'
 import './teacher/teacher.css'
 import './student/student.css'
 import './cv/cv.css'
+import './pages/landing.css'
 import App from './App.tsx'
 import { registerServiceWorker } from './notifications/registerServiceWorker'
 

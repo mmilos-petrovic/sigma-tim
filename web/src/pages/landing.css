@@ -1,0 +1,147 @@
+/* The pages everybody may open: the front page, the public CV pages and the sign-up screen. */
+
+.site {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.site__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* The logo is a picture on white, so it keeps a white ground in the dark theme too. */
+.site__logo {
+  display: inline-flex;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.site__logo img {
+  display: block;
+  height: 40px;
+  width: auto;
+}
+
+.site__contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem 1rem;
+  font-weight: 600;
+}
+
+.site__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.site__main {
+  flex: 1;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.site__footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.site__footer p {
+  margin: 0 0 0.25rem;
+}
+
+/* The front page ---------------------------------------------------------------------------------------- */
+
+.landing__hero {
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.landing__intro h1 {
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+}
+
+.landing__call {
+  font-size: 1.15rem;
+}
+
+.landing__photo {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+
+.landing__section {
+  margin-top: 2.5rem;
+}
+
+.landing__section h2 {
+  margin-bottom: 0.75rem;
+  font-size: 1.35rem;
+}
+
+.landing__building img {
+  display: block;
+  width: min(100%, 20rem);
+  height: auto;
+  border-radius: var(--radius);
+}
+
+.landing__building {
+  margin: 0;
+}
+
+@media (min-width: 900px) {
+  .landing__hero {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .landing__intro h1 {
+    font-size: 2.25rem;
+  }
+}
+
+/* The form of the front page and the profile of a sign-up ------------------------------------------------ */
+
+.enrolment-form,
+.enrolment-profile {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 28rem;
+}
+
+.enrolment-form__role {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+
+.enrolment-request {
+  max-width: 32rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}

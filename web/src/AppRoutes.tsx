@@ -1,7 +1,16 @@
-import { Route, Routes } from 'react-router'
-import { CHOOSER_PATH, CONTEXTS, homePath, LOGIN_PATH, NOT_MEMBER_PATH } from './auth/roles'
+import { Navigate, Route, Routes } from 'react-router'
+import {
+  CHOOSER_PATH,
+  CONTEXTS,
+  ENROLMENT_PATH,
+  homePath,
+  LOGIN_PATH,
+  NOT_MEMBER_PATH,
+} from './auth/roles'
 import { RequireMember } from './components/guards'
 import { NotFoundContent } from './components/NotFound'
+import { PublicCvPage } from './cv/PublicCvPage'
+import { EnrolmentPage } from './enrolment/EnrolmentPage'
 import { ChooserPage } from './pages/ChooserPage'
 import { ContextPage } from './pages/ContextPage'
 import { LandingPage } from './pages/LandingPage'
@@ -14,6 +23,9 @@ export function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path={LOGIN_PATH} element={<LoginPage />} />
       <Route path={NOT_MEMBER_PATH} element={<NotMemberPage />} />
+      <Route path={ENROLMENT_PATH} element={<EnrolmentPage />} />
+      <Route path="/nastavnici" element={<Navigate to="/" replace />} />
+      <Route path="/nastavnici/:slug" element={<PublicCvPage />} />
 
       <Route element={<RequireMember />}>
         <Route path={CHOOSER_PATH} element={<ChooserPage />} />
