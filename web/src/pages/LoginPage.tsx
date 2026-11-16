@@ -2,8 +2,11 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, useLocation, useSearchParams } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
 import { destinationFor } from '../auth/destination'
+import { contextsOf } from '../auth/roles'
 import { clearReturnTo, peekReturnTo, sanitizeReturnTo } from '../auth/returnTo'
 import { ErrorScreen, LoadingScreen } from '../components/Status'
+import { clearPendingEnrolment, peekPendingEnrolment } from '../enrolment/pending'
+import { StartEnrolment } from '../enrolment/StartEnrolment'
 
 // Only referenced behind `import.meta.env.DEV`, so the production build drops it together with its chunk.
 const DevLogin = /* @__PURE__ */ lazy(() => import('../dev/DevLogin'))
@@ -17,16 +20,23 @@ export function LoginPage() {
 
   const from = sanitizeReturnTo((location.state as { from?: string } | null)?.from)
   const signedIn = state.status === 'ready'
+  const member = state.status === 'ready' && contextsOf(state.roles).length > 0
 
   useEffect(() => {
     // The saved page is used up once the person is signed in.
     if (signedIn) clearReturnTo()
-  }, [signedIn])
+    // So is what the sign-up form chose: a member of the school is never signed up a second time.
+    if (member) clearPendingEnrolment()
+  }, [signedIn, member])
 
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'error') return <ErrorScreen />
-  if (state.status === 'ready')
+  if (state.status === 'ready') {
+    // Somebody the school does not know yet comes back from Google after the form of the front page.
+    const pending = member ? null : peekPendingEnrolment()
+    if (pending) return <StartEnrolment pending={pending} />
     return <Navigate to={destinationFor(state.roles, from ?? peekReturnTo())} replace />
+  }
 
   // Google sends the person back here with ?error=... when they refuse or something goes wrong.
   const failed = startFailed || params.has('error') || params.has('error_code')

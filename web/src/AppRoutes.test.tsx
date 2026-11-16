@@ -4,6 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AdminApiProvider } from './admin/AdminApiProvider'
+import { CvApiProvider } from './cv/CvApiProvider'
+import { EnrolmentApiProvider } from './enrolment/EnrolmentApiProvider'
+import type { EnrolmentApi } from './enrolment/enrolmentApi'
 import { AppRoutes } from './AppRoutes'
 import { AuthExpiredError } from './auth/authApi'
 import { AuthProvider } from './auth/AuthProvider'
@@ -11,6 +14,8 @@ import { readLastContext, writeLastContext } from './auth/lastContext'
 import { saveReturnTo } from './auth/returnTo'
 import type { MyRoles } from './auth/roles'
 import { createFakeAdminApi } from './test/fakeAdminApi'
+import { createFakeCvApi } from './test/fakeCvApi'
+import { createFakeEnrolmentApi } from './test/fakeEnrolmentApi'
 import { createFakeStudentApi } from './test/fakeStudentApi'
 import { createFakeTeacherApi } from './test/fakeTeacherApi'
 import { StudentApiProvider } from './student/StudentApiProvider'
@@ -26,7 +31,11 @@ function Where() {
   return <p data-testid="where">{pathname}</p>
 }
 
-function renderApp(api: FakeAuthApi, path = '/') {
+function renderApp(
+  api: FakeAuthApi,
+  path = '/',
+  enrolment: EnrolmentApi = createFakeEnrolmentApi(),
+) {
   // The administration screens need their data layer, even though these tests only look at routing.
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   return render(
@@ -34,12 +43,16 @@ function renderApp(api: FakeAuthApi, path = '/') {
       <AdminApiProvider api={createFakeAdminApi()}>
         <TeacherApiProvider api={createFakeTeacherApi()}>
           <StudentApiProvider api={createFakeStudentApi()}>
-            <AuthProvider api={api}>
-              <MemoryRouter initialEntries={[path]}>
-                <Where />
-                <AppRoutes />
-              </MemoryRouter>
-            </AuthProvider>
+            <CvApiProvider api={createFakeCvApi()}>
+              <EnrolmentApiProvider api={enrolment}>
+                <AuthProvider api={api}>
+                  <MemoryRouter initialEntries={[path]}>
+                    <Where />
+                    <AppRoutes />
+                  </MemoryRouter>
+                </AuthProvider>
+              </EnrolmentApiProvider>
+            </CvApiProvider>
           </StudentApiProvider>
         </TeacherApiProvider>
       </AdminApiProvider>
@@ -351,8 +364,8 @@ describe('layout', () => {
 describe('public and unknown pages', () => {
   it('shows the front page to a visitor who is not signed in, with a way to sign in', async () => {
     renderApp(createFakeAuthApi(), '/')
-    expect(await heading('Sigma Tim')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Prijavi se' })).toHaveAttribute('href', '/prijava')
+    expect(await heading('Časovi za osnovce, srednjoškolce i studente')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Prijava' })).toHaveAttribute('href', '/prijava')
   })
 
   it('points a signed-in member from the front page to the app', async () => {
@@ -365,8 +378,8 @@ describe('public and unknown pages', () => {
     let release!: () => void
     api.rolesGate = new Promise<void>((resolve) => (release = resolve))
     renderApp(api, '/')
-    expect(await heading('Sigma Tim')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Prijavi se' })).not.toBeInTheDocument()
+    expect(await heading('Časovi za osnovce, srednjoškolce i studente')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Prijava' })).not.toBeInTheDocument()
     await act(async () => release())
     expect(await screen.findByRole('link', { name: 'Otvori aplikaciju' })).toBeInTheDocument()
   })

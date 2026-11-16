@@ -280,3 +280,6 @@ export type ActionKey =
   | 'setColor'
   | 'saveCv'
   | 'setCvPhoto'
+  // sign-up for lessons
+  | 'startEnrolment'
+  | 'completeEnrolmentProfile'

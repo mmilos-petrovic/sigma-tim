@@ -1,18 +1,23 @@
 import { Navigate } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
 import { destinationFor } from '../auth/destination'
-import { contextsOf, LOGIN_PATH } from '../auth/roles'
+import { contextsOf, ENROLMENT_PATH, LOGIN_PATH } from '../auth/roles'
 import { ErrorScreen, LoadingScreen } from '../components/Status'
+import { useMyEnrolmentRequests } from '../enrolment/queries'
 
 /** A Google account the school has not approved. The email is shown, because a mistyped address is the usual cause. */
 export function NotMemberPage() {
   const { state, signOut } = useAuth()
+  const requests = useMyEnrolmentRequests(state.status === 'ready')
 
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'error') return <ErrorScreen />
   if (state.status === 'signedOut') return <Navigate to={LOGIN_PATH} replace />
   if (contextsOf(state.roles).length > 0)
     return <Navigate to={destinationFor(state.roles, null)} replace />
+  // somebody who signed up from the front page is not a stranger: their request is the place for them
+  if (requests.isPending) return <LoadingScreen />
+  if (requests.data && requests.data.length > 0) return <Navigate to={ENROLMENT_PATH} replace />
 
   return (
     <main className="screen">

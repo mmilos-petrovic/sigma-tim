@@ -46,6 +46,9 @@ export function explainError(error: unknown, action: ActionKey): string {
       if (code === '42501' && (action === 'publishSlot' || action === 'updateLesson')) {
         return 'Slobodan termin mora biti u budućnosti.'
       }
+      if (action === 'startEnrolment') {
+        return 'Prijava za časove trenutno nije dostupna. Pozovite nas na 064 4994 235.'
+      }
       if (action === 'changeEmail' && /own email/i.test(message)) {
         return 'Ne možete da promenite sopstvenu email adresu.'
       }
@@ -197,6 +200,24 @@ export function explainError(error: unknown, action: ActionKey): string {
       if (code === 'PT409') return 'Upišite tekst „O meni“ da bi CV mogao da bude vidljiv.'
       if (code === 'PT400') {
         return 'CV ima previše stavki (najviše 20 radnih iskustava, 20 obrazovanja i 50 veština).'
+      }
+      break
+    case 'startEnrolment':
+      if (code === 'PT400') return 'Za izabrani predmet trenutno nema nastavnika. Izaberite drugi.'
+      if (code === 'PT409') {
+        if (/erased/i.test(message)) return 'Ovaj nalog ne može da se prijavi za časove.'
+        return 'Ovaj nalog već pripada školi. Prijavite se na početnoj strani.'
+      }
+      break
+    case 'completeEnrolmentProfile':
+      if (code === 'PT409') return 'Nastavnik je već izabran, pa se profil više ne menja.'
+      if (code === 'PT400') {
+        if (/first and last name/i.test(message)) return 'Upišite ime i prezime učenika.'
+        if (/phone/i.test(message)) return INVALID_PHONE
+        if (/school/i.test(message)) return 'Upišite školu.'
+        if (/grade/i.test(message)) return 'Upišite razred.'
+        if (/privacy/i.test(message)) return 'Prihvatite politiku privatnosti da biste nastavili.'
+        if (/too long/i.test(message)) return 'Neki tekst je predugačak.'
       }
       break
     case 'setCvPhoto':

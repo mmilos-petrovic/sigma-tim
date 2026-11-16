@@ -2,8 +2,14 @@ import { vi } from 'vitest'
 import type { CvApi, CvData, CvSummary } from '../cv/cvApi'
 
 export interface FakeCvApi extends CvApi {
-  state: { cvs: CvData[] }
-  calls: { listMemberCvs: ReturnType<typeof vi.fn>; getMemberCv: ReturnType<typeof vi.fn> }
+  /** `cvs` are the CVs a signed-in person reads; `publicCvs` the ones with "javno" on (by default the same). */
+  state: { cvs: CvData[]; publicCvs: CvData[] }
+  calls: {
+    listMemberCvs: ReturnType<typeof vi.fn>
+    getMemberCv: ReturnType<typeof vi.fn>
+    listPublicCvs: ReturnType<typeof vi.fn>
+    getPublicCv: ReturnType<typeof vi.fn>
+  }
 }
 
 export const FIXTURE_CVS: CvData[] = [
@@ -48,15 +54,26 @@ const summary = (cv: CvData): CvSummary => ({
 })
 
 /** An in-memory stand-in for the CVs a signed-in person may read. */
-export function createFakeCvApi(cvs: CvData[] = FIXTURE_CVS): FakeCvApi {
-  const state = { cvs }
+export function createFakeCvApi(cvs: CvData[] = FIXTURE_CVS, publicCvs: CvData[] = cvs): FakeCvApi {
+  const state = { cvs, publicCvs }
   const list = vi.fn(async () => state.cvs.map(summary))
   const get = vi.fn(async (slug: string) => state.cvs.find((cv) => cv.slug === slug) ?? null)
+  const listPublic = vi.fn(async () => state.publicCvs.map(summary))
+  const getPublic = vi.fn(
+    async (slug: string) => state.publicCvs.find((cv) => cv.slug === slug) ?? null,
+  )
   return {
     state,
     listMemberCvs: list,
     getMemberCv: get,
+    listPublicCvs: listPublic,
+    getPublicCv: getPublic,
     photoUrl: (path) => `https://photos.test/${path}`,
-    calls: { listMemberCvs: list, getMemberCv: get },
+    calls: {
+      listMemberCvs: list,
+      getMemberCv: get,
+      listPublicCvs: listPublic,
+      getPublicCv: getPublic,
+    },
   }
 }

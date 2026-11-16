@@ -37,6 +37,10 @@ export interface CvApi {
   listMemberCvs(): Promise<CvSummary[]>
   /** One CV by its link, or null when there is none for this person (not shared, switched off, a deactivated teacher). */
   getMemberCv(slug: string): Promise<CvData | null>
+  /** The CVs with the switch "javno" on: what a visitor who has not signed in may read. */
+  listPublicCvs(): Promise<CvSummary[]>
+  /** One public CV by its link, or null when there is none (hidden, unknown, a deactivated teacher). */
+  getPublicCv(slug: string): Promise<CvData | null>
   /** The address of a photo; the bucket is public, so no sign-in is needed to load it. */
   photoUrl(path: string): string
 }
