@@ -1,6 +1,6 @@
 -- Enrolment, part 2: the pool the teachers see, offers, the job that opens the choice, choosing, and placing a teacher.
 begin;
-select plan(61);
+select plan(62);
 
 select tests.seed_basic();
 select tests.mkoutsider('o2');
@@ -33,8 +33,9 @@ update public.enrolment_requests set listed_at = now() - interval '1 day' where 
 update public.enrolment_requests set listed_at = now() - interval '3.5 days' where id = tests.id('req:pera');
 
 -- who sees the pool -----------------------------------------------------------------------------------------------------------------
+-- (no ordering of its own: the order is the one the function returns)
 create function tests.pool() returns text[] language sql as $$
-  select coalesce(array_agg(student_first_name order by listed_at desc, request_id), '{}') from public.list_enrolment_pool()
+  select coalesce(array_agg(q.n), '{}') from (select student_first_name as n from public.list_enrolment_pool() where source <> 'legacy') q
 $$;
 
 select tests.login_as('ta');
@@ -99,6 +100,11 @@ select is(
 select is(
   (select public.get_offered_cv(tests.id('req:pera'), tests.id('p:ta')) ->> 'about'),
   'About Alfa', 'they read that CV, although the teacher switched off both ways of showing it'
+);
+select is(
+  (select row(jsonb_array_length(c -> 'experience'), jsonb_array_length(c -> 'education'), jsonb_array_length(c -> 'skills'))::text
+     from (select public.get_offered_cv(tests.id('req:pera'), tests.id('p:ta')) as c) x),
+  row(1, 1, 1)::text, 'with its experience, education and skills'
 );
 select is(public.get_offered_cv(tests.id('req:pera'), tests.id('p:tb')), null, 'but not the CV of a teacher who did not offer');
 select throws_ok(format($$ select public.choose_enrolment_teacher(%L, %L) $$, tests.id('req:pera'), tests.id('p:ta')), 'PT409', null, 'the choice is not open yet');
