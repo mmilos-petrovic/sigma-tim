@@ -208,6 +208,40 @@ export interface ConflictQuery extends TimeRange {
   excludeLessonId?: string
 }
 
+// CV --------------------------------------------------------------------------------------------------------------------
+
+/** What the editor holds for one entry; empty texts are none. */
+export interface ExperienceInput {
+  employer: string
+  position: string
+  period: string
+  description: string
+}
+
+export interface EducationInput {
+  institution: string
+  degree: string
+  period: string
+}
+
+/** The whole CV as the editor saves it. */
+export interface CvInput {
+  about: string
+  showPublic: boolean
+  showMembers: boolean
+  experience: ExperienceInput[]
+  education: EducationInput[]
+  skills: string[]
+}
+
+/** The teacher's own CV, as stored. */
+export interface MyCv extends CvInput {
+  /** The public link `/nastavnici/<slug>`; it never changes. */
+  slug: string
+  /** A file name inside the public `cv-photos` bucket. */
+  photoPath: string | null
+}
+
 export interface TeacherApi {
   /** The students of this teacher, with their parents. */
   listStudents(teacherId: string): Promise<StudentRow[]>
@@ -280,4 +314,17 @@ export interface TeacherApi {
 
   /** The teacher's own colour, on all their lessons (past and future) for everybody who sees them. `null` is no choice. */
   setColor(teacherId: string, color: ColorKey | null): Promise<void>
+
+  /** The teacher's own CV, or null when they have not made one yet. */
+  getMyCv(teacherId: string): Promise<MyCv | null>
+  /**
+   * Saves the whole CV in one step (the first save makes it). Refused (`PT409`) when a switch is on and the text is empty;
+   * nothing is saved when anything is wrong.
+   */
+  saveMyCv(input: CvInput): Promise<void>
+  /**
+   * Replaces the photo (already shrunk by the caller) or, with `null`, takes it away. Returns the new file name. The old
+   * file is removed afterwards; failing to remove it is only logged.
+   */
+  setCvPhoto(teacherId: string, image: Blob | null): Promise<string | null>
 }

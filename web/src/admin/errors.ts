@@ -59,6 +59,9 @@ export function explainError(error: unknown, action: ActionKey): string {
       }
       if (action === 'setNote') return 'Napomena je predugačka (najviše 2000 znakova).'
       if (action === 'setColor') return 'Ta boja nije na spisku. Izaberite drugu.'
+      if (action === 'saveCv') {
+        return 'Neko polje je prazno ili predugačko. Poslodavac, pozicija, ustanova i veštine ne smeju biti prazni.'
+      }
       return 'Uneta vrednost nije ispravna.'
   }
 
@@ -189,6 +192,16 @@ export function explainError(error: unknown, action: ActionKey): string {
         if (/email/i.test(message)) return 'Email adresa nije ispravna.'
         if (/name/i.test(message)) return 'Ime i prezime su obavezni.'
       }
+      break
+    case 'saveCv':
+      if (code === 'PT409') return 'Upišite tekst „O meni“ da bi CV mogao da bude vidljiv.'
+      if (code === 'PT400') {
+        return 'CV ima previše stavki (najviše 20 radnih iskustava, 20 obrazovanja i 50 veština).'
+      }
+      break
+    case 'setCvPhoto':
+      if (code === '42501')
+        return 'Fotografija ne može da se sačuva. Osvežite stranicu i pokušajte ponovo.'
       break
     case 'requestTakeover':
       if (code === 'PT409') {

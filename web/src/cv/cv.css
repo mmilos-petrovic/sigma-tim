@@ -1,0 +1,173 @@
+/* The teachers' CVs: the list, one CV, the editor. */
+
+.cv-photo {
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--primary-soft);
+}
+
+.cv-photo--small {
+  width: 56px;
+  height: 56px;
+}
+
+.cv-photo--large {
+  width: 96px;
+  height: 96px;
+}
+
+.cv-photo--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.cv-photo--small.cv-photo--initials {
+  font-size: 1.2rem;
+}
+
+.cv-photo--large.cv-photo--initials {
+  font-size: 2rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips li {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  font-size: 0.9rem;
+}
+
+.cv-cards {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+.cv-card {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  height: 100%;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.cv-card:hover,
+.cv-card:focus-visible {
+  border-color: var(--primary);
+}
+
+.cv-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.cv {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.cv__head {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.cv__name {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.cv h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.cv__about {
+  white-space: pre-line;
+}
+
+.cv__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv__list p {
+  margin: 0.15rem 0 0;
+  white-space: pre-line;
+}
+
+.cv-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 44rem;
+}
+
+.cv-editor textarea {
+  width: 100%;
+  font: inherit;
+}
+
+.cv-editor__photo {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cv-editor__entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.cv-editor__skill {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.cv-editor__skill .field {
+  flex: 1;
+}
+
+.cv-editor__preview summary {
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}

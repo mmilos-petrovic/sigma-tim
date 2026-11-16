@@ -1,14 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { AdminError } from '../admin/adminApi'
-import { run, runOne } from '../admin/supabaseAdminApi'
+import { run, runOne, toAdminError } from '../admin/supabaseAdminApi'
 import type { Database } from '../lib/database.types'
 import { mapPhones } from '../lib/phone'
 import { isColorKey, type ColorKey } from './colors'
 
 export { mapPhones }
+import { CV_BUCKET } from '../cv/supabaseCvApi'
 import type {
   BusyRow,
   Conflict,
+  CvInput,
+  MyCv,
   LessonOrigin,
   LessonRow,
   LessonStatus,
@@ -217,6 +220,64 @@ export function mapConflict(
 const PROFILE = 'id, email, first_name, last_name, user_id'
 const LESSON =
   'id, subject_id, location_id, room_id, start_at, end_at, status, origin, outcome, participants:lesson_students(student_id, note, paid_at)'
+
+/** The teacher's CV as stored, with the lists in the order the teacher put them and empty texts for the ones they left out. */
+export function mapMyCv(row: {
+  slug: string
+  about: string | null
+  photo_path: string | null
+  show_public: boolean
+  show_members: boolean
+  experience: {
+    employer: string
+    position: string
+    period: string | null
+    description: string | null
+    sort_order: number
+  }[]
+  education: {
+    institution: string
+    degree: string | null
+    period: string | null
+    sort_order: number
+  }[]
+  skills: { skill: string; sort_order: number }[]
+}): MyCv {
+  const ordered = <T extends { sort_order: number }>(rows: T[]) =>
+    [...rows].sort((a, b) => a.sort_order - b.sort_order)
+  return {
+    slug: row.slug,
+    about: row.about ?? '',
+    showPublic: row.show_public,
+    showMembers: row.show_members,
+    photoPath: row.photo_path,
+    experience: ordered(row.experience).map((e) => ({
+      employer: e.employer,
+      position: e.position,
+      period: e.period ?? '',
+      description: e.description ?? '',
+    })),
+    education: ordered(row.education).map((e) => ({
+      institution: e.institution,
+      degree: e.degree ?? '',
+      period: e.period ?? '',
+    })),
+    skills: ordered(row.skills).map((k) => k.skill),
+  }
+}
+
+/** Storage reports its own error shape. */
+function storageError(error: { message: string; statusCode?: string }): AdminError {
+  return /row-level security|unauthorized|403/i.test(`${error.message} ${error.statusCode ?? ''}`)
+    ? new AdminError('42501', error.message)
+    : toAdminError(
+        { message: error.message },
+        error.statusCode ? Number(error.statusCode) : undefined,
+      )
+}
+
+/** `{ a: '' }` is no value: an empty text is none. */
+const orNull = (value: string) => (value.trim() === '' ? null : value.trim())
 
 export function createSupabaseTeacherApi(client: SupabaseClient<Database>): TeacherApi {
   return {
@@ -524,6 +585,90 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
     },
     async deleteStudent(studentId) {
       await run(client.rpc('delete_student', { p_student_id: studentId }))
+    },
+
+    async getMyCv(teacherId) {
+      const { data } = await run(
+        client
+          .from('teacher_cv')
+          .select(
+            'id, slug, about, photo_path, show_public, show_members, experience:cv_experience(employer, position, period, description, sort_order), education:cv_education(institution, degree, period, sort_order), skills:cv_skills(skill, sort_order)',
+          )
+          .eq('teacher_id', teacherId)
+          .limit(1),
+      )
+      const row = data?.[0]
+      return row ? mapMyCv(row) : null
+    },
+
+    async saveMyCv(input: CvInput) {
+      await run(
+        client.rpc('save_my_cv', {
+          p_about: input.about,
+          p_show_public: input.showPublic,
+          p_show_members: input.showMembers,
+          p_experience: input.experience.map((e) => ({
+            employer: e.employer,
+            position: e.position,
+            period: orNull(e.period),
+            description: orNull(e.description),
+          })),
+          p_education: input.education.map((e) => ({
+            institution: e.institution,
+            degree: orNull(e.degree),
+            period: orNull(e.period),
+          })),
+          p_skills: input.skills,
+        }),
+      )
+    },
+
+    async setCvPhoto(teacherId, image) {
+      const storage = () => client.storage.from(CV_BUCKET)
+      const { data: current } = await run(
+        client.from('teacher_cv').select('photo_path').eq('teacher_id', teacherId).limit(1),
+      )
+      const old = current?.[0]?.photo_path ?? null
+
+      let path: string | null = null
+      if (image) {
+        // a name nobody can guess: the bucket is public, so the address is the only protection
+        path = `${teacherId}/${crypto.randomUUID()}.jpg`
+        const upload = await storage().upload(path, image, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        })
+        if (upload.error) throw storageError(upload.error)
+      }
+
+      try {
+        const exists = (current?.length ?? 0) > 0
+        if (exists) {
+          await runOne(
+            client
+              .from('teacher_cv')
+              .update({ photo_path: path })
+              .eq('teacher_id', teacherId)
+              .select('teacher_id'),
+          )
+        } else if (path !== null) {
+          // (an upsert would also rewrite `teacher_id`, which a teacher may not change; the slug is made by the database)
+          await run(
+            client.from('teacher_cv').insert({ teacher_id: teacherId, photo_path: path } as never),
+          )
+        }
+      } catch (error) {
+        // Do not leave a file behind that nothing points to.
+        if (path) await storage().remove([path])
+        throw error
+      }
+
+      if (old) {
+        const { error } = await storage().remove([old])
+        if (error)
+          console.warn('The photo was replaced but the old file could not be removed', error)
+      }
+      return path
     },
 
     async setColor(teacherId, color) {
