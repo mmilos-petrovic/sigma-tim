@@ -1,6 +1,6 @@
 -- Enrolment, part 3: the administrator (settings, list, assigning, rejecting), and students a teacher adds to the pool.
 begin;
-select plan(50);
+select plan(51);
 
 select tests.seed_basic();
 select tests.mkoutsider('o2');
@@ -144,6 +144,10 @@ select tests.logout();
 select tests.reg('req:pool1', r.id) from public.enrolment_requests r join public.students s on s.id = r.student_id join public.profiles p on p.id = s.profile_id where p.email = 'pool1@t.test';
 select tests.login_as('tb');
 select throws_ok(format($$ select public.offer_enrolment(%L) $$, tests.id('req:pool1')), 'PT404', null, 'nor can offer for it');
+select tests.logout();
+
+select tests.login_as('admin');
+select throws_ok(format($$ select public.reject_enrolment(%L) $$, tests.id('req:pool1')), 'PT404', null, 'a request of a student who has a record cannot be rejected');
 select tests.logout();
 
 -- the student and their parents are told about offers

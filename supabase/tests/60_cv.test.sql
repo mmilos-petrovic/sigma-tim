@@ -1,6 +1,6 @@
 -- Teacher CVs: owner-only editing, two independent visibility switches (public / signed-in members), nothing else for anon.
 begin;
-select plan(62);
+select plan(63);
 
 select tests.seed_basic();
 -- ta: public + members, slug test-alfa;  tb: members only, slug test-beta;  tc and boss have no CV yet
@@ -161,10 +161,14 @@ select throws_ok($$ select * from public.list_member_cvs() $$, 'PT403', null, 'n
 -- the switches take effect at once -------------------------------------------------------------------------------------
 select tests.login_as('ta');
 select is(tests.affected($$ update public.teacher_cv set show_members = false where id = tests.id('cv:ta') $$), 1, 'a teacher switches the member view off');
-select tests.login_as('s1');
+select tests.login_as('s3');
 select is(
   (select array_agg(slug order by slug) from public.list_member_cvs() where slug in ('test-alfa', 'test-beta')),
   array['test-beta'], 'switching off the member view removes the CV from members at once');
+select tests.login_as('s1');
+select is(
+  (select array_agg(slug order by slug) from public.list_member_cvs() where slug in ('test-alfa', 'test-beta')),
+  array['test-alfa', 'test-beta'], '... but not from the students of that teacher: they always read their own teacher''s CV');
 select tests.login_anon();
 select is(public.get_public_cv('test-alfa') ->> 'slug', 'test-alfa', '... while the public one stays');
 select tests.login_as('ta');

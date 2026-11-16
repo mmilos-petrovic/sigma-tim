@@ -214,7 +214,15 @@ A person finds the school on the landing page, picks a subject and says whether 
 
 **Notices** (kinds in `notification_kinds`, email fallback on, held back by quiet hours): `enrolment_offer` and `enrolment_choice_open` to the person who signed up and, for a student a teacher added, their parents; `enrolment_chosen` (a person chose) and `enrolment_assigned` (the administrator placed) to the teacher, and the latter to the person too. The Edge Function needs the texts for these four kinds (Phase 7d).
 
-**Not in this part:** old unassigned students (the ones a teacher left behind), narrowing who sees unassigned students, the CV a student's own teacher can always read, and retiring `request_takeover`/`approve_takeover`: part 2.
+### Students nobody teaches (part 2)
+
+Every student with no teacher has an enrolment request, made by a trigger on `students` (`private.ensure_unassigned_request`): the ones a teacher left behind (`deactivate_teacher`, `erase_teacher`), the ones the administrator adds without a teacher, and, when a teacher adds one with `add_unassigned_student`, the same request filled in (`source` `teacher`). The migration made one for every student who was unassigned at the time. The request's **subject** is the subject of the student's newest lesson, or none; a student who loses a second teacher gets the same request back (open, waiting from now, restarts and choice cleared, the typed data and the subject kept). Whatever puts a teacher on the student (a choice, `admin_assign_enrolment`, and also the old `approve_takeover`) closes the request and the other offers (`private.students_got_a_teacher`).
+
+**Who sees an unassigned student.** A teacher reads the `students` row (and with it the profile, through `can_teacher_see_student`) only when the request is for a subject they teach, or has no subject, or there is no request (`private.teacher_may_see_unassigned`). The administrator sees everybody. The pool (`list_enrolment_pool`) uses the same rule, so old students appear in it with `source = 'legacy'`. A student without a subject says which one they want: `set_enrolment_subject(request, subject)` (the student or a parent; not for a sign-up, whose subject was chosen on the form); offers of teachers who do not teach the new subject go.
+
+**CVs.** A student, and a parent of one, read the CV of the student's own teacher through `list_member_cvs` and `get_member_cv` whatever the "signed-in users" switch says. The public switch is separate and stays what it says (`get_public_cv` does not open it for them).
+
+**Not in this part, in Phase 7d together with the screens:** retiring `request_takeover`, `approve_takeover` and `reject_takeover` (the teacher and administrator screens still call them; `request_takeover` has no subject rule, so a teacher can still ask for a student of another subject through it) and turning the takeover requests still pending into offers.
 
 ## Tests
 
