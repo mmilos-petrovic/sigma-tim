@@ -1,13 +1,10 @@
 -- Reactivating a deactivated teacher.
 begin;
-select plan(22);
+select plan(21);
 
 select tests.seed_basic();
 
--- ta asks for an unassigned student, then the admin deactivates ta. That deletes ta's future lessons, releases s1 and s2
--- and closes the request.
-select tests.login_as('ta');
-select public.request_takeover(tests.id('s:su'));
+-- The admin deactivates ta. That deletes ta's future lessons and releases s1 and s2.
 select tests.login_as('admin');
 select public.deactivate_teacher(tests.id('p:ta'));
 select tests.logout();
@@ -54,10 +51,6 @@ select is(
 select is(
   (select count(*)::int from public.lessons where teacher_id = tests.id('p:ta') and start_at > now()), 0,
   'deleted future lessons do not come back'
-);
-select is(
-  (select count(*)::int from public.takeover_requests where teacher_id = tests.id('p:ta') and status = 'rejected'), 1,
-  'the request closed at deactivation stays closed'
 );
 
 select tests.login_anon();

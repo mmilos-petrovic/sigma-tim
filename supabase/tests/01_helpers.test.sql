@@ -297,6 +297,8 @@ begin
   perform tests.mkparent('pu', 'Test', 'RoditeljU', array['su']);
 
   perform tests.mkoutsider('outsider');
+  -- the sign-up form starts switched off in a real database (Phase 7d); the tests of sign-ups need it on
+  update public.enrolment_settings set form_enabled = true where singleton;
 
   perform tests.mklesson('group', 'ta', 'math', 'L1', 'R1', tests.at(30 * 60), 60, 'confirmed', 'teacher', array['s1', 's2']);
   update public.lesson_students set note = 'note-s1' where lesson_id = tests.id('les:group') and student_id = tests.id('s:s1');
