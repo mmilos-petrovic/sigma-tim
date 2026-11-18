@@ -600,7 +600,6 @@ describe('deactivating a teacher', () => {
     const dialog = await inDialog('Deaktivacija nastavnika')
     expect(await dialog.findByText('Budući časovi koji se brišu: 3')).toBeInTheDocument()
     expect(dialog.getByText('Učenici koji postaju neraspoređeni: 2')).toBeInTheDocument()
-    expect(dialog.getByText('Zahtevi za preuzimanje koji se zatvaraju: 1')).toBeInTheDocument()
     expect(adminApi.teacherImpact).toHaveBeenCalledWith('t-ana')
 
     await userEvent.click(dialog.getByRole('button', { name: 'Deaktiviraj' }))
@@ -739,7 +738,6 @@ describe('erasing a teacher', () => {
 
     expect(await dialog.findByText('Budući časovi koji se brišu: 3')).toBeInTheDocument()
     expect(dialog.getByText('Učenici koji postaju neraspoređeni: 2')).toBeInTheDocument()
-    expect(dialog.getByText('Zahtevi za preuzimanje koji se zatvaraju: 1')).toBeInTheDocument()
     expect(adminApi.teacherImpact).toHaveBeenCalledWith('t-ana')
     expect(dialog.getByText(/Ovo se ne može poništiti/)).toBeInTheDocument()
     expect(dialog.getByText(/biografija, predmeti i CV/)).toBeInTheDocument()

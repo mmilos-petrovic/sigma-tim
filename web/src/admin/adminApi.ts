@@ -50,25 +50,10 @@ export interface LocationRow {
   photos: Photo[]
 }
 
-export interface TakeoverRow {
-  id: string
-  createdAt: string
-  student: {
-    id: string
-    firstName: string
-    lastName: string
-    school: string | null
-    grade: string | null
-    section: string | null
-  }
-  teacher: { id: string; firstName: string; lastName: string }
-}
-
 /** What deactivating a teacher will do, shown before the admin confirms. */
 export interface TeacherImpact {
   futureLessons: number
   students: number
-  pendingRequests: number
 }
 
 /** `deleted`: nothing is left. `kept_history`: the name stays as a record behind lessons that already started. */
@@ -195,10 +180,6 @@ export interface AdminApi {
    */
   deleteStudent(studentId: string): Promise<void>
 
-  listTakeovers(): Promise<TakeoverRow[]>
-  approveTakeover(requestId: string): Promise<void>
-  rejectTakeover(requestId: string): Promise<void>
-
   getNotificationSettings(): Promise<NotificationSettingsAndKinds>
   saveNotificationSettings(settings: NotificationSettings): Promise<void>
   setEmailFallback(kind: string, enabled: boolean): Promise<void>
@@ -251,8 +232,6 @@ export type ActionKey =
   | 'deleteRoom'
   | 'addPhoto'
   | 'removePhoto'
-  | 'approveTakeover'
-  | 'rejectTakeover'
   | 'saveNotificationSettings'
   | 'setEmailFallback'
   | 'resendNotification'
@@ -264,7 +243,6 @@ export type ActionKey =
   | 'renamePerson'
   | 'addParent'
   | 'removeParent'
-  | 'requestTakeover'
   | 'scheduleLesson'
   | 'updateLesson'
   | 'setLessonStudents'
@@ -283,3 +261,13 @@ export type ActionKey =
   // sign-up for lessons
   | 'startEnrolment'
   | 'completeEnrolmentProfile'
+  | 'setEnrolmentSubject'
+  | 'chooseTeacher'
+  | 'offerEnrolment'
+  | 'withdrawOffer'
+  | 'completeChosenEnrolment'
+  | 'addUnassignedStudent'
+  | 'saveEnrolmentSettings'
+  | 'approveEnrolment'
+  | 'rejectEnrolment'
+  | 'assignEnrolment'

@@ -20,7 +20,8 @@ export function ProfileForm({
   onSaved: () => void
 }) {
   const api = useEnrolmentApi()
-  const needsConsent = !request.profileCompleted
+  // the privacy policy is accepted once, by somebody who signs up; a student a teacher added did not sign up
+  const needsConsent = request.source === 'signup' && !request.profileCompleted
   const [firstName, setFirstName] = useState(request.studentFirstName ?? defaults.firstName)
   const [lastName, setLastName] = useState(request.studentLastName ?? defaults.lastName)
   const [phone, setPhone] = useState(request.contactPhone ? formatPhone(request.contactPhone) : '')

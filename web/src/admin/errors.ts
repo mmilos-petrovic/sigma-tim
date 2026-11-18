@@ -39,6 +39,14 @@ export function explainError(error: unknown, action: ActionKey): string {
       if (action === 'setPaid') return 'Čas ili učenik više ne postoji. Osvežite stranicu.'
       if (action === 'deleteStudent') return 'Učenik više ne postoji. Osvežite stranicu.'
       if (action === 'claimSlot') return 'Termin više ne postoji. Izaberite drugi.'
+      if (action === 'offerEnrolment') return 'Prijava više nije dostupna. Osvežite stranicu.'
+      if (action === 'approveEnrolment') {
+        return 'Prijava više ne postoji ili je već obrađena. Osvežite stranicu.'
+      }
+      if (action === 'rejectEnrolment') {
+        return 'Prijava ne može da se odbije: ne postoji, ili učenik već ima svoj zapis.'
+      }
+      if (action === 'assignEnrolment') return 'Prijava više ne postoji. Osvežite stranicu.'
       return 'Podatak više ne postoji. Osvežite stranicu.'
     case 'PT403':
     case '42501':
@@ -224,10 +232,67 @@ export function explainError(error: unknown, action: ActionKey): string {
       if (code === '42501')
         return 'Fotografija ne može da se sačuva. Osvežite stranicu i pokušajte ponovo.'
       break
-    case 'requestTakeover':
+    case 'setEnrolmentSubject':
+      if (code === 'PT400') return 'Za izabrani predmet trenutno nema nastavnika. Izaberite drugi.'
+      if (code === 'PT409') return 'Predmet se više ne menja.'
+      break
+    case 'chooseTeacher':
       if (code === 'PT409') {
-        if (/pending request/i.test(message)) return 'Zahtev za ovog učenika je već poslat.'
-        return 'Učenik je u međuvremenu dobio nastavnika. Osvežite stranicu.'
+        if (/not open/i.test(message)) return 'Izbor još nije otvoren.'
+        if (/already a student/i.test(message)) return 'Već ste učenik ovog nastavnika.'
+        return 'Nastavnik je već izabran. Osvežite stranicu.'
+      }
+      if (code === 'PT400') return 'Taj nastavnik više ne nudi časove. Izaberite drugog.'
+      break
+    case 'offerEnrolment':
+      if (code === 'PT409') {
+        if (/about text/i.test(message)) {
+          return 'Prvo napišite opis u svom CV-u (odeljak „O meni“), jer po njemu učenik bira nastavnika.'
+        }
+        return 'Ova osoba je već vaš učenik.'
+      }
+      break
+    case 'withdrawOffer':
+      if (code === 'PT409') return 'Nastavnik je već izabran. Osvežite stranicu.'
+      break
+    case 'completeChosenEnrolment':
+      if (code === 'PT400') {
+        if (/\bown\b/i.test(message))
+          return 'Dete mora da ima svoju email adresu, različitu od roditeljeve.'
+        if (/invalid email/i.test(message)) return 'Email adresa nije ispravna.'
+        return 'Upišite email adresu deteta.'
+      }
+      if (code === 'PT409') {
+        if (/already a student/i.test(message)) return 'Ta osoba je već vaš učenik.'
+        return 'Ova prijava više ne čeka email adresu. Osvežite stranicu.'
+      }
+      break
+    case 'addUnassignedStudent':
+      if (code === 'PT409') return 'Ovaj učenik već čeka nastavnika.'
+      if (code === 'PT400') {
+        if (/subject/i.test(message)) return 'Za izabrani predmet trenutno nema nastavnika.'
+        if (/phone/i.test(message)) return INVALID_PHONE
+        if (/invalid email/i.test(message)) return 'Email adresa nije ispravna.'
+        if (/school and grade/i.test(message)) return 'Upišite školu i razred.'
+        if (/name/i.test(message)) return 'Ime i prezime su obavezni.'
+      }
+      break
+    case 'saveEnrolmentSettings':
+      if (code === 'PT400') return 'Neka vrednost je van dozvoljenih granica.'
+      break
+    case 'assignEnrolment':
+      if (code === 'PT409') {
+        if (/not complete/i.test(message)) {
+          return 'Profil još nije popunjen, pa nastavnik ne može da se dodeli.'
+        }
+        if (/already a student/i.test(message)) return 'Ta osoba je već učenik tog nastavnika.'
+        return 'Učenik već ima nastavnika. Osvežite stranicu.'
+      }
+      if (code === 'PT400') {
+        if (/\bown\b/i.test(message))
+          return 'Dete mora da ima svoju email adresu, različitu od roditeljeve.'
+        if (/invalid email/i.test(message)) return 'Email adresa nije ispravna.'
+        return 'Izabrani nastavnik nije aktivan.'
       }
       break
     case 'scheduleLesson':
@@ -288,15 +353,6 @@ export function explainError(error: unknown, action: ActionKey): string {
       break
     case 'setOutcome':
       if (code === 'PT400') return 'Ishod se upisuje tek kada se potvrđen čas završi.'
-      break
-    case 'approveTakeover':
-    case 'rejectTakeover':
-      if (code === 'PT409') {
-        if (/already resolved/i.test(message)) return 'Zahtev je već obrađen.'
-        if (/already has a teacher/i.test(message)) return 'Učenik već ima nastavnika.'
-        if (/not active/i.test(message)) return 'Nastavnik koji traži učenika više nije aktivan.'
-        if (/already a student of/i.test(message)) return 'Ta osoba je već učenik tog nastavnika.'
-      }
       break
   }
   return GENERIC

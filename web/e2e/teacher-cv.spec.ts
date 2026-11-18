@@ -3,7 +3,10 @@ import { rpc, select, tokenFor } from './api.ts'
 import { localEnv, signInAs, signOut } from './helpers.ts'
 
 const menu = (page: import('@playwright/test').Page, name: string) =>
-  page.getByRole('navigation', { name: 'Glavna navigacija' }).getByRole('link', { name }).click()
+  page
+    .getByRole('navigation', { name: 'Glavna navigacija' })
+    .getByRole('link', { name, exact: true })
+    .click()
 
 // A 1x1 PNG: the editor shrinks it to a JPEG in the browser, so this also proves that the real decoding and encoding work.
 const PIXEL = Buffer.from(

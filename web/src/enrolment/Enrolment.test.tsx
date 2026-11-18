@@ -287,7 +287,7 @@ describe('the profile', () => {
       requests: [makeRequest({ status: 'chosen', profileCompleted: true })],
     })
     renderPublic('/upis', { auth: stranger(), enrolment })
-    expect(await screen.findByText('Nastavnik je izabran.')).toBeInTheDocument()
+    expect(await screen.findByText(/Nastavnik je izabran\./)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Izmeni profil' })).not.toBeInTheDocument()
   })
 

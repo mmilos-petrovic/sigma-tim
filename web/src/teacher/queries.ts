@@ -31,15 +31,6 @@ export function useStudentCounts() {
   })
 }
 
-export function useUnassigned() {
-  const api = useTeacherApi()
-  const teacherId = useTeacherId()
-  return useQuery({
-    queryKey: [...teacher, 'unassigned', teacherId],
-    queryFn: () => api.listUnassigned(teacherId),
-  })
-}
-
 /** After a change: reload everything of the teacher's, so lists agree. Resolves when they are up to date. */
 export function useRefresh() {
   const client = useQueryClient()

@@ -33,14 +33,16 @@ function history(count: number, studentId = 'st-ana'): LessonRow[] {
 }
 
 describe('the teacher’s list of lessons', () => {
-  it('is a link of its own, right under the students', async () => {
+  it('is a link of its own, under the students', async () => {
     renderTeacher('/moj-raspored')
     await page('Moj raspored')
     const nav = screen.getByRole('navigation', { name: 'Glavna navigacija' })
     const links = within(nav)
       .getAllByRole('link')
       .map((link) => link.textContent)
-    expect(links.indexOf('Časovi')).toBe(links.indexOf('Učenici') + 1)
+    // the students come first, then the ones who look for a teacher, then the lessons
+    expect(links.indexOf('Neraspoređeni učenici')).toBe(links.indexOf('Učenici') + 1)
+    expect(links.indexOf('Časovi')).toBe(links.indexOf('Neraspoređeni učenici') + 1)
     expect(within(nav).getByRole('link', { name: 'Časovi' })).toHaveAttribute(
       'href',
       '/moj-raspored/casovi',

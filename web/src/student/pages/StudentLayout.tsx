@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router'
 import { CONTEXT_LABEL, homePath } from '../../auth/roles'
 import { Loaded, PageHeader } from '../../components/Loaded'
 import { useMember } from '../../components/guards'
+import { useMyEnrolmentRequests } from '../../enrolment/queries'
 import { pickRecord, recordLabel } from '../lessonList'
 import { readLastRecord, writeLastRecord } from '../memory'
 import { useRecords, useSlots } from '../queries'
@@ -13,10 +14,14 @@ import type { StudentView } from '../view'
 export function StudentLayout({ context }: { context: StudentContext }) {
   const profileId = useMember().roles.profileId
   const records = useRecords(context)
+  const requests = useMyEnrolmentRequests()
   const [chosen, setChosen] = useState<string | null>(() => readLastRecord(profileId, context))
   const home = homePath(context)
 
   const record = pickRecord(records.data ?? [], chosen)
+  const waiting = (requests.data ?? []).filter((r) => r.status === 'open' || r.status === 'chosen')
+  // the person can choose a teacher now
+  const open = waiting.filter((r) => r.choiceOpen && r.status === 'open')
   const slots = useSlots(record?.teacherId ?? null)
 
   return (
@@ -60,6 +65,13 @@ export function StudentLayout({ context }: { context: StudentContext }) {
                   </NavLink>
                 )}
                 <NavLink to={`${home}/nastavnici`}>CV nastavnika</NavLink>
+                {/* a parent may always ask for lessons for another child; a student sees this while they wait for a teacher */}
+                {(context === 'parent' || waiting.length > 0) && (
+                  <NavLink to={`${home}/prijava`}>
+                    Prijava za časove
+                    {open.length > 0 && <span className="tabs__count">{open.length}</span>}
+                  </NavLink>
+                )}
               </nav>
 
               {!record.teacherId && (

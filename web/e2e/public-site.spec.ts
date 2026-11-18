@@ -1,15 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { rpc, select, sql, tokenFor } from './api.ts'
+import { rpc, select, tokenFor } from './api.ts'
 import { signInAs } from './helpers.ts'
-
-const STRANGER = 'stranac@example.test'
-
-/** Puts the stranger back to what the other specs expect: an account the school has no profile for. */
-const forgetStranger = () =>
-  sql(`
-    delete from public.enrolment_requests where applicant_id in (select id from public.profiles where email = '${STRANGER}');
-    delete from public.profiles where email = '${STRANGER}';
-  `)
+import { forgetStranger, setEnrolmentSettings } from './stranger.ts'
 
 const hideCv = async (request: import('@playwright/test').APIRequestContext) =>
   rpc(request, await tokenFor(request, 'ana.nikolic@example.test'), 'save_my_cv', {
@@ -29,6 +21,7 @@ test.describe('the public site', () => {
     test.setTimeout(120_000)
     const run = Date.now().toString(36)
     forgetStranger()
+    await setEnrolmentSettings(request, { enabled: true })
 
     await page.goto('/')
     await expect(

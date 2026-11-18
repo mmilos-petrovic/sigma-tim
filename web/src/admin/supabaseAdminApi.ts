@@ -11,7 +11,6 @@ import {
   type NotificationSettingsAndKinds,
   type NotificationState,
   type Subject,
-  type TakeoverRow,
   type TeacherRow,
 } from './adminApi'
 
@@ -192,37 +191,6 @@ export function mapLocation(row: {
   }
 }
 
-export function mapTakeover(row: {
-  id: string
-  created_at: string
-  student: {
-    id: string
-    school: string | null
-    grade: string | null
-    class_section: string | null
-    profile: { first_name: string; last_name: string }
-  }
-  teacher: { profile_id: string; profile: { first_name: string; last_name: string } }
-}): TakeoverRow {
-  return {
-    id: row.id,
-    createdAt: row.created_at,
-    student: {
-      id: row.student.id,
-      firstName: row.student.profile.first_name,
-      lastName: row.student.profile.last_name,
-      school: row.student.school,
-      grade: row.student.grade,
-      section: row.student.class_section,
-    },
-    teacher: {
-      id: row.teacher.profile_id,
-      firstName: row.teacher.profile.first_name,
-      lastName: row.teacher.profile.last_name,
-    },
-  }
-}
-
 // The API --------------------------------------------------------------------------------------------------------
 
 export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminApi {
@@ -331,7 +299,7 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
       await run(client.rpc('change_profile_email', { p_profile_id: profileId, p_new_email: email }))
     },
     async teacherImpact(teacherId) {
-      const [futureLessons, students, pendingRequests] = await Promise.all([
+      const [futureLessons, students] = await Promise.all([
         count(
           client
             .from('lessons')
@@ -345,15 +313,8 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
             .select('id', { count: 'exact', head: true })
             .eq('teacher_id', teacherId),
         ),
-        count(
-          client
-            .from('takeover_requests')
-            .select('id', { count: 'exact', head: true })
-            .eq('teacher_id', teacherId)
-            .eq('status', 'pending'),
-        ),
       ])
-      return { futureLessons, students, pendingRequests }
+      return { futureLessons, students }
     },
     async deactivateTeacher(teacherId) {
       await run(client.rpc('deactivate_teacher', { p_teacher_id: teacherId }))
@@ -467,27 +428,6 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
     },
     async deleteStudent(studentId) {
       await run(client.rpc('delete_student', { p_student_id: studentId }))
-    },
-
-    async listTakeovers() {
-      const { data } = await run(
-        client
-          .from('takeover_requests')
-          .select(
-            'id, created_at, student:students(id, school, grade, class_section, profile:profiles(first_name, last_name)), teacher:teachers(profile_id, profile:profiles(first_name, last_name))',
-          )
-          .eq('status', 'pending')
-          .order('created_at'),
-      )
-      return (data ?? []).map((row) =>
-        mapTakeover(row as unknown as Parameters<typeof mapTakeover>[0]),
-      )
-    },
-    async approveTakeover(requestId) {
-      await run(client.rpc('approve_takeover', { p_request_id: requestId }))
-    },
-    async rejectTakeover(requestId) {
-      await run(client.rpc('reject_takeover', { p_request_id: requestId }))
     },
 
     async getNotificationSettings() {

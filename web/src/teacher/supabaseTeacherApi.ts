@@ -22,7 +22,6 @@ import type {
   Reference,
   StudentRow,
   TeacherApi,
-  UnassignedStudent,
 } from './teacherApi'
 
 const byName = (a: string, b: string) => a.localeCompare(b, 'sr')
@@ -78,28 +77,6 @@ export function mapStudent(
         link.parent ? [mapParent(link.parent.profile, phones)] : [],
       ),
     ),
-  }
-}
-
-export function mapUnassigned(
-  row: {
-    id: string
-    school: string | null
-    grade: string | null
-    class_section: string | null
-    profile: { email: string; first_name: string; last_name: string }
-  },
-  requestedIds: ReadonlySet<string>,
-): UnassignedStudent {
-  return {
-    id: row.id,
-    email: row.profile.email,
-    firstName: row.profile.first_name,
-    lastName: row.profile.last_name,
-    school: row.school,
-    grade: row.grade,
-    section: row.class_section,
-    requested: requestedIds.has(row.id),
   }
 }
 
@@ -301,32 +278,6 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
         ),
       )
     },
-    async listUnassigned(teacherId) {
-      const [students, requests] = await Promise.all([
-        run(
-          client
-            .from('students')
-            .select(
-              'id, school, grade, class_section, profile:profiles(email, first_name, last_name)',
-            )
-            .is('teacher_id', null),
-        ),
-        run(
-          client
-            .from('takeover_requests')
-            .select('student_id')
-            .eq('teacher_id', teacherId)
-            .eq('status', 'pending'),
-        ),
-      ])
-      const requested = new Set((requests.data ?? []).map((request) => request.student_id))
-      return sortByName(
-        (students.data ?? []).map((row) =>
-          mapUnassigned(row as unknown as Parameters<typeof mapUnassigned>[0], requested),
-        ),
-      )
-    },
-
     async addStudent({ email, firstName, lastName, school, grade, section, phone }) {
       const { data } = await run(
         client.rpc('add_student', {
@@ -392,9 +343,6 @@ export function createSupabaseTeacherApi(client: SupabaseClient<Database>): Teac
           p_parent_id: parentId,
         }),
       )
-    },
-    async requestTakeover(studentId) {
-      await run(client.rpc('request_takeover', { p_student_id: studentId }))
     },
 
     async reference(teacherId) {

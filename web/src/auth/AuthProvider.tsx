@@ -27,6 +27,8 @@ export interface AuthContextValue {
   signInWithPassword?: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   retry: () => void
+  /** Reads the roles of the account again: somebody who has just been given a teacher is a student now. */
+  reloadRoles: () => void
 }
 
 type SessionState =
@@ -150,6 +152,8 @@ export function AuthProvider({ api, children }: { api: AuthApi; children: ReactN
       signInWithPassword: api.signInWithPassword?.bind(api),
       signOut,
       retry,
+      // `retry` asks for the roles again whatever the state is
+      reloadRoles: retry,
     }),
     [api, state, signOut, retry],
   )

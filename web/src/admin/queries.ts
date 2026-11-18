@@ -25,11 +25,6 @@ export function useLocations() {
   return useQuery({ queryKey: [...admin, 'locations'], queryFn: () => api.listLocations() })
 }
 
-export function useTakeovers() {
-  const api = useAdminApi()
-  return useQuery({ queryKey: [...admin, 'takeovers'], queryFn: () => api.listTakeovers() })
-}
-
 export function useNotificationSettings() {
   const api = useAdminApi()
   return useQuery({

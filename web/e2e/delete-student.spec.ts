@@ -11,7 +11,10 @@ const ADMIN = 'admin@example.test'
 
 const dialog = (page: Page, name: string) => page.getByRole('dialog', { name })
 const menu = (page: Page, name: string) =>
-  page.getByRole('navigation', { name: 'Glavna navigacija' }).getByRole('link', { name }).click()
+  page
+    .getByRole('navigation', { name: 'Glavna navigacija' })
+    .getByRole('link', { name, exact: true })
+    .click()
 
 /** Everything these runs created: nobody else's emails start like this. */
 const purge = () =>

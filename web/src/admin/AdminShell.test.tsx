@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { personas } from '../test/fixtures'
 import { createFakeAdminApi } from '../test/fakeAdminApi'
+import { createFakeEnrolmentApi, makeAdminRow } from '../test/fakeEnrolmentApi'
 import { page, renderAdmin } from '../test/renderAdmin'
 import { AdminError } from './adminApi'
 
@@ -10,19 +11,19 @@ import { AdminError } from './adminApi'
 vi.mock('../teacher/calendar/WeekCalendar', async () => import('../test/mockCalendar'))
 
 describe('administration navigation', () => {
-  it('offers the sections, with the settings right below the takeover requests, and marks the current one', async () => {
+  it('offers the sections, with the settings right below the sign-ups, and marks the current one', async () => {
     renderAdmin('/administracija')
     await page('Administracija')
 
     const nav = within(screen.getByRole('navigation', { name: 'Glavna navigacija' }))
     const names = nav.getAllByRole('link').map((link) => link.textContent)
-    expect(names.slice(-2)).toEqual(['Zahtevi za preuzimanje', 'Podešavanja'])
+    expect(names.slice(-2)).toEqual(['Prijave za časove', 'Podešavanja'])
     for (const name of [
       'Pregled',
       'Nastavnici',
       'Predmeti',
       'Lokacije',
-      'Zahtevi za preuzimanje',
+      'Prijave za časove',
       'Podešavanja',
     ]) {
       expect(nav.getByRole('link', { name })).toBeInTheDocument()
@@ -43,8 +44,8 @@ describe('administration navigation', () => {
     expect(await page('Predmeti')).toBeInTheDocument()
     await userEvent.click(nav.getByRole('link', { name: 'Lokacije' }))
     expect(await page('Lokacije')).toBeInTheDocument()
-    await userEvent.click(nav.getByRole('link', { name: 'Zahtevi za preuzimanje' }))
-    expect(await page('Zahtevi za preuzimanje')).toBeInTheDocument()
+    await userEvent.click(nav.getByRole('link', { name: 'Prijave za časove' }))
+    expect(await page('Prijave za časove')).toBeInTheDocument()
     await userEvent.click(nav.getByRole('link', { name: 'Podešavanja' }))
     expect(await page('Podešavanja')).toBeInTheDocument()
     expect(nav.getByRole('link', { name: 'Podešavanja' })).toHaveAttribute('aria-current', 'page')
@@ -69,7 +70,17 @@ describe('administration navigation', () => {
 
 describe('overview', () => {
   it('counts what the school has so far', async () => {
-    renderAdmin('/administracija')
+    renderAdmin('/administracija', {
+      enrolmentApi: createFakeEnrolmentApi({
+        all: [
+          makeAdminRow({ requestId: 'a', state: 'needs_approval' }),
+          makeAdminRow({ requestId: 'b', state: 'open', restarts: 1 }),
+          // these wait for a teacher, not for the administrator
+          makeAdminRow({ requestId: 'c', state: 'open', restarts: 0 }),
+          makeAdminRow({ requestId: 'd', state: 'assigned' }),
+        ],
+      }),
+    })
     await page('Administracija')
 
     const link = async (name: RegExp) =>
@@ -77,18 +88,19 @@ describe('overview', () => {
     expect(await link(/^Predmeti/)).toHaveTextContent('3')
     expect(await link(/^Lokacije/)).toHaveTextContent('2')
     expect(await link(/^Nastavnici/)).toHaveTextContent('2') // two of the three teachers are active
-    expect(await link(/^Zahtevi za preuzimanje/)).toHaveTextContent('2')
+    // what waits for the administrator: one sign-up past the cap and one nobody offered for
+    expect(await link(/^Prijave za časove/)).toHaveTextContent('2')
   })
 
   it('points a new school at the first thing to add', async () => {
     renderAdmin('/administracija', {
-      api: createFakeAdminApi({ subjects: [], teachers: [], locations: [], takeovers: [] }),
+      api: createFakeAdminApi({ subjects: [], teachers: [], locations: [] }),
     })
     await page('Administracija')
     expect(await screen.findByText('Dodajte prvi predmet')).toBeInTheDocument()
     expect(screen.getByText('Dodajte prvu lokaciju')).toBeInTheDocument()
     expect(screen.getByText('Dodajte prvog nastavnika')).toBeInTheDocument()
-    expect(screen.getByText('Nema zahteva na čekanju')).toBeInTheDocument()
+    expect(screen.getByText('Nema prijava koje čekaju odluku')).toBeInTheDocument()
   })
 
   it('shows a loading state, then the counts', async () => {

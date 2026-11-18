@@ -15,7 +15,6 @@ import {
   type Reference,
   type StudentRow,
   type TeacherApi,
-  type UnassignedStudent,
 } from '../teacher/teacherApi'
 
 /** Wednesday 4 November 2026, 11:00 in Belgrade: the "now" of the lesson tests. */
@@ -26,7 +25,6 @@ export const TEST_NOW = new Date('2026-11-04T10:00:00Z')
 
 export interface FakeTeacherState {
   students: StudentRow[]
-  unassigned: UnassignedStudent[]
   reference: Reference
   lessons: LessonRow[]
   busy: BusyRow[]
@@ -96,28 +94,6 @@ export const seedTeacher = (): FakeTeacherState => ({
       section: null,
       phone: null,
       parents: [],
-    },
-  ],
-  unassigned: [
-    {
-      id: 'st-neda',
-      email: 'neda.markovic@example.test',
-      firstName: 'Neda',
-      lastName: 'Marković',
-      school: 'Gimnazija',
-      grade: '2',
-      section: 'c',
-      requested: false,
-    },
-    {
-      id: 'st-vuk',
-      email: 'vuk.vasic@example.test',
-      firstName: 'Vuk',
-      lastName: 'Vasić',
-      school: null,
-      grade: null,
-      section: null,
-      requested: true,
     },
   ],
   reference: {
@@ -342,10 +318,6 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
       await gate('listStudents')
       return structuredClone(state.students)
     },
-    async listUnassigned() {
-      await gate('listUnassigned')
-      return structuredClone(state.unassigned)
-    },
 
     async addStudent(input) {
       await gate('addStudent')
@@ -409,7 +381,7 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
       const lower = email.trim().toLowerCase()
       if (!EMAIL.test(lower)) throw new AdminError('PT400', 'invalid email')
       if (lower === student.email) return
-      if (known(lower) || state.unassigned.some((u) => u.email === lower))
+      if (known(lower))
         throw new AdminError('PT409', 'this email already belongs to another person')
       student.email = lower
       student.hasSignedIn = false
@@ -468,13 +440,6 @@ export function createFakeTeacherApi(initial: Partial<FakeTeacherState> = {}): F
       if (!student.parents.some((p) => p.id === parentId))
         throw new AdminError('PT404', 'this parent is not linked to the student')
       student.parents = student.parents.filter((p) => p.id !== parentId)
-    },
-    async requestTakeover(studentId) {
-      await gate('requestTakeover')
-      const target = state.unassigned.find((s) => s.id === studentId)
-      if (!target) throw new AdminError('PT409', 'the student already has a teacher')
-      if (target.requested) throw new AdminError('PT409', 'there is already a pending request')
-      target.requested = true
     },
 
     async reference() {

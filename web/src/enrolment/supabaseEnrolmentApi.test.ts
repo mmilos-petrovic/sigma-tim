@@ -66,8 +66,8 @@ describe('mapRequest', () => {
     waiting_for_approval: true,
     listed: false,
     days_waiting: 0,
-    offers_count: 0,
-    choice_open: false,
+    offers_count: 2,
+    choice_open: true,
     chosen_teacher_id: null,
     student_id: null,
   } as unknown as Parameters<typeof mapRequest>[0]
@@ -76,6 +76,7 @@ describe('mapRequest', () => {
     expect(mapRequest(row)).toEqual({
       id: 'r1',
       role: 'parent',
+      source: 'signup',
       status: 'open',
       subjectId: 's1',
       subjectName: 'Fizika',
@@ -88,6 +89,9 @@ describe('mapRequest', () => {
       grade: '3',
       cityPart: 'Centar',
       situation: 'Treba mi pomoć',
+      offersCount: 2,
+      choiceOpen: true,
+      chosenTeacherId: null,
     })
   })
 

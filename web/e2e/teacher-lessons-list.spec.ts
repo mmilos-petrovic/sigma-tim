@@ -64,12 +64,14 @@ test.describe("the teacher's list of lessons", () => {
       await signInAs(page, 'Nastavnik')
       await expect(page.getByRole('heading', { name: 'Moj raspored', level: 1 })).toBeVisible()
 
-      // the link is right under the students
+      // the link comes after the students and the ones who look for a teacher
       const links = await page
         .getByRole('navigation', { name: 'Glavna navigacija' })
         .getByRole('link')
         .allTextContents()
-      expect(links.indexOf('Časovi')).toBe(links.indexOf('Učenici') + 1)
+      expect(links.indexOf('Časovi')).toBe(
+        links.findIndex((text) => text.startsWith('Neraspoređeni učenici')) + 1,
+      )
       await page
         .getByRole('navigation', { name: 'Glavna navigacija' })
         .getByRole('link', { name: 'Časovi' })

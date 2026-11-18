@@ -239,19 +239,6 @@ describe("the teacher's students", () => {
       expect(teacherApi.addStudent).not.toHaveBeenCalled()
     })
 
-    it('sends a student who has no teacher yet to the takeover request, instead of making a second record', async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      const form = await open()
-      await userEvent.type(form.getByLabelText(EMAIL), 'NEDA.markovic@example.test')
-      await userEvent.type(form.getByLabelText('Ime'), 'Neda')
-      await userEvent.type(form.getByLabelText('Prezime'), 'Marković')
-      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
-      expect(form.getByRole('alert')).toHaveTextContent(
-        'Ovaj učenik trenutno nema nastavnika. Zatražite preuzimanje u odeljku „Neraspoređeni učenici“.',
-      )
-      expect(teacherApi.addStudent).not.toHaveBeenCalled()
-    })
-
     it("catches a student who is already theirs, and explains the database's own refusal too", async () => {
       const { teacherApi } = renderTeacher(PATH)
       const form = await open()
@@ -767,44 +754,114 @@ describe("the teacher's students", () => {
     })
   })
 
-  describe('students without a teacher', () => {
-    it('lists them and asks for one at a time', async () => {
-      const { teacherApi } = renderTeacher(PATH)
+  describe('a student nobody teaches yet', () => {
+    const open = async () => {
       await page('Učenici')
-      const neda = within(await row('Neda Marković'))
-      expect(neda.getByText(/Gimnazija/)).toBeInTheDocument()
-      expect(neda.getByText('2 razred')).toBeInTheDocument() // the section "c" is not shown
-      // already asked for
-      const vuk = within(await row('Vuk Vasić'))
-      expect(vuk.getByText('Zahtev je poslat')).toBeInTheDocument()
-      expect(vuk.queryByRole('button')).not.toBeInTheDocument()
+      await userEvent.click(await button('Dodaj učenika'))
+      return inDialog('Novi učenik')
+    }
+    const fill = async (form: Awaited<ReturnType<typeof open>>) => {
+      await userEvent.type(form.getByLabelText(EMAIL), 'Neda@Example.test')
+      await userEvent.type(form.getByLabelText('Ime'), 'Neda')
+      await userEvent.type(form.getByLabelText('Prezime'), 'Marković')
+      await userEvent.type(form.getByLabelText('Škola'), 'Gimnazija')
+      await userEvent.type(form.getByLabelText('Razred'), '2')
+    }
+    const tick = (form: Awaited<ReturnType<typeof open>>) =>
+      userEvent.click(form.getByRole('checkbox', { name: 'Učenik nema nastavnika (neraspoređen)' }))
 
-      await userEvent.click(neda.getByRole('button', { name: 'Zatraži preuzimanje' }))
-      expect(teacherApi.requestTakeover).toHaveBeenCalledWith('st-neda')
-      expect(
-        await within(await row('Neda Marković')).findByText('Zahtev je poslat'),
-      ).toBeInTheDocument()
-      expect(screen.getByRole('status')).toHaveTextContent('Zahtev je poslat administratoru.')
+    it('shows the extra fields only when the box is ticked', async () => {
+      renderTeacher(PATH)
+      const form = await open()
+      expect(form.queryByLabelText('Predmet')).not.toBeInTheDocument()
+      expect(form.getByLabelText('Telefon učenika (nije obavezan)')).toBeInTheDocument()
+      await tick(form)
+      expect(form.getByLabelText('Predmet')).toBeInTheDocument()
+      expect(form.getByLabelText('Deo grada (nije obavezno)')).toBeInTheDocument()
+      expect(form.getByLabelText('Školska situacija (nije obavezno)')).toBeInTheDocument()
+      // the number is needed now: the teachers of the subject call it
+      expect(form.getByLabelText('Telefon učenika')).toBeInTheDocument()
+      expect(form.getByText(/Učenik ne postaje vaš/)).toBeInTheDocument()
     })
 
-    it('explains it when somebody was faster', async () => {
-      const { teacherApi } = renderTeacher(PATH)
-      await page('Učenici')
-      teacherApi.failNext(
-        'requestTakeover',
-        new AdminError('PT409', 'the student already has a teacher'),
+    it('goes to the pool instead of becoming the own student', async () => {
+      const { teacherApi, enrolmentApi } = renderTeacher(PATH)
+      const form = await open()
+      await fill(form)
+      await userEvent.type(form.getByLabelText('Telefon učenika (nije obavezan)'), '064 555 1234')
+      await tick(form)
+      await userEvent.selectOptions(form.getByLabelText('Predmet'), 'Fizika')
+      await userEvent.type(form.getByLabelText('Deo grada (nije obavezno)'), ' Centar ')
+      await userEvent.type(
+        form.getByLabelText('Školska situacija (nije obavezno)'),
+        'Slab iz fizike',
       )
-      await userEvent.click(
-        within(await row('Neda Marković')).getByRole('button', { name: 'Zatraži preuzimanje' }),
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+
+      expect(enrolmentApi.addUnassignedStudent).toHaveBeenCalledWith({
+        email: 'neda@example.test',
+        firstName: 'Neda',
+        lastName: 'Marković',
+        phone: '+381645551234',
+        subjectId: 'sub-fiz',
+        school: 'Gimnazija',
+        grade: '2',
+        cityPart: 'Centar',
+        situation: 'Slab iz fizike',
+      })
+      expect(teacherApi.addStudent).not.toHaveBeenCalled()
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        'Učenik je dodat na spisak neraspoređenih učenika.',
       )
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Učenik je u međuvremenu dobio nastavnika.',
-      )
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      // not one of the own students
+      expect(screen.queryByRole('row', { name: /Neda Marković/ })).not.toBeInTheDocument()
     })
 
-    it('says so when there are none', async () => {
-      renderTeacher(PATH, { api: createFakeTeacherApi({ unassigned: [] }) })
-      expect(await screen.findByText('Trenutno nema neraspoređenih učenika.')).toBeInTheDocument()
+    it('without the box the student is the own student, as before', async () => {
+      const { teacherApi, enrolmentApi } = renderTeacher(PATH)
+      const form = await open()
+      await fill(form)
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      expect(teacherApi.addStudent).toHaveBeenCalled()
+      expect(enrolmentApi.addUnassignedStudent).not.toHaveBeenCalled()
+    })
+
+    it('asks for what the pool needs, one thing at a time', async () => {
+      const { enrolmentApi } = renderTeacher(PATH)
+      const form = await open()
+      await userEvent.type(form.getByLabelText(EMAIL), 'neda@example.test')
+      await userEvent.type(form.getByLabelText('Ime'), 'Neda')
+      await userEvent.type(form.getByLabelText('Prezime'), 'Marković')
+      await tick(form)
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      expect(form.getByRole('alert')).toHaveTextContent('Unesite broj telefona.')
+      await userEvent.type(form.getByLabelText('Telefon učenika'), '064 555 1234')
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      expect(form.getByRole('alert')).toHaveTextContent('Upišite školu.')
+      await userEvent.type(form.getByLabelText('Škola'), 'Gimnazija')
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      expect(form.getByRole('alert')).toHaveTextContent('Upišite razred.')
+      await userEvent.type(form.getByLabelText('Razred'), '2')
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      expect(form.getByRole('alert')).toHaveTextContent('Izaberite predmet.')
+      expect(enrolmentApi.addUnassignedStudent).not.toHaveBeenCalled()
+    })
+
+    it('explains it when the student is waiting already', async () => {
+      const { enrolmentApi } = renderTeacher(PATH)
+      enrolmentApi.addUnassignedStudent.mockRejectedValueOnce(
+        new AdminError('PT409', 'this person is already waiting for a teacher'),
+      )
+      const form = await open()
+      await fill(form)
+      await userEvent.type(form.getByLabelText('Telefon učenika (nije obavezan)'), '064 555 1234')
+      await tick(form)
+      await userEvent.selectOptions(form.getByLabelText('Predmet'), 'Matematika')
+      await userEvent.click(form.getByRole('button', { name: 'Dodaj' }))
+      expect(await form.findByRole('alert')).toHaveTextContent('Ovaj učenik već čeka nastavnika.')
+      // what was typed stays
+      expect(form.getByLabelText('Škola')).toHaveValue('Gimnazija')
     })
   })
 })

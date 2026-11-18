@@ -9,7 +9,10 @@ const PNG = Buffer.from(
 )
 
 const section = (page: Page, name: string) =>
-  page.getByRole('navigation', { name: 'Glavna navigacija' }).getByRole('link', { name }).click()
+  page
+    .getByRole('navigation', { name: 'Glavna navigacija' })
+    .getByRole('link', { name, exact: true })
+    .click()
 const row = (page: Page, text: string) => page.getByRole('row', { name: new RegExp(text) })
 const dialog = (page: Page, name: string) => page.getByRole('dialog', { name })
 
@@ -166,25 +169,37 @@ test.describe('administration', () => {
       await expect(row(page, newEmail)).toContainText('Aktivan')
     })
 
-    await test.step('takeover request: a teacher asks, the admin approves', async () => {
+    await test.step('a student nobody teaches: the administrator assigns a teacher', async () => {
       const admin = await tokenFor(request, 'admin@example.test')
-      const ana = await tokenFor(request, 'ana.nikolic@example.test')
-      const studentId = await rpc<string>(request, admin, 'add_student', {
+      const [{ id: mathId }] = await select<{ id: string }>(
+        request,
+        admin,
+        'subjects?name=eq.Matematika&select=id',
+      )
+      await rpc(request, admin, 'add_unassigned_student', {
         p_email: `e2e.ucenik.${run}@example.test`,
         p_first_name: 'E2E',
         p_last_name: `Ucenik${run}`,
+        p_phone: '+381645550000',
+        p_subject_id: mathId,
         p_school: 'OŠ Test',
         p_grade: '6',
-        p_class_section: 'b',
       })
-      await rpc(request, ana, 'request_takeover', { p_student_id: studentId })
+      const [{ id: studentId }] = await select<{ id: string }>(
+        request,
+        admin,
+        `students?select=id,profile:profiles!inner(email)&profile.email=eq.e2e.ucenik.${run}@example.test`,
+      )
 
-      await section(page, 'Zahtevi za preuzimanje')
+      await section(page, 'Prijave za časove')
       const student = page.getByRole('article', { name: `E2E Ucenik${run}` })
-      await expect(student).toContainText('OŠ Test, razred 6b')
-      await student.getByRole('button', { name: 'Odobri: Ana Nikolić' }).click()
-      await dialog(page, 'Odobravanje zahteva').getByRole('button', { name: 'Odobri' }).click()
-      await expect(page.getByRole('status')).toHaveText('Zahtev je odobren.')
+      await expect(student).toContainText('OŠ Test, 6 razred')
+      await expect(student).toContainText('dodao nastavnik')
+      await student.getByRole('button', { name: /^Dodeli nastavnika/ }).click()
+      const form = dialog(page, 'Dodela nastavnika')
+      await form.getByLabel('Nastavnik').selectOption({ label: 'Ana Nikolić' })
+      await form.getByRole('button', { name: 'Dodeli' }).click()
+      await expect(page.getByRole('status')).toContainText('Ana Nikolić je dodeljen')
       await expect(student).toHaveCount(0)
 
       const [record] = await select<{ teacher_id: string }>(

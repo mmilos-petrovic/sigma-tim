@@ -8,7 +8,6 @@ import {
   mapPhones,
   mapReference,
   mapStudent,
-  mapUnassigned,
 } from './supabaseTeacherApi'
 
 const person = (id: string, first: string, last: string, userId: string | null = null) => ({
@@ -96,34 +95,6 @@ describe('mapPhones', () => {
 
   it('copes with no rows', () => {
     expect(mapPhones([]).size).toBe(0)
-  })
-})
-
-describe('mapUnassigned', () => {
-  const row = {
-    id: 'st-9',
-    school: null,
-    grade: '2',
-    class_section: 'c',
-    profile: { email: 'neda@example.test', first_name: 'Neda', last_name: 'Marković' },
-  }
-
-  it('marks the students the teacher has already asked for', () => {
-    expect(mapUnassigned(row, new Set(['st-9'])).requested).toBe(true)
-    expect(mapUnassigned(row, new Set(['st-1'])).requested).toBe(false)
-  })
-
-  it('maps the person and the school details', () => {
-    expect(mapUnassigned(row, new Set())).toEqual({
-      id: 'st-9',
-      email: 'neda@example.test',
-      firstName: 'Neda',
-      lastName: 'Marković',
-      school: null,
-      grade: '2',
-      section: 'c',
-      requested: false,
-    })
   })
 })
 

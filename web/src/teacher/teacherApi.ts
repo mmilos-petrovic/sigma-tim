@@ -33,19 +33,6 @@ export interface StudentRow {
   parents: ParentRow[]
 }
 
-/** A student without a teacher, visible to every teacher. */
-export interface UnassignedStudent {
-  id: string
-  email: string
-  firstName: string
-  lastName: string
-  school: string | null
-  grade: string | null
-  section: string | null
-  /** The caller has already asked for this student. */
-  requested: boolean
-}
-
 export interface PersonInput {
   email: string
   firstName: string
@@ -245,9 +232,6 @@ export interface MyCv extends CvInput {
 export interface TeacherApi {
   /** The students of this teacher, with their parents. */
   listStudents(teacherId: string): Promise<StudentRow[]>
-  /** Students nobody teaches. */
-  listUnassigned(teacherId: string): Promise<UnassignedStudent[]>
-
   /** Adds a student to the calling teacher. Returns the new student's id. */
   addStudent(input: StudentInput): Promise<string>
   updateStudentDetails(studentId: string, details: StudentDetails): Promise<void>
@@ -268,7 +252,6 @@ export interface TeacherApi {
   /** The teacher's own number, or null when they have not given one yet. */
   myPhone(profileId: string): Promise<string | null>
   removeParent(studentId: string, parentId: string): Promise<void>
-  requestTakeover(studentId: string): Promise<void>
 
   reference(teacherId: string): Promise<Reference>
   /** The teacher's own lessons and free slots that overlap the range. */
