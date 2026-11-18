@@ -43,9 +43,9 @@ test.describe('notification settings', () => {
     await signInAs(page, 'Admin')
     await expect(page.getByRole('heading', { name: 'Administracija', level: 1 })).toBeVisible()
 
-    await test.step('the settings link is right below the takeover requests', async () => {
+    await test.step('the settings link is right below the sign-ups', async () => {
       const links = await nav(page).getByRole('link').allTextContents()
-      expect(links.slice(-2)).toEqual(['Zahtevi za preuzimanje', 'Podešavanja'])
+      expect(links.slice(-2)).toEqual(['Prijave za časove', 'Podešavanja'])
       await nav(page).getByRole('link', { name: 'Podešavanja' }).click()
       await expect(page.getByRole('heading', { name: 'Podešavanja', level: 1 })).toBeVisible()
       await expect(settings(page)).toBeVisible()

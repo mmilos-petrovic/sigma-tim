@@ -79,9 +79,31 @@ function shorten(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, max - 1).trimEnd()}…`
 }
 
+/**
+ * Where a tap on a notice about signing up leads. The person who signed up (or the parent) finds the request where they
+ * are: somebody who is not a member yet on `/upis`, a student or a parent in their own part of the app. The teacher finds the
+ * pool and the students waiting for an email. The notice a teacher and the person both get (`enrolment_assigned`) is told
+ * apart by the payload: the one for the person names the teacher.
+ */
+function enrolmentPath(notice: Notice): string {
+  const { recipient: r, kind } = notice
+  const forApplicant =
+    kind === 'enrolment_offer' ||
+    kind === 'enrolment_choice_open' ||
+    (kind === 'enrolment_assigned' && text(notice.payload.teacher) !== '')
+  if (!forApplicant) return '/moj-raspored/neraspodeljeni'
+  if (kind === 'enrolment_assigned') {
+    // placed: the person is a student or a parent now
+    return r.is_student ? '/ucenik' : r.is_parent ? '/roditelj' : '/upis'
+  }
+  // an unassigned student, or a parent with a request, is a member: their own page; anybody else is still a visitor
+  return r.is_student ? '/ucenik/prijava' : r.is_parent ? '/roditelj/prijava' : '/upis'
+}
+
 /** Where a tap leads: the list that holds what the notice is about, in the part of the app of the person's role. */
 export function pathFor(notice: Notice): string {
   const { recipient: r, kind } = notice
+  if (kind.startsWith('enrolment_')) return enrolmentPath(notice)
   if (kind === 'test' && r.is_admin) return '/administracija/podesavanja'
   const teacherSide =
     kind === 'slot_claimed' || r.teaches_lesson || (r.is_teacher && !r.is_student && !r.is_parent)
@@ -94,6 +116,8 @@ export function pathFor(notice: Notice): string {
 }
 
 function tagFor(notice: Notice): string | undefined {
+  const request = text(notice.payload.request_id)
+  if (request && notice.kind.startsWith('enrolment_')) return `${notice.kind}-${request}`
   const lesson = text(notice.payload.lesson_id)
   if (!lesson) return notice.kind === 'test' ? 'test' : undefined
   return notice.kind === 'lesson_reminder' ? `reminder-${lesson}` : `lesson-${lesson}`
@@ -187,6 +211,53 @@ export function describe(notice: Notice, now: Date): { title: string; body: stri
         body: sentence(subject, teacher && `Nastavnik: ${teacher}`, location, forWhom),
       }
     }
+    case 'enrolment_offer':
+      return {
+        title: 'Nova ponuda za časove',
+        body: sentence(
+          teacher && `Nastavnik ${teacher} nudi časove`,
+          subject,
+          'Pogledajte ponudu u aplikaciji',
+        ),
+      }
+    case 'enrolment_choice_open': {
+      const offers = Number(p.offers)
+      return {
+        title: 'Možete da izaberete nastavnika',
+        body: sentence(
+          subject,
+          Number.isInteger(offers) && offers > 0 && `Ponuda: ${offers}`,
+          'Izaberite nastavnika u aplikaciji',
+        ),
+      }
+    }
+    case 'enrolment_chosen':
+      return {
+        title: 'Izabrani ste za nastavnika',
+        body: sentence(
+          [text(p.student), subject].filter(Boolean).join(', '),
+          p.needs_child_email === true
+            ? 'Upišite email deteta da biste završili upis'
+            : 'Učenik je među vašim učenicima',
+        ),
+      }
+    case 'enrolment_assigned':
+      // the teacher is told who was assigned; the person who signed up, which teacher
+      return teacher
+        ? {
+            title: 'Dodeljen vam je nastavnik',
+            body: sentence(
+              `Nastavnik: ${teacher}`,
+              text(p.student) && `Učenik: ${text(p.student)}`,
+            ),
+          }
+        : {
+            title: 'Administrator vam je dodelio učenika',
+            body: sentence(
+              [text(p.student), subject].filter(Boolean).join(', '),
+              p.needs_child_email === true && 'Upišite email deteta da biste završili upis',
+            ),
+          }
     case 'welcome':
       return {
         title: 'Dobrodošli u Sigma Tim',

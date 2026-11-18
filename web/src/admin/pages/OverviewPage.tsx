@@ -1,7 +1,8 @@
 import { Link } from 'react-router'
 import { homePath } from '../../auth/roles'
 import { Loading, LoadError, PageHeader } from '../../components/Loaded'
-import { useLocations, useSubjects, useTakeovers, useTeachers } from '../queries'
+import { useAllEnrolments } from '../../enrolment/queries'
+import { useLocations, useSubjects, useTeachers } from '../queries'
 
 const BASE = homePath('admin')
 
@@ -10,8 +11,8 @@ export function OverviewPage() {
   const subjects = useSubjects()
   const locations = useLocations()
   const teachers = useTeachers()
-  const takeovers = useTakeovers()
-  const queries = [subjects, locations, teachers, takeovers]
+  const enrolments = useAllEnrolments()
+  const queries = [subjects, locations, teachers, enrolments]
 
   const failed = queries.find((query) => query.isError)
   if (failed) {
@@ -25,7 +26,7 @@ export function OverviewPage() {
       </>
     )
   }
-  if (!subjects.data || !locations.data || !teachers.data || !takeovers.data) {
+  if (!subjects.data || !locations.data || !teachers.data || !enrolments.data) {
     return (
       <>
         <PageHeader title="Administracija" />
@@ -54,10 +55,13 @@ export function OverviewPage() {
       empty: 'Dodajte prvog nastavnika',
     },
     {
-      to: 'zahtevi',
-      title: 'Zahtevi za preuzimanje',
-      count: takeovers.data.length,
-      empty: 'Nema zahteva na čekanju',
+      to: 'prijave',
+      title: 'Prijave za časove',
+      // what waits for the administrator: sign-ups past the daily cap, and requests nobody offered for
+      count: enrolments.data.filter(
+        (row) => row.state === 'needs_approval' || (row.state === 'open' && row.restarts > 0),
+      ).length,
+      empty: 'Nema prijava koje čekaju odluku',
     },
   ]
 

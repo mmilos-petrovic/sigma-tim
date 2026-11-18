@@ -8,7 +8,6 @@ import {
   mapNotificationLogRow,
   mapNotificationSettings,
   mapSubject,
-  mapTakeover,
   mapTeacher,
   nextFreePosition,
   photoPath,
@@ -158,35 +157,6 @@ describe('row mappers', () => {
       { id: 'p1', path: 'l1/a.jpg', position: 1 },
       { id: 'p3', path: 'l1/c.jpg', position: 3 },
     ])
-  })
-
-  it('maps a takeover request with names of the student and the teacher', () => {
-    expect(
-      mapTakeover({
-        id: 'q1',
-        created_at: '2026-10-26T10:00:00Z',
-        student: {
-          id: 'st1',
-          school: 'OŠ Vuk',
-          grade: '7',
-          class_section: 'a',
-          profile: { first_name: 'Luka', last_name: 'Ilić' },
-        },
-        teacher: { profile_id: 't1', profile: { first_name: 'Ana', last_name: 'Nikolić' } },
-      }),
-    ).toEqual({
-      id: 'q1',
-      createdAt: '2026-10-26T10:00:00Z',
-      student: {
-        id: 'st1',
-        firstName: 'Luka',
-        lastName: 'Ilić',
-        school: 'OŠ Vuk',
-        grade: '7',
-        section: 'a',
-      },
-      teacher: { id: 't1', firstName: 'Ana', lastName: 'Nikolić' },
-    })
   })
 })
 

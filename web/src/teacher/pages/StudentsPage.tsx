@@ -4,15 +4,17 @@ import { explainError } from '../../admin/errors'
 import { AddIcon, DeleteIcon, EditIcon, IconButton, ViewIcon } from '../../components/ActionIcons'
 import { DeleteStudentDialog } from '../../components/DeleteStudentDialog'
 import { Dialog } from '../../components/Dialog'
-import { Field, FormDialog } from '../../components/FormDialog'
+import { Field, FormDialog, SelectField } from '../../components/FormDialog'
 import { Loaded, Notice, PageHeader } from '../../components/Loaded'
 import { PhoneLink } from '../../components/PhoneLink'
 import { formatGrade, gradeProblem } from '../../lib/grade'
 import { formatPhone, normalizePhone, phoneProblem } from '../../lib/phone'
 import { useTeacherApi } from '../TeacherApiProvider'
 import { chosenColor, OWN_COLOR } from '../colors'
-import { useReference, useRefresh, useStudentCounts, useStudents, useUnassigned } from '../queries'
-import { type ParentRow, type StudentRow, type UnassignedStudent } from '../teacherApi'
+import { useEnrolmentApi } from '../../enrolment/EnrolmentApiProvider'
+import { useEnrolmentFormInfo, useRefreshEnrolment } from '../../enrolment/queries'
+import { useReference, useRefresh, useStudentCounts, useStudents } from '../queries'
+import { type ParentRow, type StudentRow } from '../teacherApi'
 
 const EMAIL_FORMAT = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
@@ -53,44 +55,61 @@ function ReadOnly({ label, value }: { label: string; value: string }) {
   )
 }
 
-function AddStudentDialog({
-  students,
-  unassigned,
-  onClose,
-  onDone,
-}: DialogProps & { students: StudentRow[]; unassigned: UnassignedStudent[] }) {
+function AddStudentDialog({ students, onClose, onDone }: DialogProps & { students: StudentRow[] }) {
   const api = useTeacherApi()
+  const enrolment = useEnrolmentApi()
   const refresh = useRefresh()
+  const refreshEnrolment = useRefreshEnrolment()
+  const form = useEnrolmentFormInfo()
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [school, setSchool] = useState('')
   const [grade, setGrade] = useState('')
   const [phone, setPhone] = useState('')
+  // a student nobody teaches yet goes to the pool; the teachers of the subject offer, the student chooses
+  const [unassigned, setUnassigned] = useState(false)
+  const [subjectId, setSubjectId] = useState('')
+  const [cityPart, setCityPart] = useState('')
+  const [situation, setSituation] = useState('')
 
   return (
     <FormDialog
       title="Novi učenik"
-      action="addStudent"
+      action={unassigned ? 'addUnassignedStudent' : 'addStudent'}
       submitLabel="Dodaj"
       onClose={onClose}
       validate={() => {
         const problem =
           personProblem(email, firstName, lastName) ??
-          phoneProblem(phone, false) ??
-          gradeProblem(grade)
+          phoneProblem(phone, unassigned) ??
+          gradeProblem(grade) ??
+          (unassigned && !school.trim() ? 'Upišite školu.' : null) ??
+          (unassigned && !grade.trim() ? 'Upišite razred.' : null) ??
+          (unassigned && !subjectId ? 'Izaberite predmet.' : null)
         if (problem) return problem
-        const lower = normalizeEmail(email)
-        if (students.some((student) => student.email === lower)) {
+        if (students.some((student) => student.email === normalizeEmail(email))) {
           return explainError(new AdminError('PT409'), 'addStudent')
-        }
-        // A second record for somebody nobody teaches would be a duplicate; the takeover request is the way.
-        if (unassigned.some((student) => student.email === lower)) {
-          return 'Ovaj učenik trenutno nema nastavnika. Zatražite preuzimanje u odeljku „Neraspoređeni učenici“.'
         }
         return null
       }}
       onSubmit={async () => {
+        if (unassigned) {
+          await enrolment.addUnassignedStudent({
+            email: normalizeEmail(email),
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            phone: normalizePhone(phone)!,
+            subjectId,
+            school: school.trim(),
+            grade: grade.trim(),
+            cityPart: cityPart.trim(),
+            situation: situation.trim(),
+          })
+          await Promise.all([refresh(), refreshEnrolment()])
+          onDone('Učenik je dodat na spisak neraspoređenih učenika.')
+          return
+        }
         await api.addStudent({
           email: normalizeEmail(email),
           firstName: firstName.trim(),
@@ -116,12 +135,52 @@ function AddStudentDialog({
       <Field label="Škola" value={school} onChange={setSchool} maxLength={200} />
       <Field label="Razred" value={grade} onChange={setGrade} maxLength={2} />
       <Field
-        label="Telefon učenika (nije obavezan)"
+        label={unassigned ? 'Telefon učenika' : 'Telefon učenika (nije obavezan)'}
         type="tel"
         value={phone}
         onChange={setPhone}
         maxLength={30}
       />
+
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={unassigned}
+          onChange={(event) => setUnassigned(event.target.checked)}
+        />
+        <span>Učenik nema nastavnika (neraspoređen)</span>
+      </label>
+      {unassigned && (
+        <>
+          <p className="muted">
+            Učenik ne postaje vaš: ide na spisak neraspoređenih učenika, nastavnici tog predmeta mu
+            nude časove, a on bira. Možete i vi da se ponudite.
+          </p>
+          <SelectField label="Predmet" value={subjectId} onChange={setSubjectId}>
+            <option value="">Izaberi predmet</option>
+            {(form.data?.subjects ?? []).map((subject) => (
+              <option key={subject.id} value={subject.id}>
+                {subject.name}
+              </option>
+            ))}
+          </SelectField>
+          <Field
+            label="Deo grada (nije obavezno)"
+            value={cityPart}
+            onChange={setCityPart}
+            maxLength={100}
+          />
+          <label className="field">
+            <span>Školska situacija (nije obavezno)</span>
+            <textarea
+              value={situation}
+              maxLength={1000}
+              rows={3}
+              onChange={(event) => setSituation(event.target.value)}
+            />
+          </label>
+        </>
+      )}
     </FormDialog>
   )
 }
@@ -395,10 +454,6 @@ function RemoveParentDialog({
   )
 }
 
-function ClassCell({ grade }: { grade: string | null }) {
-  return <>{formatGrade(grade) ?? '—'}</>
-}
-
 /** A parent in the table: the name with an edit and a delete icon, or a button to add one. */
 function ParentCell({
   student,
@@ -506,92 +561,19 @@ function StudentsTable({
   )
 }
 
-function UnassignedTable({
-  rows,
-  busyId,
-  onRequest,
-}: {
-  rows: UnassignedStudent[]
-  busyId: string | null
-  onRequest: (student: UnassignedStudent) => void
-}) {
-  return (
-    <table className="table table--stack">
-      <thead>
-        <tr>
-          <th>Učenik</th>
-          <th>Škola</th>
-          <th>Razred</th>
-          <th>
-            <span className="visually-hidden">Radnje</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((student) => (
-          <tr key={student.id}>
-            <td>
-              <strong>{fullName(student)}</strong>
-              <div className="muted">{student.email}</div>
-            </td>
-            <td data-label="Škola">{student.school ?? '—'}</td>
-            <td data-label="Razred">
-              <ClassCell grade={student.grade} />
-            </td>
-            <td className="table__actions">
-              {student.requested ? (
-                <span className="muted">Zahtev je poslat</span>
-              ) : (
-                <button
-                  type="button"
-                  className="button button--small button--secondary"
-                  disabled={busyId === student.id}
-                  onClick={() => onRequest(student)}
-                >
-                  Zatraži preuzimanje
-                </button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
 export function StudentsPage() {
   const api = useTeacherApi()
   const refresh = useRefresh()
   const students = useStudents()
-  const unassigned = useUnassigned()
   const studentCounts = useStudentCounts()
   const reference = useReference()
   const counts = new Map((studentCounts.data ?? []).map((count) => [count.studentId, count]))
   const [dialog, setDialog] = useState<Shown>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [requestError, setRequestError] = useState<string | null>(null)
-  const [busyId, setBusyId] = useState<string | null>(null)
 
   const done = (message: string | null) => {
     setDialog(null)
     setNotice(message)
-  }
-
-  const requestTakeover = async (student: UnassignedStudent) => {
-    if (busyId) return
-    setBusyId(student.id)
-    setRequestError(null)
-    setNotice(null)
-    try {
-      await api.requestTakeover(student.id)
-      await refresh()
-      setNotice('Zahtev je poslat administratoru.')
-    } catch (failure) {
-      setRequestError(explainError(failure, 'requestTakeover'))
-      await refresh()
-    } finally {
-      setBusyId(null)
-    }
   }
 
   return (
@@ -621,31 +603,9 @@ export function StudentsPage() {
         }
       </Loaded>
 
-      <h2 className="section-title">Neraspoređeni učenici</h2>
-      <p className="muted">Učenici bez nastavnika. Zahtev za preuzimanje odobrava administrator.</p>
-      {requestError && (
-        <p role="alert" className="form-error">
-          {requestError}
-        </p>
-      )}
-      <Loaded query={unassigned}>
-        {(rows) =>
-          rows.length === 0 ? (
-            <p className="empty-note">Trenutno nema neraspoređenih učenika.</p>
-          ) : (
-            <UnassignedTable
-              rows={rows}
-              busyId={busyId}
-              onRequest={(student) => void requestTakeover(student)}
-            />
-          )
-        }
-      </Loaded>
-
       {dialog?.kind === 'addStudent' && (
         <AddStudentDialog
           students={students.data ?? []}
-          unassigned={unassigned.data ?? []}
           onClose={() => setDialog(null)}
           onDone={done}
         />

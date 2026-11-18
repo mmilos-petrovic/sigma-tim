@@ -627,9 +627,6 @@ isOneToOne: true
 "approve_enrolment":
 { Args: { "p_request_id": string }; Returns: undefined
                            },
-"approve_takeover":
-{ Args: { "p_request_id": string }; Returns: undefined
-                           },
 "busy_times":
 { Args: { "p_from": string,"p_to": string }; Returns: {
               "end_at": string,"location_id": string,"room_id": string,"start_at": string,"teacher_id": string
@@ -759,17 +756,11 @@ isOneToOne: true
 "reject_enrolment":
 { Args: { "p_request_id": string }; Returns: undefined
                            },
-"reject_takeover":
-{ Args: { "p_request_id": string }; Returns: undefined
-                           },
 "remove_parent_from_student":
 { Args: { "p_parent_id": string,"p_student_id": string }; Returns: undefined
                            },
 "rename_person":
 { Args: { "p_first_name": string,"p_last_name": string,"p_profile_id": string }; Returns: undefined
-                           },
-"request_takeover":
-{ Args: { "p_student_id": string }; Returns: string
                            },
 "save_my_cv":
 { Args: { "p_about": string,"p_education": Json,"p_experience": Json,"p_show_members": boolean,"p_show_public": boolean,"p_skills": Json }; Returns: undefined

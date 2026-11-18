@@ -144,18 +144,15 @@ select is(
   row('open', 0, true, true, true, true)::text, 'the teacher leaves: the same request is open again and waiting from now'
 );
 
--- the old takeover closes the request too -------------------------------------------------------------------------------------------------------------
+-- whatever places a teacher closes the request -------------------------------------------------------------------------------------------------------------
 select tests.reg('req:su', id) from public.enrolment_requests where student_id = tests.id('s:su');
 select tests.login_as('tb');
 select public.offer_enrolment(tests.id('req:su'));
-select tests.login_as('boss');
-select public.request_takeover(tests.id('s:su'));
-select tests.login_as('admin');
-select public.approve_takeover((select id from public.takeover_requests where student_id = tests.id('s:su')));
 select tests.logout();
+update public.students set teacher_id = tests.id('p:boss') where id = tests.id('s:su');
 select is(
   (select row(status::text, chosen_teacher_id = tests.id('p:boss'))::text from public.enrolment_requests where student_id = tests.id('s:su')),
-  row('assigned', true)::text, 'approving a takeover marks the request assigned'
+  row('assigned', true)::text, 'a teacher placed by any route marks the request assigned'
 );
 select is((select count(*)::int from public.enrolment_offers where request_id = tests.id('req:su')), 0, 'and the offer of the other teacher is closed');
 

@@ -3,12 +3,12 @@ import { homePath } from '../auth/roles'
 import { NotFoundContent } from '../components/NotFound'
 import { CvDetailPage } from '../cv/CvDetailPage'
 import { CvDirectoryPage } from '../cv/CvDirectoryPage'
+import { EnrolmentsPage } from './pages/EnrolmentsPage'
 import { LocationsPage } from './pages/LocationsPage'
 import { NotificationSettingsPage } from './pages/NotificationSettingsPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { StudentsPage } from './pages/StudentsPage'
 import { SubjectsPage } from './pages/SubjectsPage'
-import { TakeoverRequestsPage } from './pages/TakeoverRequestsPage'
 import { TeachersPage } from './pages/TeachersPage'
 
 const CV_BASE = `${homePath('admin')}/cv`
@@ -21,7 +21,7 @@ export function AdminRoutes() {
       <Route path="ucenici" element={<StudentsPage />} />
       <Route path="predmeti" element={<SubjectsPage />} />
       <Route path="lokacije" element={<LocationsPage />} />
-      <Route path="zahtevi" element={<TakeoverRequestsPage />} />
+      <Route path="prijave" element={<EnrolmentsPage />} />
       <Route path="cv" element={<CvDirectoryPage base={CV_BASE} />} />
       <Route path="cv/:slug" element={<CvDetailPage base={CV_BASE} />} />
       <Route path="podesavanja" element={<NotificationSettingsPage />} />

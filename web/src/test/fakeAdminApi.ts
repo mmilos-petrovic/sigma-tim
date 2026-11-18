@@ -8,7 +8,6 @@ import {
   type Photo,
   type AdminStudentRow,
   type Subject,
-  type TakeoverRow,
   type EraseResult,
   type NotificationKindRow,
   type NotificationLogRow,
@@ -21,7 +20,6 @@ export interface FakeState {
   subjects: { id: string; name: string }[]
   teachers: TeacherRow[]
   locations: LocationRow[]
-  takeovers: TakeoverRow[]
   students: AdminStudentRow[]
   notificationSettings: NotificationSettingsAndKinds
   /** Any order; the fake sorts newest first like the database. */
@@ -152,34 +150,6 @@ export const seed = (): FakeState => ({
     },
     { id: 'l-second', name: 'Zemun', address: 'Ulica 2, Zemun', rooms: [], photos: [] },
   ],
-  takeovers: [
-    {
-      id: 'q-1',
-      createdAt: '2026-10-26T10:00:00Z',
-      student: {
-        id: 'st-1',
-        firstName: 'Luka',
-        lastName: 'Ilić',
-        school: 'OŠ Vuk Karadžić',
-        grade: '7',
-        section: 'a',
-      },
-      teacher: { id: 't-ana', firstName: 'Ana', lastName: 'Nikolić' },
-    },
-    {
-      id: 'q-2',
-      createdAt: '2026-10-26T11:00:00Z',
-      student: {
-        id: 'st-1',
-        firstName: 'Luka',
-        lastName: 'Ilić',
-        school: 'OŠ Vuk Karadžić',
-        grade: '7',
-        section: 'a',
-      },
-      teacher: { id: 't-marko', firstName: 'Marko', lastName: 'Jovanović' },
-    },
-  ],
   students: [
     {
       // one person, two teachers: with Marko two lessons were held, with Ana Nikolić none
@@ -273,7 +243,7 @@ export const seed = (): FakeState => ({
       lastError: 'push service said 400',
     }),
   ],
-  impact: { 't-ana': { futureLessons: 3, students: 2, pendingRequests: 1 } },
+  impact: { 't-ana': { futureLessons: 3, students: 2 } },
   history: { 't-ana': true },
   blockers: {},
 })
@@ -423,7 +393,7 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
     },
     async teacherImpact(teacherId) {
       await gate('teacherImpact')
-      return state.impact[teacherId] ?? { futureLessons: 0, students: 0, pendingRequests: 0 }
+      return state.impact[teacherId] ?? { futureLessons: 0, students: 0 }
     },
     async deactivateTeacher(teacherId) {
       await gate('deactivateTeacher')
@@ -446,7 +416,6 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       if (!teacher) throw new AdminError('PT404')
       if (teacher.isAdmin) throw new AdminError('PT409', 'an administrator cannot be erased')
       if (teacher.erased) throw new AdminError('PT409', 'this person was already erased')
-      state.takeovers = state.takeovers.filter((q) => q.teacher.id !== teacherId)
       if (state.history[teacherId]) {
         Object.assign(teacher, {
           email: `erased-${teacherId}@erased.invalid`,
@@ -545,22 +514,6 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       if (student.heldLessons > 0)
         throw new AdminError('PT409', 'a student with a lesson that took place cannot be deleted')
       state.students = state.students.filter((s) => s.studentId !== studentId)
-    },
-
-    async listTakeovers() {
-      await gate('listTakeovers')
-      return [...state.takeovers]
-    },
-    async approveTakeover(requestId) {
-      await gate('approveTakeover')
-      const request = state.takeovers.find((q) => q.id === requestId)
-      if (!request) throw new AdminError('PT404')
-      // approving closes the competing requests for the same student
-      state.takeovers = state.takeovers.filter((q) => q.student.id !== request.student.id)
-    },
-    async rejectTakeover(requestId) {
-      await gate('rejectTakeover')
-      state.takeovers = state.takeovers.filter((q) => q.id !== requestId)
     },
 
     async getNotificationSettings() {

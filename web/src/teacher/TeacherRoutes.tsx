@@ -5,6 +5,7 @@ import { CvDetailPage } from '../cv/CvDetailPage'
 import { CvDirectoryPage } from '../cv/CvDirectoryPage'
 import { CvPage } from './pages/CvPage'
 import { LessonsPage } from './pages/LessonsPage'
+import { PoolPage } from './pages/PoolPage'
 import { SchedulePage } from './pages/SchedulePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { StudentsPage } from './pages/StudentsPage'
@@ -16,6 +17,7 @@ export function TeacherRoutes() {
     <Routes>
       <Route index element={<SchedulePage />} />
       <Route path="ucenici" element={<StudentsPage />} />
+      <Route path="neraspodeljeni" element={<PoolPage />} />
       <Route path="casovi" element={<LessonsPage />} />
       <Route path="moj-cv" element={<CvPage />} />
       <Route path="cv-nastavnika" element={<CvDirectoryPage base={CV_BASE} />} />

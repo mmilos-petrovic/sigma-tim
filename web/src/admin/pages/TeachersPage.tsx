@@ -267,7 +267,6 @@ function Impact({ impact }: { impact: ReturnType<typeof useTeacherImpact> }) {
         <ul className="impact">
           <li>Budući časovi koji se brišu: {impact.data.futureLessons}</li>
           <li>Učenici koji postaju neraspoređeni: {impact.data.students}</li>
-          <li>Zahtevi za preuzimanje koji se zatvaraju: {impact.data.pendingRequests}</li>
         </ul>
       )}
     </>

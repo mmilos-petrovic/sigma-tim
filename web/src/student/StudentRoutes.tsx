@@ -4,6 +4,7 @@ import { NotFoundContent } from '../components/NotFound'
 import { CvDetailPage } from '../cv/CvDetailPage'
 import { CvDirectoryPage } from '../cv/CvDirectoryPage'
 import { LessonsPanel } from './pages/LessonsPanel'
+import { RequestsPanel } from './pages/RequestsPanel'
 import { SlotsPanel } from './pages/SlotsPanel'
 import { StudentLayout } from './pages/StudentLayout'
 import type { StudentContext } from './studentApi'
@@ -15,6 +16,7 @@ export function StudentRoutes({ context }: { context: StudentContext }) {
       <Route element={<StudentLayout context={context} />}>
         <Route index element={<LessonsPanel />} />
         <Route path="termini" element={<SlotsPanel />} />
+        <Route path="prijava" element={<RequestsPanel context={context} />} />
         <Route
           path="nastavnici"
           element={<CvDirectoryPage base={`${homePath(context)}/nastavnici`} />}

@@ -2,14 +2,17 @@ import { expect, test, type Page } from '@playwright/test'
 import { rpc, select, tokenFor } from './api.ts'
 import { signInAs } from './helpers.ts'
 
-const section = (page: Page, name: string) =>
-  page.getByRole('navigation', { name: 'Glavna navigacija' }).getByRole('link', { name }).click()
+const section = (page: Page, name: string | RegExp) =>
+  page
+    .getByRole('navigation', { name: 'Glavna navigacija' })
+    .getByRole('link', { name, exact: true })
+    .click()
 const row = (page: Page, text: string) => page.getByRole('row', { name: new RegExp(text) })
 const dialog = (page: Page, name: string) => page.getByRole('dialog', { name })
 const EMAIL = 'Email adresa (Google nalog)'
 
 test.describe("the teacher's students and parents", () => {
-  test('students, parents and a takeover request, against the real database', async ({
+  test('students, parents and a student nobody teaches, against the real database', async ({
     page,
     request,
   }) => {
@@ -29,8 +32,8 @@ test.describe("the teacher's students and parents", () => {
     await test.step('sees their own students with the parent of the seed data', async () => {
       await expect(row(page, 'Luka Ilić')).toContainText('Jelena Ilić')
       await expect(row(page, 'Mina Ilić')).toContainText('Jelena Ilić')
-      // another teacher's students are not here, a student without a teacher is in the second list
-      await expect(row(page, 'Teodora Savić')).toContainText('Gimnazija')
+      // another teacher's students are not here, and a student without a teacher is in the pool (next step)
+      await expect(row(page, 'Teodora Savić')).toHaveCount(0)
     })
 
     await test.step('adds a student', async () => {
@@ -198,34 +201,43 @@ test.describe("the teacher's students and parents", () => {
       expect(now).toHaveLength(1)
     })
 
-    await test.step('refuses to add somebody without a teacher a second time, and asks for them instead', async () => {
+    await test.step('a student nobody teaches is in the pool of the subject, not among the own students', async () => {
+      // seed: Teodora's teacher left, and she has no lesson, so every teacher sees her
+      await section(page, /^Neraspoređeni učenici/)
+      const teodora = page.getByRole('article', { name: 'Teodora Savić' })
+      await expect(teodora).toContainText('Ostao bez nastavnika')
+      await section(page, 'Učenici')
+      await expect(row(page, 'Teodora Savić')).toHaveCount(0)
+    })
+
+    await test.step('adds one to the pool with the box ticked', async () => {
+      const pooled = `E2E Neraspoređen${run}`
       await page.getByRole('button', { name: 'Dodaj učenika' }).click()
       const form = dialog(page, 'Novi učenik')
-      await form.getByLabel(EMAIL).fill('ucenik3@example.test')
-      await form.getByLabel('Ime', { exact: true }).fill('Teodora')
-      await form.getByLabel('Prezime').fill('Savić')
+      await form.getByLabel(EMAIL).fill(`e2e.pool.${run}@example.test`)
+      await form.getByLabel('Ime', { exact: true }).fill('E2E')
+      await form.getByLabel('Prezime').fill(`Neraspoređen${run}`)
+      await form.getByLabel('Škola', { exact: true }).fill('OŠ Test')
+      await form.getByLabel('Razred').fill('6')
+      await form.getByLabel('Telefon učenika (nije obavezan)').fill('064 555 0001')
+      await form.getByRole('checkbox', { name: 'Učenik nema nastavnika (neraspoređen)' }).check()
+      await form.getByLabel('Predmet').selectOption({ label: 'Matematika' })
       await form.getByRole('button', { name: 'Dodaj' }).click()
-      await expect(form.getByRole('alert')).toContainText('Zatražite preuzimanje')
-      await form.getByRole('button', { name: 'Odustani' }).click()
+      await expect(page.getByRole('status')).toHaveText(
+        'Učenik je dodat na spisak neraspoređenih učenika.',
+      )
+      await expect(row(page, pooled)).toHaveCount(0)
 
-      const teodora = row(page, 'Teodora Savić')
-      await teodora.getByRole('button', { name: 'Zatraži preuzimanje' }).click()
-      await expect(page.getByRole('status')).toHaveText('Zahtev je poslat administratoru.')
-      await expect(teodora).toContainText('Zahtev je poslat')
+      await section(page, /^Neraspoređeni učenici/)
+      await expect(page.getByRole('article', { name: pooled })).toContainText('Dodao nastavnik')
 
-      const requests = await select<{ id: string; status: string }>(
+      // leave the database as it was found
+      const [added] = await select<{ id: string }>(
         request,
         admin,
-        'takeover_requests?select=id,status&status=eq.pending&student_id=in.(' +
-          (await select<{ id: string }>(request, admin, 'students?select=id&teacher_id=is.null'))
-            .map((s) => s.id)
-            .join(',') +
-          ')',
+        `students?select=id,profile:profiles!inner(email)&profile.email=eq.e2e.pool.${run}@example.test`,
       )
-      expect(requests.length).toBeGreaterThanOrEqual(1)
-      // leave the database as it was found
-      for (const pending of requests)
-        await rpc(request, admin, 'reject_takeover', { p_request_id: pending.id })
+      await rpc(request, admin, 'delete_student', { p_student_id: added.id })
     })
   })
 })

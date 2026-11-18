@@ -147,23 +147,135 @@ describe('explainError', () => {
     })
   })
 
-  describe('takeover requests', () => {
-    it('explains why a request cannot be answered', () => {
-      expect(explain('PT409', 'approveTakeover', 'the request is already resolved')).toBe(
-        'Zahtev je već obrađen.',
+  describe('signing up for lessons', () => {
+    it('explains why the person cannot sign up', () => {
+      expect(explain('PT403', 'startEnrolment')).toBe(
+        'Prijava za časove trenutno nije dostupna. Pozovite nas na 064 4994 235.',
       )
-      expect(explain('PT409', 'rejectTakeover', 'the request is already resolved')).toBe(
-        'Zahtev je već obrađen.',
-      )
-      expect(explain('PT409', 'approveTakeover', 'the student already has a teacher')).toBe(
-        'Učenik već ima nastavnika.',
-      )
-      expect(explain('PT409', 'approveTakeover', 'the requesting teacher is not active')).toBe(
-        'Nastavnik koji traži učenika više nije aktivan.',
+      expect(explain('PT400', 'startEnrolment', 'nobody teaches this subject')).toBe(
+        'Za izabrani predmet trenutno nema nastavnika. Izaberite drugi.',
       )
       expect(
-        explain('PT409', 'approveTakeover', 'this person is already a student of that teacher'),
+        explain('PT409', 'startEnrolment', 'this person is already a member of the school'),
+      ).toBe('Ovaj nalog već pripada školi. Prijavite se na početnoj strani.')
+      expect(explain('PT409', 'startEnrolment', 'this person was erased')).toBe(
+        'Ovaj nalog ne može da se prijavi za časove.',
+      )
+    })
+
+    it('explains what is wrong with the profile', () => {
+      const profile = (message: string) => explain('PT400', 'completeEnrolmentProfile', message)
+      expect(profile('first and last name are required')).toBe('Upišite ime i prezime učenika.')
+      expect(profile('a valid phone number is required')).toContain('Broj telefona nije ispravan')
+      expect(profile('the school is required')).toBe('Upišite školu.')
+      expect(profile('the grade is required')).toBe('Upišite razred.')
+      expect(profile('the privacy policy has to be accepted')).toBe(
+        'Prihvatite politiku privatnosti da biste nastavili.',
+      )
+      expect(profile('the text is too long')).toBe('Neki tekst je predugačak.')
+      expect(explain('PT409', 'completeEnrolmentProfile')).toBe(
+        'Nastavnik je već izabran, pa se profil više ne menja.',
+      )
+    })
+
+    it('explains why a choice is refused', () => {
+      expect(explain('PT409', 'chooseTeacher', 'the choice is not open yet')).toBe(
+        'Izbor još nije otvoren.',
+      )
+      expect(explain('PT409', 'chooseTeacher', 'a teacher was already chosen')).toBe(
+        'Nastavnik je već izabran. Osvežite stranicu.',
+      )
+      expect(
+        explain('PT409', 'chooseTeacher', 'this person is already a student of that teacher'),
+      ).toBe('Već ste učenik ovog nastavnika.')
+      expect(explain('PT400', 'chooseTeacher', 'this teacher has not offered')).toBe(
+        'Taj nastavnik više ne nudi časove. Izaberite drugog.',
+      )
+      expect(explain('PT400', 'setEnrolmentSubject', 'nobody teaches this subject')).toBe(
+        'Za izabrani predmet trenutno nema nastavnika. Izaberite drugi.',
+      )
+      expect(explain('PT409', 'setEnrolmentSubject')).toBe('Predmet se više ne menja.')
+    })
+
+    it('tells a teacher what an offer needs', () => {
+      expect(explain('PT409', 'offerEnrolment', 'write the about text of your CV first')).toBe(
+        'Prvo napišite opis u svom CV-u (odeljak „O meni“), jer po njemu učenik bira nastavnika.',
+      )
+      expect(explain('PT409', 'offerEnrolment', 'this person is already your student')).toBe(
+        'Ova osoba je već vaš učenik.',
+      )
+      expect(explain('PT404', 'offerEnrolment', 'request not found')).toBe(
+        'Prijava više nije dostupna. Osvežite stranicu.',
+      )
+      expect(explain('PT409', 'withdrawOffer', 'a teacher was already chosen')).toBe(
+        'Nastavnik je već izabran. Osvežite stranicu.',
+      )
+    })
+
+    it("tells a teacher what is wrong with the child's email", () => {
+      const complete = (message: string) => explain('PT400', 'completeChosenEnrolment', message)
+      expect(complete('the child needs an email of their own')).toBe(
+        'Dete mora da ima svoju email adresu, različitu od roditeljeve.',
+      )
+      expect(complete('invalid email')).toBe('Email adresa nije ispravna.')
+      expect(complete("the child's email is required")).toBe('Upišite email adresu deteta.')
+      expect(
+        explain('PT409', 'completeChosenEnrolment', 'this request is not waiting for an email'),
+      ).toBe('Ova prijava više ne čeka email adresu. Osvežite stranicu.')
+      expect(
+        explain(
+          'PT409',
+          'completeChosenEnrolment',
+          'this person is already a student of that teacher',
+        ),
+      ).toBe('Ta osoba je već vaš učenik.')
+    })
+
+    it('explains why a student cannot be added to the pool', () => {
+      const add = (code: string, message: string) => explain(code, 'addUnassignedStudent', message)
+      expect(add('PT409', 'this person is already waiting for a teacher')).toBe(
+        'Ovaj učenik već čeka nastavnika.',
+      )
+      expect(add('PT400', 'nobody teaches this subject')).toBe(
+        'Za izabrani predmet trenutno nema nastavnika.',
+      )
+      expect(add('PT400', 'a valid phone number is required')).toContain(
+        'Broj telefona nije ispravan',
+      )
+      expect(add('PT400', 'invalid email')).toBe('Email adresa nije ispravna.')
+      expect(add('PT400', 'school and grade are required')).toBe('Upišite školu i razred.')
+      expect(add('PT400', 'first and last name are required')).toBe('Ime i prezime su obavezni.')
+    })
+
+    it('explains what the administrator cannot do', () => {
+      expect(explain('PT400', 'saveEnrolmentSettings', 'invalid settings')).toBe(
+        'Neka vrednost je van dozvoljenih granica.',
+      )
+      expect(explain('PT404', 'approveEnrolment', 'request not found')).toContain('već obrađena')
+      expect(explain('PT404', 'rejectEnrolment', 'request not found')).toContain(
+        'već ima svoj zapis',
+      )
+      expect(explain('PT409', 'assignEnrolment', 'the profile is not complete yet')).toBe(
+        'Profil još nije popunjen, pa nastavnik ne može da se dodeli.',
+      )
+      expect(
+        explain('PT409', 'assignEnrolment', 'this person is already a student of that teacher'),
       ).toBe('Ta osoba je već učenik tog nastavnika.')
+      expect(explain('PT409', 'assignEnrolment', 'the student already has a teacher')).toBe(
+        'Učenik već ima nastavnika. Osvežite stranicu.',
+      )
+      expect(explain('PT400', 'assignEnrolment', 'unknown teacher')).toBe(
+        'Izabrani nastavnik nije aktivan.',
+      )
+      expect(explain('PT400', 'assignEnrolment', 'the child needs an email of their own')).toBe(
+        'Dete mora da ima svoju email adresu, različitu od roditeljeve.',
+      )
+      expect(explain('PT400', 'assignEnrolment', 'invalid email')).toBe(
+        'Email adresa nije ispravna.',
+      )
+      expect(explain('PT404', 'assignEnrolment', 'request not found')).toBe(
+        'Prijava više ne postoji. Osvežite stranicu.',
+      )
     })
   })
 

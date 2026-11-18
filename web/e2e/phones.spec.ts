@@ -11,7 +11,10 @@ const NIKOLA = 'admin.nastavnik@example.test' // an administrator who teaches: a
 const MARKO = 'marko.jovanovic@example.test' // another teacher
 
 const menu = (page: import('@playwright/test').Page, name: string) =>
-  page.getByRole('navigation', { name: 'Glavna navigacija' }).getByRole('link', { name }).click()
+  page
+    .getByRole('navigation', { name: 'Glavna navigacija' })
+    .getByRole('link', { name, exact: true })
+    .click()
 
 const restoreAna = () =>
   sql(`
