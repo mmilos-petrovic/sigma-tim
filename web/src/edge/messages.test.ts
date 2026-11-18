@@ -326,3 +326,154 @@ describe('the email', () => {
     expect(email.html).toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;<br>Drugi red')
   })
 })
+
+describe('signing up for lessons', () => {
+  const applicant = recipient({ is_student: false, is_parent: false })
+  const teacher = recipient({ is_student: false, is_teacher: true })
+  const offer = (overrides: Parameters<typeof notice>[0] = {}) =>
+    notice({
+      kind: 'enrolment_offer',
+      payload: { request_id: 'req-1', teacher: 'Ana Anić', subject: 'Matematika' },
+      recipient: applicant,
+      ...overrides,
+    })
+
+  it('a new offer says who offers and for which subject', () => {
+    expect(describeNotice(offer(), NOW)).toEqual({
+      title: 'Nova ponuda za časove',
+      body: 'Nastavnik Ana Anić nudi časove. Matematika. Pogledajte ponudu u aplikaciji.',
+    })
+  })
+
+  it('the choice that opens says how many offers there are', () => {
+    const open = offer({
+      kind: 'enrolment_choice_open',
+      payload: { request_id: 'req-1', offers: 3, subject: 'Fizika' },
+    })
+    expect(describeNotice(open, NOW)).toEqual({
+      title: 'Možete da izaberete nastavnika',
+      body: 'Fizika. Ponuda: 3. Izaberite nastavnika u aplikaciji.',
+    })
+  })
+
+  it('a teacher who was chosen by a student is told the student is theirs', () => {
+    const chosen = notice({
+      kind: 'enrolment_chosen',
+      recipient: teacher,
+      payload: {
+        request_id: 'req-1',
+        student: 'Mika Mikić',
+        subject: 'Matematika',
+        needs_child_email: false,
+      },
+    })
+    expect(describeNotice(chosen, NOW)).toEqual({
+      title: 'Izabrani ste za nastavnika',
+      body: 'Mika Mikić, Matematika. Učenik je među vašim učenicima.',
+    })
+  })
+
+  it("a teacher a parent chose is asked for the child's email", () => {
+    const chosen = notice({
+      kind: 'enrolment_chosen',
+      recipient: teacher,
+      payload: {
+        request_id: 'req-1',
+        student: 'Mika Mikić',
+        subject: 'Matematika',
+        needs_child_email: true,
+      },
+    })
+    expect(describeNotice(chosen, NOW).body).toBe(
+      'Mika Mikić, Matematika. Upišite email deteta da biste završili upis.',
+    )
+  })
+
+  it('the person and the teacher get different words when the administrator assigns', () => {
+    const forPerson = notice({
+      kind: 'enrolment_assigned',
+      recipient: applicant,
+      payload: { request_id: 'req-1', teacher: 'Ana Anić', student: 'Mika Mikić' },
+    })
+    expect(describeNotice(forPerson, NOW)).toEqual({
+      title: 'Dodeljen vam je nastavnik',
+      body: 'Nastavnik: Ana Anić. Učenik: Mika Mikić.',
+    })
+    const forTeacher = notice({
+      kind: 'enrolment_assigned',
+      recipient: teacher,
+      payload: {
+        request_id: 'req-1',
+        student: 'Mika Mikić',
+        subject: 'Matematika',
+        needs_child_email: true,
+      },
+    })
+    expect(describeNotice(forTeacher, NOW)).toEqual({
+      title: 'Administrator vam je dodelio učenika',
+      body: 'Mika Mikić, Matematika. Upišite email deteta da biste završili upis.',
+    })
+  })
+
+  it('holds together when the snapshot is empty', () => {
+    for (const kind of [
+      'enrolment_offer',
+      'enrolment_choice_open',
+      'enrolment_chosen',
+      'enrolment_assigned',
+    ]) {
+      const { title, body } = describeNotice(notice({ kind, payload: {} }), NOW)
+      expect(title).not.toBe('Sigma Tim')
+      expect(body).not.toContain('undefined')
+    }
+  })
+
+  describe('where a tap leads', () => {
+    it('a person who is not a member yet goes to their request', () => {
+      expect(pathFor(offer())).toBe('/upis')
+      expect(pathFor(offer({ kind: 'enrolment_choice_open' }))).toBe('/upis')
+    })
+
+    it('a student or a parent who waits for a teacher goes to the page of the request in their part of the app', () => {
+      expect(pathFor(offer({ recipient: recipient({ is_student: true }) }))).toBe('/ucenik/prijava')
+      expect(pathFor(offer({ recipient: recipient({ is_student: false, is_parent: true }) }))).toBe(
+        '/roditelj/prijava',
+      )
+    })
+
+    it('a person who was assigned a teacher goes to their lessons, a parent to the lessons of the children', () => {
+      const assigned = (r: Parameters<typeof recipient>[0]) =>
+        notice({
+          kind: 'enrolment_assigned',
+          recipient: recipient(r),
+          payload: { teacher: 'Ana Anić' },
+        })
+      expect(pathFor(assigned({ is_student: true }))).toBe('/ucenik')
+      expect(pathFor(assigned({ is_student: false, is_parent: true }))).toBe('/roditelj')
+      expect(pathFor(assigned({ is_student: false }))).toBe('/upis')
+    })
+
+    it('a teacher goes to the students who wait for a teacher, also when they are a parent or a student themselves', () => {
+      const both = recipient({ is_teacher: true, is_student: true, is_parent: true })
+      expect(pathFor(notice({ kind: 'enrolment_chosen', recipient: both, payload: {} }))).toBe(
+        '/moj-raspored/neraspodeljeni',
+      )
+      expect(pathFor(notice({ kind: 'enrolment_assigned', recipient: teacher, payload: {} }))).toBe(
+        '/moj-raspored/neraspodeljeni',
+      )
+    })
+  })
+
+  it('the push of a request replaces an older one of the same kind for the same request', () => {
+    expect(pushMessage(offer(), NOW).tag).toBe('enrolment_offer-req-1')
+    expect(pushMessage(offer({ kind: 'enrolment_choice_open' }), NOW).tag).toBe(
+      'enrolment_choice_open-req-1',
+    )
+    expect(pushMessage(offer({ payload: { teacher: 'Ana Anić' } }), NOW).tag).toBeUndefined()
+  })
+
+  it('the email links to the request', () => {
+    const email = emailFor(offer(), claim([]), 'https://app.test', NOW)
+    expect(email.text).toContain('Otvorite aplikaciju: https://app.test/upis')
+  })
+})
