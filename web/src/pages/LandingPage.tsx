@@ -8,10 +8,8 @@ import { PublicTeachers } from '../cv/PublicTeachers'
 import { EnrolmentForm } from '../enrolment/EnrolmentForm'
 import { useEnrolmentFormInfo } from '../enrolment/queries'
 import { usePageMeta } from '../lib/pageMeta'
-import { SCHOOL_NAME, SCHOOL_PHONE, TAGLINE } from '../lib/school'
-
-const DESCRIPTION =
-  'Privatni časovi za osnovce, srednjoškolce i studente. Izaberite predmet i prijavite se, ili pozovite nastavnike škole.'
+import { LANDING_META } from '../lib/publicMeta'
+import { SCHOOL_PHONE, TAGLINE } from '../lib/school'
 
 /**
  * The front page. Somebody who is already a member gets the way into the app; everybody else the form for signing up,
@@ -20,7 +18,7 @@ const DESCRIPTION =
 export function LandingPage() {
   const { state } = useAuth()
   const form = useEnrolmentFormInfo()
-  usePageMeta({ title: `${SCHOOL_NAME} – ${TAGLINE}`, description: DESCRIPTION })
+  usePageMeta(LANDING_META)
 
   const member = state.status === 'ready' && contextsOf(state.roles).length > 0
   const info = form.data

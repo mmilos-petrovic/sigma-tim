@@ -100,6 +100,15 @@ A Google account keeps the same internal ID across different OAuth clients, so r
 | `403 access_denied` | The consent screen is in Testing and the account is not a test user. |
 | "Još niste član škole" after signing in | Sign-in works; the account has no approved profile (see `supabase/README.md`, "How access works"). |
 
+## The public pages are made at build time (Phase 7e)
+
+`npm run build` runs `vite build` and then `scripts/prerender.mjs`, which asks the database for the public CVs (as a visitor who has not signed in, with the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` as the app) and writes, into `dist/`, the front page (`index.html`), one page per public CV (`nastavnici/<slug>.html`, served at `/nastavnici/<slug>`), `robots.txt` and, on the real site, `sitemap.xml`. The pages hold the content and the head (title, description, canonical address, Open Graph, structured data), so search engines and a slow phone get them without running the app, which takes over in the browser.
+
+- **On Cloudflare a failure fails the build** (`CF_PAGES` is set): no deployment is better than a front page that lost its teachers. Make sure both variables are set for Production and Preview. Anywhere else (the CI check, a laptop without `.env.local`) a missing setting only skips the step with a warning; `PRERENDER=required` makes it strict there too.
+- **Only the production branch is for search engines.** `CF_PAGES_BRANCH=main` gives `https://sigmatim.com` as the site address (override with `SITE_URL`), `Allow: /` and a sitemap. Every other build (staging, previews, a laptop) gets `Disallow: /` in `robots.txt`, `noindex` in every page and no sitemap.
+- **A CV that is hidden has no page after the next build.** The address then shows the app's "Ovaj CV nije dostupan" with `noindex` (the site is a single page app, so Cloudflare answers an unknown address with the front page file and status 200, not 404; a `404.html` would switch that off for the sign-in pages too). Until the rebuild the old page stays, and the browser replaces it with the same notice as soon as the app has asked the database.
+- Look at what was made with `npm run build` and `npx vite preview` (needs a database with a public CV), or run `npx playwright test e2e/prerender.spec.ts` (two builds, against the local stack).
+
 ## Rebuilding the public pages when a CV changes (Phase 7e)
 
 The front page and the public CV pages are made at build time. The database asks for a new build by itself, through a Cloudflare Pages **deploy hook**, when what those pages show has changed (see `supabase/README.md`). Set it up once per environment:
