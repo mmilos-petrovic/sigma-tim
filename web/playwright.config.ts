@@ -18,9 +18,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
     channel: process.env.E2E_CHANNEL ?? 'msedge',
   },
-  // The student and parent screens are made for a phone: their specs (student-*.spec.ts) run on two phone-sized
-  // screens, everything else on a desktop. Phones are emulated with the installed Chromium-based browser (viewport,
-  // touch, mobile user agent), not with a real iOS or Android engine.
+  // The student and parent screens and the public site are made for a phone: their specs (student-*.spec.ts and
+  // public-site.spec.ts) run on two phone-sized screens, the public site on a desktop too, everything else on a desktop.
+  // Phones are emulated with the installed Chromium-based browser (viewport, touch, mobile user agent), not with a real
+  // iOS or Android engine.
   projects: [
     {
       name: 'desktop',
@@ -38,7 +39,7 @@ export default defineConfig({
     },
     {
       name: 'phone-small',
-      testMatch: /student-.*\.spec\.ts/,
+      testMatch: /(student-.*|public-site)\.spec\.ts/,
       use: {
         ...devices['iPhone 13'],
         defaultBrowserType: 'chromium',
@@ -47,7 +48,7 @@ export default defineConfig({
     },
     {
       name: 'phone-android',
-      testMatch: /student-.*\.spec\.ts/,
+      testMatch: /(student-.*|public-site)\.spec\.ts/,
       use: {
         ...devices['Pixel 7'],
         defaultBrowserType: 'chromium',

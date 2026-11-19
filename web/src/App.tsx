@@ -14,6 +14,7 @@ import {
   createSupabasePushStore,
 } from './notifications/browserEnv'
 import { PushApiProvider } from './notifications/PushDevice'
+import { readPrerendered, seedQueries } from './prerender/seed'
 import { createPushApi } from './notifications/pushApi'
 import { CvApiProvider } from './cv/CvApiProvider'
 import { createSupabaseCvApi } from './cv/supabaseCvApi'
@@ -44,6 +45,10 @@ const services = client
 
 // One retry is enough: a failing request gets an explained error and a "try again" button.
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1 } } })
+
+// A prerendered page brings the answers it was made from, so that it does not change while the same ones are asked for again.
+const prerendered = readPrerendered(document)
+if (prerendered) seedQueries(queryClient, prerendered)
 
 export default function App() {
   return (
