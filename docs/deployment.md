@@ -99,3 +99,19 @@ A Google account keeps the same internal ID across different OAuth clients, so r
 | `redirect_uri_mismatch` | The redirect URI in Google differs from the Supabase callback URL (a space, a trailing slash, or the other project's ref). |
 | `403 access_denied` | The consent screen is in Testing and the account is not a test user. |
 | "Još niste član škole" after signing in | Sign-in works; the account has no approved profile (see `supabase/README.md`, "How access works"). |
+
+## Rebuilding the public pages when a CV changes (Phase 7e)
+
+The front page and the public CV pages are made at build time. The database asks for a new build by itself, through a Cloudflare Pages **deploy hook**, when what those pages show has changed (see `supabase/README.md`). Set it up once per environment:
+
+1. **Create the hook.** Cloudflare dashboard, Workers & Pages, the `sigma-tim` project, Settings, Builds, **Deploy hooks**, Add: name `cv-changed`, branch `main` for production and `staging` for staging. Copy the address (it is a secret: anybody who has it can start a build).
+2. **Give it to the database** (SQL editor of the matching Supabase project, once):
+
+   ```sql
+   select vault.create_secret('<the deploy hook address>', 'site_deploy_hook_url');
+   ```
+
+   Until it exists the job does nothing. To change it later, edit it in the dashboard's Vault page.
+3. **Try it.** Change the text of a public CV. Within about fifteen minutes `select * from private.site_rebuild` shows a `requested_hash` and, once Cloudflare accepted, `built_hash` equal to it, and Cloudflare lists a new deployment. `select * from net._http_response order by created desc limit 5` shows what Cloudflare answered.
+
+A hook builds the latest commit of its branch with that environment's variables, so nothing else changes. The free plan allows 500 builds a month; the job asks at most once in ten minutes and only when the public content differs.
