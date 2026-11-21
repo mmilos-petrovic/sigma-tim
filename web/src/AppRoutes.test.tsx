@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { AdminApiProvider } from './admin/AdminApiProvider'
 import { CvApiProvider } from './cv/CvApiProvider'
 import { EnrolmentApiProvider } from './enrolment/EnrolmentApiProvider'
@@ -22,6 +22,16 @@ import { StudentApiProvider } from './student/StudentApiProvider'
 import { TeacherApiProvider } from './teacher/TeacherApiProvider'
 import { createFakeAuthApi, sessionFor, type FakeAuthApi } from './test/fakeAuthApi'
 import { personas } from './test/fixtures'
+
+// The signed-in screens are loaded when a route needs them. Loading them once here keeps the first test that opens one
+// from paying for it (a slow machine would run into the timeout of the lookups).
+beforeAll(async () => {
+  await Promise.all([
+    import('./pages/ChooserPage'),
+    import('./pages/ContextPage'),
+    import('./enrolment/EnrolmentPage'),
+  ])
+}, 60_000)
 
 // The teacher's home is the schedule; the real calendar is checked in the browser.
 vi.mock('./teacher/calendar/WeekCalendar', async () => import('./test/mockCalendar'))
