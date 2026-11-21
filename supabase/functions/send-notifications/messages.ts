@@ -104,7 +104,9 @@ function enrolmentPath(notice: Notice): string {
 export function pathFor(notice: Notice): string {
   const { recipient: r, kind } = notice
   if (kind.startsWith('enrolment_')) return enrolmentPath(notice)
-  if (kind === 'test' && r.is_admin) return '/administracija/podesavanja'
+  // the log of notices is on the settings page: the test is looked for there, and so are the ones that did not get through
+  if ((kind === 'test' || kind === 'delivery_alert') && r.is_admin)
+    return '/administracija/podesavanja'
   const teacherSide =
     kind === 'slot_claimed' || r.teaches_lesson || (r.is_teacher && !r.is_student && !r.is_parent)
   if (teacherSide && r.is_teacher) return '/moj-raspored/casovi'
@@ -119,7 +121,8 @@ function tagFor(notice: Notice): string | undefined {
   const request = text(notice.payload.request_id)
   if (request && notice.kind.startsWith('enrolment_')) return `${notice.kind}-${request}`
   const lesson = text(notice.payload.lesson_id)
-  if (!lesson) return notice.kind === 'test' ? 'test' : undefined
+  if (!lesson)
+    return notice.kind === 'test' || notice.kind === 'delivery_alert' ? notice.kind : undefined
   return notice.kind === 'lesson_reminder' ? `reminder-${lesson}` : `lesson-${lesson}`
 }
 
@@ -268,6 +271,19 @@ export function describe(notice: Notice, now: Date): { title: string; body: stri
         title: 'Obaveštenja su uključena',
         body: 'Ovde ćete dobijati poruke o svojim časovima.',
       }
+    case 'delivery_alert': {
+      // no count to inflect: "Neuspelih obaveštenja: 5" reads right for every number
+      const failed = Number(p.failed)
+      return {
+        title: 'Obaveštenja ne stižu',
+        body: sentence(
+          Number.isInteger(failed) && failed > 0
+            ? `Neuspelih obaveštenja u poslednjih sat vremena: ${failed}`
+            : 'Više obaveštenja nije stiglo u poslednjih sat vremena',
+          'Pogledajte dnevnik u podešavanjima',
+        ),
+      }
+    }
     case 'test':
       return {
         title: 'Probno obaveštenje',
@@ -292,7 +308,9 @@ export function pushMessage(notice: Notice, now: Date): PushMessage {
     body: shorten(body, MAX_PUSH_BODY),
     url: pathFor(notice),
     ttl: holdSeconds(notice.kind),
-    urgency: notice.kind === 'lesson_reminder' || notice.kind === 'test' ? 'high' : 'normal',
+    urgency: ['lesson_reminder', 'test', 'delivery_alert'].includes(notice.kind)
+      ? 'high'
+      : 'normal',
   }
   const tag = tagFor(notice)
   if (tag) message.tag = tag

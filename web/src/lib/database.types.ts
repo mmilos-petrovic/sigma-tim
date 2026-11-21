@@ -277,14 +277,14 @@ isOneToOne: false
                   ]
                 },"notifications": {
                   Row: {
-                    "attempts": number,"channel": string | null,"created_at": string,"deliver_after": string,"id": number,"kind": string,"last_error": string | null,"payload": NonNullable<Json>,"recipient_id": string,"sent_at": string | null
+                    "attempts": number,"channel": string | null,"created_at": string,"deliver_after": string,"failed_at": string | null,"id": number,"kind": string,"last_error": string | null,"payload": NonNullable<Json>,"recipient_id": string,"sent_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "attempts"?: number,"channel"?: string | null,"created_at"?: string,"deliver_after"?: string,"id"?: never,"kind": string,"last_error"?: string | null,"payload"?: NonNullable<Json>,"recipient_id": string,"sent_at"?: string | null
+                    "attempts"?: number,"channel"?: string | null,"created_at"?: string,"deliver_after"?: string,"failed_at"?: string | null,"id"?: never,"kind": string,"last_error"?: string | null,"payload"?: NonNullable<Json>,"recipient_id": string,"sent_at"?: string | null
                   }
                   Update: {
-                    "attempts"?: number,"channel"?: string | null,"created_at"?: string,"deliver_after"?: string,"id"?: never,"kind"?: string,"last_error"?: string | null,"payload"?: NonNullable<Json>,"recipient_id"?: string,"sent_at"?: string | null
+                    "attempts"?: number,"channel"?: string | null,"created_at"?: string,"deliver_after"?: string,"failed_at"?: string | null,"id"?: never,"kind"?: string,"last_error"?: string | null,"payload"?: NonNullable<Json>,"recipient_id"?: string,"sent_at"?: string | null
                   }
                   Relationships: [
                     {
@@ -616,6 +616,11 @@ isOneToOne: true
 "admin_list_students":
 { Args: Record<PropertyKey, never>; Returns: {
               "created_at": string,"email": string,"first_name": string,"held_lessons": number,"last_name": string,"location_names": (string)[],"parent_names": (string)[],"profile_id": string,"student_id": string,"teacher_id": string,"teacher_name": string,"upcoming_lessons": number
+            }[]
+                           },
+"admin_notification_health":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "failed": number,"overdue": number
             }[]
                            },
 "admin_resend_notification":
