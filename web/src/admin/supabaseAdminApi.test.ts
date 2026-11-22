@@ -287,6 +287,114 @@ describe('notification settings', () => {
     expect(rpc).toHaveBeenLastCalledWith('admin_send_test_notification')
   })
 
+  it('lists the parents with the names the screen shows', async () => {
+    const { rpc, api } = clientAnswering([
+      {
+        profile_id: 'p1',
+        first_name: 'Mira',
+        last_name: 'Petrović',
+        email: 'mira@example.test',
+        created_at: '2026-02-20T10:00:00+00:00',
+        child_names: ['Ana Petrović'],
+      },
+    ])
+    expect(await api.listParents()).toEqual([
+      {
+        profileId: 'p1',
+        firstName: 'Mira',
+        lastName: 'Petrović',
+        email: 'mira@example.test',
+        createdAt: '2026-02-20T10:00:00+00:00',
+        childNames: ['Ana Petrović'],
+      },
+    ])
+    expect(rpc).toHaveBeenLastCalledWith('admin_list_parents')
+    expect(await clientAnswering(null).api.listParents()).toEqual([])
+  })
+
+  it('erases a person through the database, and a refusal comes through with its code', async () => {
+    const { rpc, api } = clientAnswering(null)
+    await api.erasePerson('p9')
+    expect(rpc).toHaveBeenLastCalledWith('erase_person', { p_profile_id: 'p9' })
+
+    const refused = clientAnswering(null, {
+      code: 'PT409',
+      message: 'a parent with children cannot be erased',
+    })
+    await expect(refused.api.erasePerson('p9')).rejects.toMatchObject({ code: 'PT409' })
+  })
+
+  describe('erasing a teacher also removes the CV photos', () => {
+    /** A client with a `cv-photos` bucket that lists `files` in the teacher's folder. */
+    const withBucket = (
+      answer: unknown,
+      bucket: {
+        list?: ReturnType<typeof vi.fn>
+        remove?: ReturnType<typeof vi.fn>
+      },
+    ) => {
+      const rpc = vi.fn(async () => ({ data: answer, error: null, status: 200 }))
+      const from = vi.fn(() => bucket)
+      const api = createSupabaseAdminApi({
+        rpc,
+        storage: { from },
+      } as unknown as SupabaseClient<Database>)
+      return { api, from }
+    }
+
+    it('deletes every file in the teacher’s folder, after the profile is gone', async () => {
+      const list = vi.fn(async () => ({
+        data: [{ name: 'a.jpg' }, { name: 'b.webp' }],
+        error: null,
+      }))
+      const remove = vi.fn(async () => ({ data: [], error: null }))
+      const { api, from } = withBucket('kept_history', { list, remove })
+      expect(await api.eraseTeacher('t1')).toBe('kept_history')
+      expect(from).toHaveBeenCalledWith('cv-photos')
+      expect(list).toHaveBeenCalledWith('t1')
+      expect(remove).toHaveBeenCalledWith(['t1/a.jpg', 't1/b.webp'])
+    })
+
+    it('has nothing to delete for a teacher with no photo', async () => {
+      const list = vi.fn(async () => ({ data: [], error: null }))
+      const remove = vi.fn()
+      const { api } = withBucket('deleted', { list, remove })
+      expect(await api.eraseTeacher('t1')).toBe('deleted')
+      expect(remove).not.toHaveBeenCalled()
+    })
+
+    it('still reports the erase when the files cannot be listed or removed', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const listing = withBucket('deleted', {
+        list: vi.fn(async () => ({ data: null, error: { message: 'storage is down' } })),
+      })
+      expect(await listing.api.eraseTeacher('t1')).toBe('deleted')
+
+      const removing = withBucket('kept_history', {
+        list: vi.fn(async () => ({ data: [{ name: 'a.jpg' }], error: null })),
+        remove: vi.fn(async () => ({ data: null, error: { message: 'storage is down' } })),
+      })
+      expect(await removing.api.eraseTeacher('t1')).toBe('kept_history')
+      expect(warn).toHaveBeenCalledTimes(2)
+      warn.mockRestore()
+    })
+
+    it('does not touch the files when the database refuses the erase', async () => {
+      const list = vi.fn()
+      const rpc = vi.fn(async () => ({
+        data: null,
+        error: { code: 'PT409', message: 'an administrator cannot be erased' },
+        status: 409,
+      }))
+      const api = createSupabaseAdminApi({
+        rpc,
+        storage: { from: () => ({ list }) },
+      } as unknown as SupabaseClient<Database>)
+      await expect(api.eraseTeacher('t1')).rejects.toMatchObject({ code: 'PT409' })
+      expect(list).not.toHaveBeenCalled()
+    })
+  })
+
   it('asks for the two numbers of the overview', async () => {
     const { rpc, api } = clientAnswering([{ failed: 3, overdue: 1 }])
     expect(await api.getNotificationHealth()).toEqual({ failed: 3, overdue: 1 })

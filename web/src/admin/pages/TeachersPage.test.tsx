@@ -740,7 +740,7 @@ describe('erasing a teacher', () => {
     expect(dialog.getByText('Učenici koji postaju neraspoređeni: 2')).toBeInTheDocument()
     expect(adminApi.teacherImpact).toHaveBeenCalledWith('t-ana')
     expect(dialog.getByText(/Ovo se ne može poništiti/)).toBeInTheDocument()
-    expect(dialog.getByText(/biografija, predmeti i CV/)).toBeInTheDocument()
+    expect(dialog.getByText(/biografija, predmeti, CV i fotografija sa CV-a/)).toBeInTheDocument()
     expect(dialog.getByText(/i učenik ili roditelj, i ti nalozi se brišu/)).toBeInTheDocument()
     expect(dialog.getByText(/Časovi koji su već počeli ostaju u evidenciji/)).toBeInTheDocument()
   })

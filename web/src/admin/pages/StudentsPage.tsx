@@ -6,11 +6,14 @@ import { formatDate } from '../../lib/dateField'
 import { toWallClock } from '../../teacher/schoolDay'
 import { useAdminApi } from '../AdminApiProvider'
 import type { AdminStudentRow } from '../adminApi'
+import { ErasePersonDialog } from '../ErasePersonDialog'
 import { useRefresh, useStudentList } from '../queries'
 import { groupStudents, matchesPerson, NO_TEACHER, type PersonRow } from '../studentsList'
 
 const teacherLabel = (record: AdminStudentRow) => record.teacherName ?? NO_TEACHER
 const fullName = (person: PersonRow) => `${person.firstName} ${person.lastName}`
+const sum = (records: AdminStudentRow[], count: (record: AdminStudentRow) => number) =>
+  records.reduce((total, record) => total + count(record), 0)
 
 /** The day on the Belgrade calendar, written day.month.year. */
 const day = (iso: string) => formatDate(toWallClock(new Date(iso)).date)
@@ -24,6 +27,7 @@ export function StudentsPage() {
   const [deleting, setDeleting] = useState<{ person: PersonRow; record: AdminStudentRow } | null>(
     null,
   )
+  const [erasing, setErasing] = useState<PersonRow | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   return (
@@ -105,6 +109,14 @@ export function StudentsPage() {
                                     : 'Obriši'}
                                 </button>
                               ))}
+                            <button
+                              type="button"
+                              className="button button--small button--secondary"
+                              aria-label={`Obriši na zahtev učenika ${fullName(person)}`}
+                              onClick={() => setErasing(person)}
+                            >
+                              Briši na zahtev
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -132,6 +144,24 @@ export function StudentsPage() {
           onClose={() => setDeleting(null)}
           onDone={(message) => {
             setDeleting(null)
+            setNotice(message)
+          }}
+        />
+      )}
+
+      {erasing && (
+        <ErasePersonDialog
+          name={fullName(erasing)}
+          isStudent
+          upcoming={sum(erasing.records, (record) => record.upcomingLessons)}
+          held={sum(erasing.records, (record) => record.heldLessons)}
+          onErase={async () => {
+            await api.erasePerson(erasing.profileId)
+            await refresh()
+          }}
+          onClose={() => setErasing(null)}
+          onDone={(message) => {
+            setErasing(null)
             setNotice(message)
           }}
         />

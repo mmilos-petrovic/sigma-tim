@@ -183,4 +183,123 @@ describe('deleting a student', () => {
       'Učenik ima održan čas i ne može da se obriše.',
     )
   })
+  describe('erasing a student on request', () => {
+    const erase = (name: string) =>
+      screen.findByRole('button', { name: `Obriši na zahtev učenika ${name}` })
+    const typeName = async (dialog: ReturnType<typeof within>, name: string) =>
+      userEvent.type(dialog.getByLabelText(/Za potvrdu upišite ime i prezime/), name)
+
+    it('is offered for every person, also one with a lesson that took place', async () => {
+      await open()
+      expect(await erase('Luka Ilić')).toBeInTheDocument()
+      expect(await erase('Ana Petrović')).toBeInTheDocument()
+      expect(await erase('Neda Marković')).toBeInTheDocument()
+    })
+
+    it('says what goes, what stays, and how many lessons are touched', async () => {
+      await open()
+      await userEvent.click(await erase('Luka Ilić'))
+      const dialog = await inDialog('Brisanje na zahtev')
+      expect(dialog.getByText('Luka Ilić')).toBeInTheDocument()
+      expect(dialog.getByText(/Google nalog/)).toBeInTheDocument()
+      expect(dialog.getByText(/Časovi koji nisu počeli/)).toHaveTextContent('časova: 2')
+      expect(dialog.getByText(/Održani časovi ostaju/)).toBeInTheDocument()
+      expect(dialog.getByText(/Oznaka da je čas plaćen briše se/)).toBeInTheDocument()
+    })
+
+    it('says nothing about lessons when there are none to cancel and none that took place', async () => {
+      await open()
+      await userEvent.click(await erase('Neda Marković'))
+      const dialog = await inDialog('Brisanje na zahtev')
+      expect(dialog.queryByText(/časova:/)).not.toBeInTheDocument()
+      expect(dialog.getByRole('button', { name: 'Obriši sve podatke' })).toHaveClass(
+        'button--danger',
+      )
+    })
+
+    it('adds up the lessons of every record of a person who studies with two teachers', async () => {
+      const record = (studentId: string, teacherName: string, held: number, upcoming: number) => ({
+        studentId,
+        profileId: 'pr-dvojnik',
+        firstName: 'Dvojnik',
+        lastName: 'Dvojić',
+        email: 'dvojnik@example.test',
+        createdAt: '2026-05-01T10:00:00Z',
+        teacherId: `t-${studentId}`,
+        teacherName,
+        parentNames: [],
+        locationNames: [],
+        heldLessons: held,
+        upcomingLessons: upcoming,
+      })
+      renderAdmin(PATH, {
+        api: createFakeAdminApi({
+          students: [
+            record('st-1', 'Prva Nastavnica', 1, 2),
+            record('st-2', 'Druga Nastavnica', 2, 3),
+          ],
+        }),
+      })
+      await page('Učenici')
+      await userEvent.click(await erase('Dvojnik Dvojić'))
+      const dialog = await inDialog('Brisanje na zahtev')
+      expect(dialog.getByText(/Časovi koji nisu počeli/)).toHaveTextContent('časova: 5')
+      expect(dialog.getByText(/Održani časovi ostaju/)).toHaveTextContent('časova: 3')
+    })
+
+    it('counts the lessons that took place over all the records of a person', async () => {
+      await open()
+      await userEvent.click(await erase('Ana Petrović'))
+      const dialog = await inDialog('Brisanje na zahtev')
+      expect(dialog.getByText(/Održani časovi ostaju/)).toHaveTextContent(/časova: [1-9]/)
+    })
+
+    it('wants the name typed, and does nothing before that', async () => {
+      const api = await open()
+      await userEvent.click(await erase('Luka Ilić'))
+      const dialog = await inDialog('Brisanje na zahtev')
+      await userEvent.click(dialog.getByRole('button', { name: 'Obriši sve podatke' }))
+      expect(await dialog.findByRole('alert')).toHaveTextContent(
+        'Upišite ime i prezime radi potvrde.',
+      )
+      await typeName(dialog, 'Neko Drugi')
+      await userEvent.click(dialog.getByRole('button', { name: 'Obriši sve podatke' }))
+      expect(api.calls.erasePerson).not.toHaveBeenCalled()
+    })
+
+    it('erases the person with every record, and the list forgets them', async () => {
+      const api = await open()
+      await userEvent.click(await erase('Ana Petrović'))
+      const dialog = await inDialog('Brisanje na zahtev')
+      await typeName(dialog, ' ana petrović ')
+      await userEvent.click(dialog.getByRole('button', { name: 'Obriši sve podatke' }))
+      expect(api.calls.erasePerson).toHaveBeenCalledWith('pr-ana')
+      expect(await screen.findByRole('status')).toHaveTextContent('Podaci osobe su obrisani.')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(screen.queryByRole('row', { name: /Ana Petrović/ })).not.toBeInTheDocument(),
+      )
+    })
+
+    it('changes nothing when the administrator backs out', async () => {
+      const api = await open()
+      await userEvent.click(await erase('Luka Ilić'))
+      await userEvent.click(
+        (await inDialog('Brisanje na zahtev')).getByRole('button', { name: 'Odustani' }),
+      )
+      expect(api.calls.erasePerson).not.toHaveBeenCalled()
+    })
+
+    it('explains it when the database refuses', async () => {
+      const api = await open()
+      await userEvent.click(await erase('Luka Ilić'))
+      const dialog = await inDialog('Brisanje na zahtev')
+      await typeName(dialog, 'Luka Ilić')
+      api.failNext('erasePerson', new AdminError('PT409', 'a teacher is erased as a teacher'))
+      await userEvent.click(dialog.getByRole('button', { name: 'Obriši sve podatke' }))
+      expect(await dialog.findByRole('alert')).toHaveTextContent(
+        'Nastavnik se briše na stranici Nastavnici.',
+      )
+    })
+  })
 })

@@ -81,6 +81,18 @@ export interface AdminStudentRow {
   upcomingLessons: number
 }
 
+/** One parent as the administrator's list shows it. */
+export interface AdminParentRow {
+  profileId: string
+  firstName: string
+  lastName: string
+  email: string
+  /** When the person was added (an ISO instant). */
+  createdAt: string
+  /** The children still linked. A parent with a child cannot be erased. */
+  childNames: string[]
+}
+
 export const MAX_LOCATION_PHOTOS = 3
 
 /** What each kind of notice may do (see `notification_kinds` in the database). */
@@ -189,6 +201,14 @@ export interface AdminApi {
    */
   deleteStudent(studentId: string): Promise<void>
 
+  /** Every parent, the one added last first. */
+  listParents(): Promise<AdminParentRow[]>
+  /**
+   * Erases a student or a parent on their request: all their records, their phone number, devices, notices and Google
+   * account. Refused (`PT409`) for a parent who still has a child linked, a teacher and an administrator.
+   */
+  erasePerson(profileId: string): Promise<void>
+
   getNotificationSettings(): Promise<NotificationSettingsAndKinds>
   saveNotificationSettings(settings: NotificationSettings): Promise<void>
   setEmailFallback(kind: string, enabled: boolean): Promise<void>
@@ -265,6 +285,7 @@ export type ActionKey =
   | 'setOutcome'
   | 'setPaid'
   | 'deleteStudent'
+  | 'erasePerson'
   | 'setColor'
   | 'saveCv'
   | 'setCvPhoto'

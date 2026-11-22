@@ -613,6 +613,11 @@ isOneToOne: true
               "attempts": number,"channel": string,"created_at": string,"deliver_after": string,"id": number,"kind": string,"last_error": string,"recipient_email": string,"recipient_name": string,"sent_at": string,"state": string
             }[]
                            },
+"admin_list_parents":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "child_names": (string)[],"created_at": string,"email": string,"first_name": string,"last_name": string,"profile_id": string
+            }[]
+                           },
 "admin_list_students":
 { Args: Record<PropertyKey, never>; Returns: {
               "created_at": string,"email": string,"first_name": string,"held_lessons": number,"last_name": string,"location_names": (string)[],"parent_names": (string)[],"profile_id": string,"student_id": string,"teacher_id": string,"teacher_name": string,"upcoming_lessons": number
@@ -684,6 +689,9 @@ isOneToOne: true
                            },
 "enrolment_form_info":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"erase_person":
+{ Args: { "p_profile_id": string }; Returns: undefined
                            },
 "erase_teacher":
 { Args: { "p_teacher_id": string }; Returns: string

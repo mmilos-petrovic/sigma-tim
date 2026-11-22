@@ -15,6 +15,8 @@ import {
 } from './adminApi'
 
 const BUCKET = 'location-photos'
+/** The public bucket of CV photos (`CV_BUCKET` in cv/supabaseCvApi.ts, which imports this file). */
+const CV_PHOTOS_BUCKET = 'cv-photos'
 const SIGNED_URL_SECONDS = 60 * 60
 const byName = (a: string, b: string) => a.localeCompare(b, 'sr')
 
@@ -219,6 +221,17 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
     if (error) throw storageError(error)
   }
 
+  /** Every file of a teacher's CV photos: the bucket keeps them in a folder named after the teacher. */
+  const removeCvPhotos = async (teacherId: string) => {
+    const bucket = client.storage.from(CV_PHOTOS_BUCKET)
+    const { data, error } = await bucket.list(teacherId)
+    if (error) throw storageError(error)
+    const paths = (data ?? []).map((file) => `${teacherId}/${file.name}`)
+    if (paths.length === 0) return
+    const removed = await bucket.remove(paths)
+    if (removed.error) throw storageError(removed.error)
+  }
+
   return {
     async listSubjects() {
       const { data } = await run(
@@ -332,6 +345,13 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
     async eraseTeacher(teacherId) {
       const { data } = await run(client.rpc('erase_teacher', { p_teacher_id: teacherId }))
       if (data !== 'deleted' && data !== 'kept_history') throw new AdminError('unknown')
+      // The profile is gone for good by now, so a failure here must not look like a failed erase: the files are only
+      // orphans the administrator can delete.
+      try {
+        await removeCvPhotos(teacherId)
+      } catch (error) {
+        console.warn('The teacher was erased but their CV photo files could not be removed', error)
+      }
       return data
     },
 
@@ -413,6 +433,21 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
         if (item.path && item.signedUrl) urls[item.path] = item.signedUrl
       }
       return urls
+    },
+
+    async listParents() {
+      const { data } = await run(client.rpc('admin_list_parents'))
+      return (data ?? []).map((row) => ({
+        profileId: row.profile_id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        createdAt: row.created_at,
+        childNames: row.child_names,
+      }))
+    },
+    async erasePerson(profileId) {
+      await run(client.rpc('erase_person', { p_profile_id: profileId }))
     },
 
     async listStudents() {

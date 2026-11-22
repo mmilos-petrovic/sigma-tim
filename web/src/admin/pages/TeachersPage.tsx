@@ -334,8 +334,8 @@ function EraseDialog({ teacher, onClose, onDone }: DialogProps & { teacher: Teac
         poništiti.
       </p>
       <p>
-        Briše se sve što je vezano za osobu: biografija, predmeti i CV. Ako je ova osoba i učenik
-        ili roditelj, i ti nalozi se brišu.
+        Briše se sve što je vezano za osobu: biografija, predmeti, CV i fotografija sa CV-a. Ako je
+        ova osoba i učenik ili roditelj, i ti nalozi se brišu.
       </p>
       <Impact impact={impact} />
       <p className="muted">Učesnici obrisanih časova biće obavešteni.</p>

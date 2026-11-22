@@ -7,6 +7,7 @@ import { EnrolmentsPage } from './pages/EnrolmentsPage'
 import { LocationsPage } from './pages/LocationsPage'
 import { NotificationSettingsPage } from './pages/NotificationSettingsPage'
 import { OverviewPage } from './pages/OverviewPage'
+import { ParentsPage } from './pages/ParentsPage'
 import { StudentsPage } from './pages/StudentsPage'
 import { SubjectsPage } from './pages/SubjectsPage'
 import { TeachersPage } from './pages/TeachersPage'
@@ -19,6 +20,7 @@ export function AdminRoutes() {
       <Route index element={<OverviewPage />} />
       <Route path="nastavnici" element={<TeachersPage />} />
       <Route path="ucenici" element={<StudentsPage />} />
+      <Route path="roditelji" element={<ParentsPage />} />
       <Route path="predmeti" element={<SubjectsPage />} />
       <Route path="lokacije" element={<LocationsPage />} />
       <Route path="prijave" element={<EnrolmentsPage />} />
