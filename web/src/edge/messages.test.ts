@@ -74,6 +74,13 @@ describe('pathFor: where a tap leads', () => {
     expect(pathFor(notice({ kind: 'test', recipient: admin }))).toBe('/administracija/podesavanja')
   })
 
+  it('the alert about notices that did not get through goes to the same page', () => {
+    const admin = recipient({ is_student: false, is_admin: true })
+    expect(pathFor(notice({ kind: 'delivery_alert', recipient: admin }))).toBe(
+      '/administracija/podesavanja',
+    )
+  })
+
   it('a person with no role in force goes to the front page', () => {
     expect(pathFor(notice({ recipient: recipient({ is_student: false }) }))).toBe('/')
   })
@@ -210,6 +217,24 @@ describe('the words', () => {
     })
   })
 
+  it('the alert says how many notices did not get through and where to look', () => {
+    expect(describeNotice(notice({ kind: 'delivery_alert', payload: { failed: 5 } }), NOW)).toEqual(
+      {
+        title: 'Obaveštenja ne stižu',
+        body: 'Neuspelih obaveštenja u poslednjih sat vremena: 5. Pogledajte dnevnik u podešavanjima.',
+      },
+    )
+  })
+
+  it('the alert holds together without a count', () => {
+    for (const payload of [{}, { failed: 0 }, { failed: 'many' }, { failed: 2.5 }]) {
+      const { body } = describeNotice(notice({ kind: 'delivery_alert', payload }), NOW)
+      expect(body).toBe(
+        'Više obaveštenja nije stiglo u poslednjih sat vremena. Pogledajte dnevnik u podešavanjima.',
+      )
+    }
+  })
+
   it('holds together when the snapshot is nearly empty', () => {
     expect(describeNotice(notice({ kind: 'lesson_moved', payload: {} }), NOW).title).toBe(
       'Čas je pomeren',
@@ -244,6 +269,16 @@ describe('the push message', () => {
       ttl: 900,
       urgency: 'high',
     })
+  })
+
+  it('an alert is urgent and one replaces the one before it', () => {
+    const admin = recipient({ is_student: false, is_admin: true })
+    expect(
+      pushMessage(
+        notice({ kind: 'delivery_alert', payload: { failed: 3 }, recipient: admin }),
+        NOW,
+      ),
+    ).toMatchObject({ tag: 'delivery_alert', urgency: 'high', url: '/administracija/podesavanja' })
   })
 
   it('a long text is cut', () => {
