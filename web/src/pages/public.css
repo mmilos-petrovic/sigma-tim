@@ -1,0 +1,1100 @@
+/*
+ * The pages everybody may open: the front page, the privacy policy, the public CV pages and the sign-up screen.
+ * Everything lives inside `.pub`. The classes of the front page design carry the prefix `pub-` so they cannot meet the
+ * classes of the app, and the colours the app's own components use (`--text`, `--surface`, `--primary` ...) are set to the
+ * light palette of the design in here, so a CV or a sign-up looks the same as the front page. These pages are light only.
+ * Breakpoints: 640 / 900 / 1200.
+ */
+
+.pub {
+  --pub-cream: #fdf8ee;
+  --pub-cream-deep: #f6ecd6;
+  --pub-surface: #ffffff;
+  --pub-ink: #0f1b3d;
+  --pub-muted: #4a5878;
+  --pub-blue: #1b4fe0;
+  --pub-blue-dark: #0d3bb5;
+  --pub-blue-deep: #082a8c;
+  --pub-blue-soft: #e6edff;
+  --pub-accent: #f5a300; /* fills, buttons */
+  --pub-accent-ink: #b85a00; /* accent text on cream: 4.6:1 */
+  --pub-yellow: #ffcc3d; /* accent text on blue */
+  --pub-error: #b3261e;
+  --pub-border: #e4dcc8;
+  --pub-radius: 16px;
+  --pub-radius-lg: 24px;
+  --pub-shadow: 0 10px 30px rgb(15 27 61 / 0.12);
+  --pub-font: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --pub-script: 'Caveat', 'Segoe Script', cursive;
+
+  /* what the components of the app read */
+  --bg: var(--pub-cream);
+  --surface: var(--pub-surface);
+  --text: var(--pub-ink);
+  --muted: var(--pub-muted);
+  --border: var(--pub-border);
+  --primary: var(--pub-blue);
+  --primary-text: #fff;
+  --primary-soft: var(--pub-blue-soft);
+  --danger: var(--pub-error);
+  --danger-soft: #fdecea;
+
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+  background: var(--pub-cream);
+  color: var(--pub-ink);
+  font-family: var(--pub-font);
+  font-size: 1rem;
+  line-height: 1.6;
+  color-scheme: light;
+}
+
+.pub img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.pub :focus-visible {
+  outline: 3px solid var(--pub-blue);
+  outline-offset: 3px;
+}
+
+:where(.pub-landing, .pub-header, .pub-footer) :where(h1, h2, h3, p, ul, ol, figure) {
+  margin: 0;
+}
+
+.pub-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sigma tim landing page – static, mobile first. Breakpoints: 640 / 900 / 1200. */
+
+.pub-container {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+.pub-skip-link {
+  position: absolute;
+  left: 12px;
+  top: -80px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--pub-ink);
+  color: #fff;
+  text-decoration: none;
+}
+
+.pub-skip-link:focus {
+  top: 12px;
+}
+
+.pub-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- buttons ---------- */
+
+.pub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    border-color 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.pub-btn:hover {
+  transform: translateY(-1px);
+}
+
+.pub-btn:active {
+  transform: translateY(0);
+}
+
+.pub-btn--primary {
+  background: var(--pub-blue);
+  color: #fff;
+  box-shadow: 0 6px 16px rgb(27 79 224 / 0.35);
+}
+
+.pub-btn--primary:hover {
+  background: var(--pub-blue-dark);
+}
+
+.pub-btn--call {
+  background: var(--pub-accent);
+  color: var(--pub-ink);
+}
+
+.pub-btn--call:hover {
+  background: #ffb52e;
+}
+
+.pub-btn--outline {
+  border-color: var(--pub-blue);
+  background: transparent;
+  color: var(--pub-blue);
+}
+
+.pub-btn--outline:hover {
+  background: var(--pub-blue-soft);
+}
+
+.pub-btn--accent {
+  background: var(--pub-yellow);
+  color: var(--pub-ink);
+}
+
+.pub-btn--accent:hover {
+  background: #ffd96b;
+}
+
+.pub-btn--block {
+  width: 100%;
+  margin-top: 8px; /* extra space above the button, on top of the form's 16px gap */
+  min-height: 56px;
+  white-space: normal;
+  font-size: 1.05rem;
+}
+
+/* ---------- header ---------- */
+
+.pub-header {
+  background: var(--pub-blue-soft);
+  border-bottom: 1px solid #cddafc;
+}
+
+.pub-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-block: 10px;
+}
+
+.pub-logo {
+  display: block;
+  width: 90px;
+  flex: none;
+}
+
+.pub-logo img {
+  mix-blend-mode: multiply;
+  /* the logo has a white background */
+}
+
+.pub-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pub-header .pub-btn {
+  padding-inline: 12px;
+  font-size: 0.85rem;
+}
+
+.pub-header .pub-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* location and phone, as in header-inspiration.png: big outline icon + two lines of text */
+.pub-header__info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pub-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pub-info__icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--pub-blue);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pub-info__text {
+  display: grid;
+  line-height: 1.3;
+  color: var(--pub-ink);
+  font-size: 0.85rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* the town is only written out where there is room; the street always stays */
+.pub-info__city {
+  display: none;
+}
+
+.pub-login-icon {
+  display: none;
+}
+
+.pub-info__text strong {
+  font-weight: 600;
+}
+
+/* ---------- hero ---------- */
+
+.pub-hero {
+  position: relative;
+  padding-block: 28px 72px;
+  overflow: hidden;
+}
+
+.pub-hero__grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  /* the column may never be wider than the page */
+  gap: 24px;
+}
+
+.pub-chip {
+  display: inline-block;
+  margin-top: 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #fdebc2;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.pub-hero__intro {
+  container-type: inline-size;
+  /* lets the title size itself to its column, so it stays on one line */
+  text-align: center;
+  /* up to 900 px the intro and the form are centred; see the desktop block */
+}
+
+.pub-title {
+  font-size: clamp(1.6rem, 8.4vw, 3rem);
+  /* fallback without container units */
+  font-size: clamp(1.6rem, 9.2cqw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.pub-accent {
+  color: var(--pub-blue);
+}
+
+.pub-lead {
+  margin: 14px auto 0;
+  max-width: 34rem;
+  color: var(--pub-muted);
+  font-size: 1.05rem;
+}
+
+/* form */
+
+.pub-card {
+  background: var(--pub-surface);
+  border-radius: var(--pub-radius-lg);
+  box-shadow: var(--pub-shadow);
+}
+
+.pub-form {
+  max-width: 34rem;
+  margin-inline: auto;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  border: 2px solid var(--pub-blue-soft);
+}
+
+.pub-form__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.pub-form__title label {
+  display: block;
+}
+
+.pub-field {
+  display: grid;
+  gap: 6px;
+}
+
+.pub-select {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 44px 0 16px;
+  border: 2px solid var(--pub-border);
+  border-radius: 14px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f1b3d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+      no-repeat right 14px center / 20px,
+    #fff;
+  color: var(--pub-ink);
+  font: inherit;
+  font-size: 1rem;
+  /* 16px keeps iOS from zooming in */
+  appearance: none;
+  cursor: pointer;
+}
+
+.pub-select:hover {
+  border-color: var(--pub-blue);
+}
+
+fieldset.pub-role {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pub-role legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 600;
+}
+
+.pub-role__options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pub-role__option {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.pub-role__option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.pub-role__option span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border: 2px solid var(--pub-border);
+  border-radius: 14px;
+  background: #fff;
+  font-weight: 500;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.pub-role__option:hover span {
+  border-color: var(--pub-blue);
+}
+
+.pub-role__option input:checked + span {
+  border-color: var(--pub-blue);
+  background: var(--pub-blue-soft);
+  color: var(--pub-blue-dark);
+  font-weight: 600;
+}
+
+.pub-role__option input:checked + span::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d3bb5' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.pub-role__option input:focus-visible + span {
+  outline: 3px solid var(--pub-blue);
+  outline-offset: 3px;
+}
+
+.pub-error {
+  color: var(--pub-error);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+[aria-invalid='true'] {
+  border-color: var(--pub-error);
+}
+
+.pub-form__note {
+  color: var(--pub-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.pub-form__status {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--pub-blue-soft);
+  font-size: 0.9rem;
+}
+
+/* picture */
+
+.pub-hero__visual {
+  position: relative;
+  max-width: 34rem;
+  margin-inline: auto;
+  width: 100%;
+  padding-bottom: 28px;
+}
+
+/* rectangular photo whose four edges fade out into the page background */
+.pub-hero__photo {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: 55% 50%;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent, #000 16%, #000 84%, transparent),
+    linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent, #000 16%, #000 84%, transparent),
+    linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
+  mask-composite: intersect;
+}
+
+.pub-promise {
+  position: absolute;
+  left: 4%;
+  bottom: -10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px 12px 12px;
+  border-radius: var(--pub-radius);
+  background: var(--pub-surface);
+  box-shadow: var(--pub-shadow);
+}
+
+.pub-promise p {
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.pub-promise__badge {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7b45a6, #2f9be0 55%, #f0a060);
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* doodles – decoration only */
+
+.pub-doodle {
+  position: absolute;
+  z-index: 0;
+  color: var(--pub-accent);
+  font-weight: 600;
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pub-doodle--pi {
+  top: 130px;
+  right: 8%;
+  font-size: 2.2rem;
+  transform: rotate(10deg);
+}
+
+.pub-doodle--root {
+  top: 46%;
+  left: 2%;
+  font-size: 1.6rem;
+  color: var(--pub-blue);
+  transform: rotate(-8deg);
+}
+
+.pub-doodle--sigma {
+  right: 4%;
+  bottom: 120px;
+  font-size: 2.4rem;
+  color: var(--pub-blue);
+  transform: rotate(8deg);
+}
+
+/* ---------- how it works ---------- */
+
+.pub-how {
+  position: relative;
+  padding-block: 88px 64px;
+  background: linear-gradient(180deg, var(--pub-blue-dark), var(--pub-blue-deep));
+  color: #fff;
+  text-align: center;
+}
+
+.pub-wave {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 48px;
+  fill: var(--pub-cream);
+}
+
+.pub-wave--top {
+  top: -1px;
+}
+
+.pub-bubble {
+  position: absolute;
+  border: 2px solid rgb(255 255 255 / 0.18);
+  border-radius: 50%;
+}
+
+.pub-bubble--1 {
+  top: 22%;
+  left: 6%;
+  width: 22px;
+  height: 22px;
+}
+
+.pub-bubble--2 {
+  top: 40%;
+  right: 8%;
+  width: 14px;
+  height: 14px;
+}
+
+.pub-bubble--3 {
+  bottom: 24%;
+  left: 12%;
+  width: 30px;
+  height: 30px;
+}
+
+.pub-how .pub-container {
+  position: relative;
+}
+
+.pub-script {
+  color: var(--pub-yellow);
+  font-family: var(--pub-script);
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.pub-how__title {
+  margin-top: 4px;
+  font-size: clamp(1.9rem, 7vw, 2.8rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.pub-steps {
+  display: grid;
+  gap: 36px;
+  margin: 40px 0 36px;
+  padding: 0;
+  list-style: none;
+}
+
+.pub-step {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+.pub-step__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #3d6bff, var(--pub-blue) 70%);
+  box-shadow:
+    0 0 0 6px rgb(255 255 255 / 0.12),
+    0 10px 24px rgb(0 0 0 / 0.25);
+}
+
+.pub-step__icon .pub-icon {
+  width: 38px;
+  height: 38px;
+  color: #fff;
+}
+
+.pub-step__num {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--pub-yellow);
+  color: var(--pub-ink);
+  font-weight: 700;
+}
+
+.pub-step h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pub-step p {
+  color: #dbe5ff;
+  /* 9:1 on the deep blue */
+}
+
+.pub-how__cta {
+  min-height: 52px;
+  padding-inline: 28px;
+  font-size: 1rem;
+}
+
+/* ---------- footer ---------- */
+
+.pub-footer {
+  padding-block: 20px;
+  font-size: 0.875rem;
+  color: var(--pub-muted);
+}
+
+.pub-footer__row {
+  display: grid;
+  gap: 4px;
+}
+
+.pub-footer a {
+  display: inline-block;
+  padding-block: 10px;
+  font-weight: 500;
+}
+
+/* phones: the call button is only the handset icon (its text stays for screen readers) */
+@media (max-width: 639px) {
+  /* on a phone the π would land on the title or the text */
+  .pub-doodle--pi {
+    display: none;
+  }
+
+  .pub-header .pub-btn--call {
+    width: 44px;
+    padding: 0;
+  }
+
+  .pub-header .pub-btn--call .pub-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .pub-btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* small phones: the login button is a person icon as well */
+@media (max-width: 479px) {
+  .pub-header .pub-btn--login {
+    width: 44px;
+    padding: 0;
+  }
+
+  .pub-header .pub-btn--login .pub-login-icon {
+    display: block;
+    width: 22px;
+    height: 22px;
+  }
+
+  .pub-btn__label--login {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* phones: the street name is written on two lines, "Hajduk" over "Veljova 62" */
+@media (max-width: 639px) {
+  .pub-street__name {
+    display: block;
+  }
+}
+
+/* very small phones: the logo and the buttons shrink a little */
+@media (max-width: 359px) {
+  .pub-logo {
+    width: 72px;
+  }
+
+  .pub-header__row {
+    gap: 6px;
+  }
+
+  .pub-header__actions {
+    gap: 6px;
+  }
+
+  .pub-header .pub-btn--call,
+  .pub-header .pub-btn--login {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  .pub-info__text {
+    font-size: 0.78rem;
+  }
+}
+
+/* ---------- wider screens ---------- */
+
+@media (min-width: 640px) {
+  .pub-container {
+    padding-inline: 32px;
+  }
+
+  .pub-logo {
+    width: 130px;
+  }
+
+  .pub-doodle--pi {
+    top: 24px;
+    right: 3%;
+    /* clear of the centred title */
+  }
+
+  .pub-header .pub-btn {
+    padding-inline: 16px;
+    font-size: 0.95rem;
+  }
+
+  .pub-form {
+    padding: 28px;
+  }
+
+  .pub-footer__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pub-steps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+  }
+
+  .pub-step {
+    padding-inline: 20px;
+    align-content: start;
+  }
+
+  .pub-step + .pub-step {
+    border-left: 1px solid rgb(255 255 255 / 0.18);
+  }
+
+  .pub-wave {
+    height: 72px;
+  }
+}
+
+/* tablets and up: big icon and the town on a second line, as in header-inspiration.png */
+@media (min-width: 768px) {
+  .pub-info {
+    gap: 10px;
+  }
+
+  .pub-info__icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .pub-info__city {
+    display: block;
+  }
+}
+
+/* wide screens: slightly larger text */
+@media (min-width: 1100px) {
+  .pub-info__text {
+    font-size: 0.95rem;
+  }
+}
+
+/* desktop: 901 px and wider, so that 900 px still gets the centred layout */
+@media (min-width: 901px) {
+  .pub-header__row {
+    padding-block: 16px;
+  }
+
+  .pub-logo {
+    width: 136px;
+  }
+
+  .pub-hero {
+    padding-block: 56px 80px;
+  }
+
+  .pub-hero__grid {
+    grid-template-columns: 1.05fr 0.95fr;
+    column-gap: 56px;
+    row-gap: 28px;
+  }
+
+  .pub-hero__intro {
+    grid-column: 1;
+    grid-row: 1;
+    text-align: left;
+  }
+
+  .pub-lead {
+    margin-inline: 0;
+  }
+
+  .pub-form {
+    grid-column: 1;
+    grid-row: 2;
+    margin-inline: 0;
+  }
+
+  .pub-hero__visual {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    /* same row as the form, centred against it */
+    max-width: none;
+  }
+
+  .pub-how {
+    padding-block: 120px 80px;
+  }
+
+  .pub-wave {
+    height: 100px;
+  }
+}
+
+/* ---------- motion ---------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .pub-doodle {
+    animation: float 7s ease-in-out infinite;
+  }
+
+  .pub-doodle--root {
+    animation-delay: -2s;
+  }
+
+  .pub-doodle--sigma {
+    animation-delay: -4s;
+  }
+
+  .pub-bubble {
+    animation: float 9s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pub-btn,
+  .pub-role__option span {
+    transition: none;
+  }
+
+  .pub-btn:hover {
+    transform: none;
+  }
+}
+
+@keyframes float {
+  50% {
+    translate: 0 -10px;
+  }
+}
+
+/* ---------- messages ---------- */
+
+.pub-banner {
+  padding: 12px 20px;
+  background: #fdecea;
+  color: var(--pub-error);
+  font-weight: 500;
+  text-align: center;
+}
+
+.pub-notices {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.pub-notice {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--pub-blue-soft);
+  font-size: 0.95rem;
+}
+
+.pub-notice--problem {
+  background: #fdecea;
+  color: var(--pub-error);
+  font-weight: 500;
+}
+
+/* the card of the form while it is not known yet what it says: it keeps its room, so the page does not jump */
+.pub-form--wait {
+  min-height: 21rem;
+}
+
+.pub-form__open {
+  display: flex;
+}
+
+.pub-btn--hidden {
+  visibility: hidden;
+}
+
+.pub-btn[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pub-callbox {
+  align-self: start;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  font-size: 1.1rem;
+}
+
+/* ---------- the pages inside the frame (CV, sign-up, privacy policy) ---------- */
+
+.site__main {
+  flex: 1;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.pub-prose {
+  max-width: 46rem;
+  padding: 32px 20px 56px;
+}
+
+.pub-prose h1 {
+  margin: 1rem 0 0.5rem;
+  font-size: clamp(1.7rem, 6vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.pub-prose h2 {
+  margin: 2rem 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.pub-prose li + li {
+  margin-top: 0.4rem;
+}
+
+.pub-prose a {
+  overflow-wrap: anywhere;
+}
+
+.pub-updated {
+  color: var(--pub-muted);
+  font-size: 0.9rem;
+}
+
+/* "Naši nastavnici" (the list of public CVs, not on the front page for now) */
+.landing__section {
+  margin-top: 2.5rem;
+}
+
+.landing__section h2 {
+  margin-bottom: 0.75rem;
+  font-size: 1.35rem;
+}
+
+/* The profile of a sign-up and the request that comes out of it ------------------------------------------ */
+
+.enrolment-profile {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 28rem;
+}
+
+.enrolment-request {
+  max-width: 32rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}

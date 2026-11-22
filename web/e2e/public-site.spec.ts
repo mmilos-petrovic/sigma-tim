@@ -24,11 +24,9 @@ test.describe('the public site', () => {
     await setEnrolmentSettings(request, { enabled: true })
 
     await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Sigma tim Kruševac', level: 1 })).toBeVisible()
     await expect(
-      page.getByRole('heading', { name: 'Časovi za osnovce, srednjoškolce i studente', level: 1 }),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('banner').getByRole('link', { name: '064 4994 235' }),
+      page.getByRole('banner').getByRole('link', { name: 'Pozovi odmah' }),
     ).toHaveAttribute('href', 'tel:+381644994235')
 
     await test.step('the form leaves for Google with the choice kept', async () => {
@@ -109,16 +107,16 @@ test.describe('the public site', () => {
     const slug = own?.slug
     expect(slug, 'the CV of Ana has a link').toBeTruthy()
 
-    await test.step('it is on the front page and has a page of its own', async () => {
+    await test.step('it has a page of its own, and is not on the front page for now', async () => {
       await page.goto('/')
-      const teachers = page.getByRole('region', { name: 'Naši nastavnici' })
-      await teachers.getByRole('link', { name: new RegExp(about) }).click()
-      await expect(page).toHaveURL(new RegExp(`/nastavnici/${slug}$`))
+      await expect(page.getByLabel('Izaberi predmet iz kog želiš časove')).toBeVisible()
+      await expect(page.getByRole('region', { name: 'Naši nastavnici' })).toHaveCount(0)
+      await page.goto(`/nastavnici/${slug}`)
       await expect(page.getByRole('heading', { name: 'Ana Nikolić', level: 1 })).toBeVisible()
       await expect(page.getByRole('article')).toContainText(`E2E škola ${run}`)
       await expect(page).toHaveTitle('Ana Nikolić – nastavnik | Sigma Tim')
       // a visitor who is not signed in sees it: the page is not behind the login
-      await expect(page.getByRole('link', { name: 'Prijava' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Prijava' })).toBeVisible()
     })
 
     await test.step('hiding it makes the page unavailable and the card disappear', async () => {
@@ -130,7 +128,6 @@ test.describe('the public site', () => {
       await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
       await page.goto('/')
       await expect(page.getByLabel('Izaberi predmet iz kog želiš časove')).toBeVisible()
-      await expect(page.getByRole('heading', { name: 'Naši nastavnici' })).toHaveCount(0)
     })
   })
 })

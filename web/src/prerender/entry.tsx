@@ -11,8 +11,9 @@ import { createSupabaseCvApi } from '../cv/supabaseCvApi'
 import { EnrolmentApiProvider } from '../enrolment/EnrolmentApiProvider'
 import type { EnrolmentApi } from '../enrolment/enrolmentApi'
 import { LandingPage } from '../pages/LandingPage'
+import { PrivacyPage } from '../pages/PrivacyPage'
 import type { Database } from '../lib/database.types'
-import { cvMeta, LANDING_META, type PageMeta } from '../lib/publicMeta'
+import { cvMeta, LANDING_META, PRIVACY_META, type PageMeta } from '../lib/publicMeta'
 import { assemblePage, robotsTxt, schoolJsonLd, sitemapXml, teacherJsonLd } from './page'
 import { seedQueries, type Prerendered } from './seed'
 
@@ -52,6 +53,7 @@ export function renderPublicPage(path: string, data: Prerendered, cvApi: CvApi):
             <StaticRouter location={path}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/politika-privatnosti" element={<PrivacyPage />} />
                 <Route path="/nastavnici/:slug" element={<PublicCvPage />} />
               </Routes>
             </StaticRouter>
@@ -73,6 +75,12 @@ export const cvPath = (slug: string) => `/nastavnici/${slug}`
 
 export function frontPage(cvs: Prerendered['publicCvs']): PublicPage {
   return { path: '/', meta: LANDING_META, data: { publicCvs: cvs }, jsonLd: schoolJsonLd }
+}
+
+export const PRIVACY_PATH = '/politika-privatnosti'
+
+export function privacyPage(): PublicPage {
+  return { path: PRIVACY_PATH, meta: PRIVACY_META, data: {}, jsonLd: undefined }
 }
 
 export function cvPage(cv: CvData, photoUrl: string | null): PublicPage {
@@ -102,6 +110,7 @@ export function makeSite(input: SiteInput): Record<string, string> {
   const { template, api, siteUrl, indexable } = input
   const pages = [
     frontPage(input.cvs),
+    privacyPage(),
     ...input.cvData.map((cv) => cvPage(cv, cv.photoPath ? api.photoUrl(cv.photoPath) : null)),
   ]
   const files: Record<string, string> = {}

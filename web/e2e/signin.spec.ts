@@ -4,6 +4,9 @@ import { accessToken, readable, signInAs, signOut } from './helpers.ts'
 const heading = (page: import('@playwright/test').Page, name: string) =>
   page.getByRole('heading', { name, level: 1 })
 
+// signing in starts on the front page
+const FRONT_PAGE = 'Sigma tim Kruševac'
+
 test.describe('the five test accounts', () => {
   test('admin opens the administration, and only that', async ({ page }) => {
     await signInAs(page, 'Admin')
@@ -91,13 +94,16 @@ test.describe('the five test accounts', () => {
     request,
   }) => {
     await signInAs(page, 'Stranac (bez profila)')
-    await expect(heading(page, 'Još niste član škole')).toBeVisible()
-    await expect(page.getByText('stranac@example.test')).toBeVisible()
-    await expect(page.getByText(/Pozovite nastavnika da vam zakaže prvi čas/)).toBeVisible()
+    // back on the front page, the account is named and the school says it does not know it
+    await expect(page.getByRole('status')).toContainText('stranac@example.test')
+    await expect(page.getByRole('status')).toContainText('škola taj nalog još ne poznaje')
+    await expect(page).toHaveURL(/\/$/)
 
     for (const path of ['/moj-raspored', '/administracija', '/ucenik', '/izbor']) {
       await page.goto(path)
       await expect(heading(page, 'Još niste član škole')).toBeVisible()
+      await expect(page.getByText(/Pozovite nastavnika da vam zakaže prvi čas/)).toBeVisible()
+      await expect(page.getByText('stranac@example.test')).toBeVisible()
     }
 
     const token = await accessToken(page)
@@ -112,8 +118,8 @@ test.describe('sessions and failures', () => {
     page,
   }) => {
     await page.goto('/moj-raspored')
-    await expect(heading(page, 'Prijava')).toBeVisible()
-    await expect(page).toHaveURL(/\/prijava$/)
+    await expect(heading(page, FRONT_PAGE)).toBeVisible()
+    await expect(page).toHaveURL(/\/$/)
 
     await page.getByRole('button', { name: 'Nastavnik', exact: true }).click()
     await expect(heading(page, 'Moj raspored')).toBeVisible()
@@ -126,7 +132,7 @@ test.describe('sessions and failures', () => {
     await expect(page.getByText('Sesija je istekla')).toHaveCount(0)
 
     await page.goto('/moj-raspored')
-    await expect(heading(page, 'Prijava')).toBeVisible()
+    await expect(heading(page, FRONT_PAGE)).toBeVisible()
   })
 
   test('a session the server rejects shows the expiry notice', async ({ page }) => {
@@ -141,7 +147,7 @@ test.describe('sessions and failures', () => {
       }),
     )
     await page.reload()
-    await expect(heading(page, 'Prijava')).toBeVisible()
+    await expect(heading(page, FRONT_PAGE)).toBeVisible()
     await expect(page.getByRole('alert')).toContainText('Sesija je istekla. Prijavite se ponovo.')
   })
 
@@ -160,7 +166,7 @@ test.describe('sessions and failures', () => {
   })
 
   test('a failed Google sign-in comes back with a message', async ({ page }) => {
-    await page.goto('/prijava?error=access_denied&error_description=User+denied')
+    await page.goto('/?error=access_denied&error_description=User+denied')
     await expect(page.getByRole('alert')).toContainText('Prijava nije uspela. Pokušajte ponovo.')
   })
 
@@ -169,15 +175,15 @@ test.describe('sessions and failures', () => {
     // The local stack has no Google client. Send the browser straight back, as Google would after a refusal,
     // and check that the app asked for the right provider and callback and kept the page to return to.
     await page.route('**/auth/v1/authorize**', (route) =>
-      route.fulfill({ status: 302, headers: { location: 'http://127.0.0.1:5173/prijava' } }),
+      route.fulfill({ status: 302, headers: { location: 'http://127.0.0.1:5173/' } }),
     )
     const authorize = page.waitForRequest((request) => request.url().includes('/auth/v1/authorize'))
-    await page.getByRole('button', { name: 'Prijavi se Google nalogom' }).click()
+    await page.getByRole('button', { name: 'Prijava', exact: true }).click()
     const url = new URL((await authorize).url())
     expect(url.searchParams.get('provider')).toBe('google')
-    expect(url.searchParams.get('redirect_to')).toBe('http://127.0.0.1:5173/prijava')
+    expect(url.searchParams.get('redirect_to')).toBe('http://127.0.0.1:5173/')
     expect(url.searchParams.get('code_challenge')).toBeTruthy()
-    await expect(heading(page, 'Prijava')).toBeVisible()
+    await expect(heading(page, FRONT_PAGE)).toBeVisible()
     expect(await page.evaluate(() => window.sessionStorage.getItem('sigma.returnTo'))).toBe(
       '/moj-raspored',
     )

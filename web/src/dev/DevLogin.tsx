@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
+import { markSignInStarted } from '../auth/signInReturn'
 import { devPersonas } from './personas'
 
 /** Development only: signs in as one of the local test accounts. Loaded lazily and only when `import.meta.env.DEV`. */
@@ -10,6 +11,8 @@ export default function DevLogin({ password }: { password: string }) {
 
   const signIn = (email: string) => {
     setFailed(false)
+    // like Google, this brings the person back to the front page, which takes them on into the app
+    markSignInStarted()
     signInWithPassword(email, password).catch(() => setFailed(true))
   }
 

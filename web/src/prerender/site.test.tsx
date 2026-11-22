@@ -22,27 +22,38 @@ function input(more: Partial<SiteInput> = {}): SiteInput {
 }
 
 describe('makeSite', () => {
-  it('makes the front page and a page for every public CV', () => {
+  it('makes the front page, the privacy policy and a page for every public CV', () => {
     const files = makeSite(input())
     expect(Object.keys(files).sort()).toEqual([
       'index.html',
       'nastavnici/marija-jovanovic.html',
       'nastavnici/nikola-ilic.html',
+      'politika-privatnosti.html',
       'robots.txt',
       'sitemap.xml',
     ])
   })
 
-  it('writes the teachers into the front page, as the app does', () => {
+  it('writes the front page as the app does, without the teachers for now', () => {
     const html = makeSite(input())['index.html']!
-    expect(html).toContain('<title>Sigma Tim – Časovi za osnovce, srednjoškolce i studente</title>')
-    expect(html).toContain('<h1>Časovi za osnovce, srednjoškolce i studente</h1>')
-    expect(html).toContain('<h2 id="teachers-title">Naši nastavnici</h2>')
-    expect(html).toContain('Marija')
-    expect(html).toContain('href="/nastavnici/nikola-ilic"')
-    // the phone is in the frame of the page, the form arrives when the app asks whether the school takes sign-ups
+    expect(html).toContain(
+      '<title>Sigma tim Kruševac – časovi za osnovce, srednjoškolce i studente</title>',
+    )
+    expect(html).toContain('Kruševac</span></h1>')
+    expect(html).toContain('Kako Sigma tim radi')
+    expect(html).toContain('/img/members-1200.webp')
+    expect(html).not.toContain('Naši nastavnici')
+    expect(html).not.toContain('href="/nastavnici/')
+    // the call button is in the frame of the page, the form arrives when the app asks whether the school takes sign-ups
     expect(html).toContain('href="tel:+381644994235"')
     expect(html).not.toContain('Nastavite sa Google-om')
+  })
+
+  it('writes the privacy policy into its own page, in the same frame', () => {
+    const html = makeSite(input())['politika-privatnosti.html']!
+    expect(html).toContain('<title>Politika privatnosti – Sigma Tim</title>')
+    expect(html).toContain('<h1>Politika privatnosti</h1>')
+    expect(html).toContain('href="tel:+381644994235"')
   })
 
   it('writes the whole CV into its page, with the photo and the structured data', () => {
@@ -71,10 +82,14 @@ describe('makeSite', () => {
     }
   })
 
-  it('has a front page without the section of teachers when nobody is public', () => {
+  it('has only the front page and the privacy policy when nobody is public', () => {
     const files = makeSite(input({ cvs: [], cvData: [] }))
-    expect(Object.keys(files).sort()).toEqual(['index.html', 'robots.txt', 'sitemap.xml'])
-    expect(files['index.html']).not.toContain('Naši nastavnici')
+    expect(Object.keys(files).sort()).toEqual([
+      'index.html',
+      'politika-privatnosti.html',
+      'robots.txt',
+      'sitemap.xml',
+    ])
     expect(files['sitemap.xml']).not.toContain('nastavnici/')
   })
 
@@ -111,7 +126,6 @@ describe('makeSite', () => {
     expect(files['robots.txt']).toBe('User-agent: *\nDisallow: /\n')
     expect(files).not.toHaveProperty('sitemap.xml')
     expect(files['index.html']).not.toContain('canonical')
-    expect(files['index.html']).toContain('Naši nastavnici')
   })
 
   it('lists exactly the pages it made in the sitemap', () => {
@@ -119,7 +133,8 @@ describe('makeSite', () => {
     expect(sitemap).toContain('<loc>https://sigmatim.com/</loc>')
     expect(sitemap).toContain('<loc>https://sigmatim.com/nastavnici/marija-jovanovic</loc>')
     expect(sitemap).toContain('<loc>https://sigmatim.com/nastavnici/nikola-ilic</loc>')
-    expect(sitemap.match(/<url>/g)).toHaveLength(3)
+    expect(sitemap).toContain('<loc>https://sigmatim.com/politika-privatnosti</loc>')
+    expect(sitemap.match(/<url>/g)).toHaveLength(4)
   })
 
   it('gives the browser the answers the page was made from', () => {

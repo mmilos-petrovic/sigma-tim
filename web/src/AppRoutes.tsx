@@ -1,20 +1,13 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
-import {
-  CHOOSER_PATH,
-  CONTEXTS,
-  ENROLMENT_PATH,
-  homePath,
-  LOGIN_PATH,
-  NOT_MEMBER_PATH,
-} from './auth/roles'
+import { CHOOSER_PATH, CONTEXTS, ENROLMENT_PATH, homePath, NOT_MEMBER_PATH } from './auth/roles'
 import { RequireMember } from './components/guards'
 import { NotFoundContent } from './components/NotFound'
 import { PublicCvPage } from './cv/PublicCvPage'
 import { LoadingScreen } from './components/Status'
 import { LandingPage } from './pages/LandingPage'
-import { LoginPage } from './pages/LoginPage'
 import { NotMemberPage } from './pages/NotMemberPage'
+import { PrivacyPage } from './pages/PrivacyPage'
 
 // The screens of signed-in people (the three roles with the calendar, the sign-up page) are loaded when somebody opens one:
 // a visitor of the front page or of a CV page gets only what those pages need.
@@ -33,7 +26,9 @@ export function AppRoutes() {
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path={LOGIN_PATH} element={<LoginPage />} />
+        <Route path="/politika-privatnosti" element={<PrivacyPage />} />
+        {/* the page for signing in is gone: the front page does it; an old link or bookmark lands there */}
+        <Route path="/prijava" element={<Navigate to="/" replace />} />
         <Route path={NOT_MEMBER_PATH} element={<NotMemberPage />} />
         <Route path={ENROLMENT_PATH} element={<EnrolmentPage />} />
         <Route path="/nastavnici" element={<Navigate to="/" replace />} />
