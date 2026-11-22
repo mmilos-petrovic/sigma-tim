@@ -260,6 +260,21 @@ describe('bookings that wait for an answer', () => {
     expect(await block(/^Luka Ilić$/)).toHaveAttribute('data-variant', 'own')
   })
 
+  it('confirms once on a double click, and both buttons wait while the answer is on its way', async () => {
+    const { teacherApi } = renderTeacher(PATH)
+    const release = teacherApi.hold('confirmBooking')
+    const row = await entry()
+    await userEvent.dblClick(row.getByRole('button', { name: 'Potvrdi' }))
+    expect(teacherApi.confirmBooking).toHaveBeenCalledTimes(1)
+    expect(row.getByRole('button', { name: 'Potvrdi' })).toBeDisabled()
+    expect(row.getByRole('button', { name: 'Odbij' })).toBeDisabled()
+    release()
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Zahtevi na čekanju' })).not.toBeInTheDocument(),
+    )
+    expect(teacherApi.confirmBooking).toHaveBeenCalledTimes(1)
+  })
+
   it('declines a booking, which frees the slot again', async () => {
     const { teacherApi } = renderTeacher(PATH)
     await userEvent.click((await entry()).getByRole('button', { name: 'Odbij' }))

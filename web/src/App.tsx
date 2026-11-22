@@ -6,6 +6,7 @@ import { AppRoutes } from './AppRoutes'
 import { AuthProvider } from './auth/AuthProvider'
 import { createSupabaseAuthApi } from './auth/supabaseAuthApi'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { OfflineBanner } from './components/OfflineBanner'
 import { ConfigErrorScreen } from './components/Status'
 import { createAppClient } from './lib/supabase'
 import {
@@ -53,6 +54,7 @@ if (prerendered) seedQueries(queryClient, prerendered)
 export default function App() {
   return (
     <ErrorBoundary>
+      <OfflineBanner />
       {services ? (
         <QueryClientProvider client={queryClient}>
           <AdminApiProvider api={services.admin}>
