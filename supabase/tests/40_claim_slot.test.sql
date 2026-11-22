@@ -1,6 +1,6 @@
 -- Booking a free slot: first one wins, late bookings wait for the teacher, who may confirm or decline.
 begin;
-select plan(45);
+select plan(55);
 
 select tests.seed_basic();
 
@@ -149,5 +149,40 @@ select tests.login_as('ta');
 select throws_ok($$ select public.decline_booking(tests.id('les:slot')) $$, 'PT409', null, 'a confirmed lesson cannot be declined');
 
 select tests.logout();
+-- the same booking asked for again ---------------------------------------------------------------
+-- An answer that was lost on a slow connection, a button pressed twice: the second ask gets the answer the first one got, and
+-- nothing is written (no second participant, no second notice).
+select tests.logout();
+select set_config('t.notices', (select count(*)::text from public.notifications), true);
+select set_config('t.participants', (select count(*)::text from public.lesson_students), true);
+
+select tests.login_as('s1');
+select is(public.claim_slot(tests.id('les:slot'), array[tests.id('s:s1')])::text, 'confirmed',
+  'asking again for a slot the student booked gives the same answer');
+select is(public.claim_slot(tests.id('les:slot_late2'), array[tests.id('s:s1')])::text, 'pending',
+  'a booking that still waits for the teacher still waits: it is not made a confirmed one');
+select tests.login_as('p1');
+select is(public.claim_slot(tests.id('les:slot'), array[tests.id('s:s1')])::text, 'confirmed',
+  'a parent of the same student gets the same answer');
+select is(public.claim_slot(tests.id('les:slot_late'), array[tests.id('s:s1')])::text, 'confirmed',
+  'a booking the teacher has confirmed in the meantime answers confirmed');
+select tests.login_as('s2');
+select is(public.claim_slot(tests.id('les:slot_edge'), array[tests.id('s:s2')])::text, 'confirmed',
+  'every student gets this for their own booking');
+select tests.login_as('pm');
+select is(
+  public.claim_slot(tests.id('les:slot3'), array[tests.id('s:x4'), tests.id('s:x3'), tests.id('s:x2'), tests.id('s:x1')])::text,
+  'confirmed', 'the order of the students does not matter');
+select throws_ok(
+  $$ select public.claim_slot(tests.id('les:slot3'), array[tests.id('s:x1'), tests.id('s:x2'), tests.id('s:x3')]) $$,
+  'PT409', 'slot is already taken', 'a part of the students is another booking, and the slot is taken');
+select throws_ok(
+  $$ select public.claim_slot(tests.id('les:slot3'), array[tests.id('s:x1'), tests.id('s:x2'), tests.id('s:x3'), tests.id('s:x5')]) $$,
+  'PT409', 'slot is already taken', 'so are other students');
+
+select tests.logout();
+select is((select count(*)::int from public.notifications), current_setting('t.notices')::int, 'asking again wrote no notice');
+select is((select count(*)::int from public.lesson_students), current_setting('t.participants')::int, 'and added nobody to a lesson');
+
 select * from finish();
 rollback;
