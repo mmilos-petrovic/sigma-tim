@@ -131,6 +131,30 @@ test.describe('notification settings', () => {
     await restoreDefaults(page)
   })
 
+  test('the overview counts the notices that failed or wait too long, and the alert is one of the kinds', async ({
+    page,
+  }) => {
+    await signInAs(page, 'Admin')
+    await expect(page.getByRole('heading', { name: 'Administracija', level: 1 })).toBeVisible()
+
+    // the numbers come from the real database function, not from a fake
+    const region = page.getByRole('region', { name: 'Obaveštenja' })
+    for (const title of ['Neuspela obaveštenja', 'Čekaju na slanje']) {
+      const card = region.getByRole('link', { name: new RegExp(title) })
+      await expect(card).toBeVisible()
+      await expect(card.locator('.card__count')).toHaveText(/^\d+$/)
+    }
+    await expect(region.getByRole('alert')).toHaveCount(0)
+
+    await region.getByRole('link', { name: /Neuspela obaveštenja/ }).click()
+    await expect(page.getByRole('heading', { name: 'Podešavanja', level: 1 })).toBeVisible()
+    const alertKind = switches(page).getByRole('checkbox', {
+      name: /Upozorenje da obaveštenja ne stižu/,
+    })
+    await expect(alertKind).toBeChecked()
+    await expect(alertKind).toBeDisabled()
+  })
+
   test('a teacher who is not an admin cannot open the settings', async ({ page }) => {
     await signInAs(page, 'Nastavnik')
     await expect(page.getByRole('heading', { name: 'Moj raspored', level: 1 })).toBeVisible()

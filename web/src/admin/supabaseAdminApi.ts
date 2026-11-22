@@ -104,6 +104,13 @@ export function mapNotificationSettings(value: unknown): NotificationSettingsAnd
   }
 }
 
+/** The overview must never show "0" for an answer it did not get, so a missing row is an error. */
+export function mapNotificationHealth(rows: { failed: number; overdue: number }[] | null) {
+  const row = rows?.[0]
+  if (!row) throw new Error('notification health: the database gave no answer')
+  return { failed: row.failed, overdue: row.overdue }
+}
+
 export function mapNotificationLogRow(row: {
   id: number
   kind: string
@@ -459,6 +466,10 @@ export function createSupabaseAdminApi(client: SupabaseClient<Database>): AdminA
         }),
       )
       return (data ?? []).map((row) => mapNotificationLogRow(row))
+    },
+    async getNotificationHealth() {
+      const { data } = await run(client.rpc('admin_notification_health'))
+      return mapNotificationHealth(data)
     },
     async resendNotification(id) {
       await run(client.rpc('admin_resend_notification', { p_id: id }))

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { rpc, select, tokenFor } from './api.ts'
-import { block, fullHourAhead, shown } from './calendar.ts'
+import { block, daytimeAhead, shown } from './calendar.ts'
 import { localEnv, signInAs, signOut } from './helpers.ts'
 
 const TEAL = 'rgb(0, 106, 106)' // #006a6a
@@ -44,7 +44,7 @@ test.describe("a teacher's colour", () => {
       )[0].color
 
     // a lesson of Ana's a day and a half ahead, on an hour no other run is likely to use
-    const start = fullHourAhead(36)
+    const start = daytimeAhead(36)
     const lessonId = await rpc<string>(request, ana, 'schedule_lesson', {
       p_subject_id: subjectId,
       p_location_id: locationId,

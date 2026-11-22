@@ -24,6 +24,8 @@ export interface FakeState {
   notificationSettings: NotificationSettingsAndKinds
   /** Any order; the fake sorts newest first like the database. */
   notificationLog: NotificationLogRow[]
+  /** Notices due more than ten minutes ago that nobody tried; the log has no such state, so a test sets the number. */
+  notificationOverdue: number
   impact: Record<string, TeacherImpact>
   /** Teachers who have a lesson that already started: erasing them leaves a record. */
   history: Record<string, boolean>
@@ -210,6 +212,7 @@ export const seed = (): FakeState => ({
     },
   ],
   notificationSettings: seedNotificationSettings(),
+  notificationOverdue: 0,
   notificationLog: [
     logRow(1, {
       kind: 'lesson_scheduled',
@@ -549,6 +552,13 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
         .sort((a, b) => b.id - a.id)
         .slice(0, NOTIFICATION_PAGE_SIZE)
         .map((row) => ({ ...row }))
+    },
+    async getNotificationHealth() {
+      await gate('getNotificationHealth')
+      return {
+        failed: state.notificationLog.filter((row) => row.state === 'failed').length,
+        overdue: state.notificationOverdue,
+      }
     },
     async resendNotification(id) {
       await gate('resendNotification')

@@ -7,6 +7,7 @@ import './student/student.css'
 import './cv/cv.css'
 import './pages/landing.css'
 import App from './App.tsx'
+import { startMonitoring } from './monitoring'
 import { registerServiceWorker } from './notifications/registerServiceWorker'
 
 createRoot(document.getElementById('root')!).render(
@@ -16,3 +17,4 @@ createRoot(document.getElementById('root')!).render(
 )
 
 registerServiceWorker()
+void startMonitoring()

@@ -136,6 +136,15 @@
   line-height: 1.1;
 }
 
+.card--alert {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.card--alert .card__count {
+  color: var(--danger);
+}
+
 .card__hint {
   color: var(--muted);
   font-size: 0.875rem;

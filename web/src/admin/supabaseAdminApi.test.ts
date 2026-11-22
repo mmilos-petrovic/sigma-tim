@@ -5,6 +5,7 @@ import { NOTIFICATION_PAGE_SIZE } from './adminApi'
 import {
   createSupabaseAdminApi,
   mapLocation,
+  mapNotificationHealth,
   mapNotificationLogRow,
   mapNotificationSettings,
   mapSubject,
@@ -284,6 +285,21 @@ describe('notification settings', () => {
     expect(rpc).toHaveBeenLastCalledWith('admin_resend_notification', { p_id: 42 })
     await api.sendTestNotification()
     expect(rpc).toHaveBeenLastCalledWith('admin_send_test_notification')
+  })
+
+  it('asks for the two numbers of the overview', async () => {
+    const { rpc, api } = clientAnswering([{ failed: 3, overdue: 1 }])
+    expect(await api.getNotificationHealth()).toEqual({ failed: 3, overdue: 1 })
+    expect(rpc).toHaveBeenLastCalledWith('admin_notification_health')
+  })
+
+  it('never turns a missing answer into zeros', async () => {
+    expect(() => mapNotificationHealth([])).toThrow(/no answer/)
+    expect(() => mapNotificationHealth(null)).toThrow(/no answer/)
+    await expect(clientAnswering([]).api.getNotificationHealth()).rejects.toThrow(/no answer/)
+    await expect(
+      clientAnswering(null, { code: 'PT403', message: 'not allowed' }).api.getNotificationHealth(),
+    ).rejects.toMatchObject({ code: 'PT403' })
   })
 
   it('lists the log a page at a time, sending the cursor and the state only when there are some', async () => {

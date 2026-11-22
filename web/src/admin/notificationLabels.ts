@@ -16,6 +16,7 @@ const KIND_LABEL: Record<string, string> = {
   welcome: 'Dobrodošlica',
   welcome_push: 'Dobrodošlica (push)',
   test: 'Probno obaveštenje',
+  delivery_alert: 'Upozorenje da obaveštenja ne stižu (administratoru)',
 }
 
 export const kindLabel = (kind: string) => KIND_LABEL[kind] ?? kind

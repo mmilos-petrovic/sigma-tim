@@ -74,6 +74,15 @@ The Edge Function `send-notifications` sends what the database queues: a push to
 4. **Deploy the function.** The **Functions deploy** workflow deploys it to staging when `supabase/functions/` changes on `main` (the `staging` environment may ask for approval), and by hand to either environment from the Actions tab (target, and untick "dry run" to really deploy; production waits for its reviewer). A dry run only checks that the function's secrets are set and lists what is deployed. The function's own secrets are never in GitHub.
 5. **Try it.** As administrator open Podešavanja and press "Pošalji probno obaveštenje": within a minute the notice shows as sent in the log, and the administrator gets the push (if a device is subscribed) and the email. `select * from cron.job_run_details order by start_time desc limit 5` shows the cron job running, and `select * from net._http_response order by created desc limit 5` what the function answered (200, or 401 when the two secrets differ).
 
+## Error reports (Sentry, Phase 8a)
+
+The browser sends errors to Sentry when the build has `VITE_SENTRY_DSN` (Cloudflare Pages variable, **Text**, one per environment: Production and Preview). The DSN is the address of the project and is not a secret. Vite reads it at build time, so after adding or changing it **retry the deployment**. Without it the build has no Sentry code at all, and local development never reports (`localhost` is skipped).
+
+- **What is sent** (`web/src/monitoring/`): the error, the place in the code, the address of the page without its query and hash, the browser's name, and the page changes before it. Never a person, an IP address from the app, an email address, a phone number, what was typed, clicks or requests. Errors that are a lost connection or a cancelled request are not sent, the same error is sent once per page load, and at most 20 different ones per page load, so one bad release cannot use up the free plan's allowance.
+- **Environments:** `sigmatim.com` is `production`; every other address (the fixed staging site, a preview) is `staging`. Filter by it in Sentry.
+- **In the Sentry project** (Settings, Projects, the project): under *Security & Privacy* switch on **Prevent Storing of IP Addresses** and **Data Scrubber**; check the retention (the privacy policy says 30 days at most); under *Alerts* keep a rule that emails the administrator about new issues.
+- The notification function and the database are not reported to Sentry: failed notices are counted on the administrator's overview and raise an alert by themselves (`supabase/README.md`, "Delivery monitoring").
+
 ## Google sign-in setup
 
 Each environment has its own Google OAuth client, so a mistake or a deletion in one cannot break the other. Production and staging live in two separate Google Cloud projects, each with its own consent screen. Name things clearly (`Sigma Tim staging - Supabase`, `Sigma Tim production - Supabase`) so nobody deletes the wrong client: deleting a client makes sign-in fail with `Error 401: deleted_client` until it is restored (Google keeps deleted clients for 30 days) or replaced.

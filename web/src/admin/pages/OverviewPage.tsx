@@ -2,9 +2,48 @@ import { Link } from 'react-router'
 import { homePath } from '../../auth/roles'
 import { Loading, LoadError, PageHeader } from '../../components/Loaded'
 import { useAllEnrolments } from '../../enrolment/queries'
-import { useLocations, useSubjects, useTeachers } from '../queries'
+import { useLocations, useNotificationHealth, useSubjects, useTeachers } from '../queries'
 
 const BASE = homePath('admin')
+
+/**
+ * Whether notices get through. It is a separate query, so that a failing check never hides the rest of the page; and a
+ * check that did not answer is said so, never shown as zero.
+ */
+function Notices() {
+  const health = useNotificationHealth()
+  const settings = `${BASE}/podesavanja`
+
+  return (
+    <section aria-labelledby="notices-title">
+      <h2 id="notices-title">Obaveštenja</h2>
+      {health.isPending && <Loading />}
+      {health.isError && <LoadError error={health.error} onRetry={() => void health.refetch()} />}
+      {health.data && (
+        <div className="cards">
+          <Link className={`card${health.data.failed > 0 ? ' card--alert' : ''}`} to={settings}>
+            <span className="card__title">Neuspela obaveštenja</span>
+            <span className="card__count">{health.data.failed}</span>
+            <span className="card__hint">
+              {health.data.failed > 0
+                ? 'Otvorite dnevnik i pošaljite ih ponovo'
+                : 'Sva obaveštenja su stigla'}
+            </span>
+          </Link>
+          <Link className={`card${health.data.overdue > 0 ? ' card--alert' : ''}`} to={settings}>
+            <span className="card__title">Čekaju na slanje</span>
+            <span className="card__count">{health.data.overdue}</span>
+            <span className="card__hint">
+              {health.data.overdue > 0
+                ? 'Nijedan pokušaj slanja već 10 minuta: slanje ne radi'
+                : 'Slanje radi'}
+            </span>
+          </Link>
+        </div>
+      )}
+    </section>
+  )
+}
 
 /** The setup checklist: how much of the school exists so far, with a link to each part. */
 export function OverviewPage() {
@@ -78,6 +117,7 @@ export function OverviewPage() {
           </Link>
         ))}
       </div>
+      <Notices />
     </>
   )
 }
