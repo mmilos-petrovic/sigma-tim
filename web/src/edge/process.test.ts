@@ -20,6 +20,8 @@ interface Fakes {
   failed: { id: number; error: string; giveUp: boolean }[]
   deferred: { id: number; until: string; reason: string }[]
   forgotten: string[][]
+  /** The waits before writing down a sent notice again, in milliseconds. */
+  slept: number[]
 }
 
 function setup(
@@ -37,6 +39,7 @@ function setup(
     failed: [],
     deferred: [],
     forgotten: [],
+    slept: [],
   }
   const services = {
     push: {
@@ -67,6 +70,7 @@ function setup(
     appUrl: 'https://sigmatim.com',
     emailDailyLimit: options.emailDailyLimit ?? 200,
     now: () => NOW,
+    sleep: async (ms: number) => void fakes.slept.push(ms),
   }
   return {
     fakes,
@@ -406,5 +410,95 @@ describe('a run', () => {
     const urgent = welcome(99)
     await run([...normal, urgent])
     expect(order.indexOf(99)).toBeLessThan(10)
+  })
+})
+
+describe('a notice that went out but could not be written down', () => {
+  /** The database does not answer the first `times` times it is asked to write down a notice. */
+  const unavailable = (times: number) => {
+    let asked = 0
+    return () => {
+      if (++asked <= times) throw new Error('database unavailable')
+    }
+  }
+
+  it('is written down at once when all is well, without waiting', async () => {
+    const { run, fakes } = setup()
+    const summary = await run([notice({ id: 1 })])
+    expect(summary).toMatchObject({ push: 1, failed: 0 })
+    expect(fakes.slept).toEqual([])
+  })
+
+  it('is written down again after a short wait, and is not sent twice', async () => {
+    const { run, fakes } = setup({ complete: unavailable(1) })
+    const summary = await run([notice({ id: 1 })])
+    expect(fakes.slept).toEqual([250])
+    expect(fakes.completed).toEqual([{ id: 1, channel: 'push' }])
+    expect(fakes.pushed).toHaveLength(1)
+    expect(summary).toMatchObject({ push: 1, failed: 0 })
+  })
+
+  it('is tried a third time after a longer wait', async () => {
+    const { run, fakes } = setup({ complete: unavailable(2) })
+    const summary = await run([notice({ id: 1 })])
+    expect(fakes.slept).toEqual([250, 1000])
+    expect(fakes.completed).toEqual([{ id: 1, channel: 'push' }])
+    expect(summary).toMatchObject({ push: 1, failed: 0 })
+  })
+
+  it('an email is sent once however many times it is written down', async () => {
+    const { run, fakes } = setup({ complete: unavailable(2) })
+    const summary = await run([welcome(1)])
+    expect(fakes.emailed).toHaveLength(1)
+    expect(fakes.completed).toEqual([{ id: 1, channel: 'email' }])
+    expect(fakes.slept).toEqual([250, 1000])
+    expect(summary).toMatchObject({ email: 1, failed: 0 })
+  })
+
+  it('an email that the sender did not reach is written down too, as a push when one went out', async () => {
+    const { run, fakes } = setup({
+      complete: unavailable(1),
+      email: () => ({ kind: 'failed', error: 'Brevo 500' }),
+    })
+    const summary = await run([welcome(1, { subscriptions: [subscription('d1')] })])
+    expect(fakes.completed).toEqual([{ id: 1, channel: 'push' }])
+    expect(fakes.slept).toEqual([250])
+    expect(summary).toMatchObject({ push: 1, failed: 0 })
+  })
+
+  it('is given up after the third try: it is counted, said out loud and left to come back', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { run, fakes } = setup({ complete: unavailable(99) })
+    const summary = await run([notice({ id: 1 })])
+    expect(fakes.slept).toEqual([250, 1000])
+    expect(fakes.completed).toEqual([])
+    expect(fakes.failed).toEqual([])
+    expect(summary).toMatchObject({ push: 0, failed: 1 })
+    expect(error).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^notice 1 \(lesson_scheduled\): went out by push but could not be written down/,
+      ),
+    )
+    // sent once in this run, however long the database was away
+    expect(fakes.pushed).toHaveLength(1)
+    error.mockRestore()
+  })
+
+  it('does not stop the other notices of the run', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let asked = 0
+    const { run, fakes } = setup({
+      complete: (id) => {
+        if (id === 1) {
+          asked++
+          throw new Error('database unavailable')
+        }
+      },
+    })
+    const summary = await run([notice({ id: 1 }), notice({ id: 2 })])
+    expect(asked).toBe(3)
+    expect(fakes.completed).toEqual([{ id: 2, channel: 'push' }])
+    expect(summary).toMatchObject({ push: 1, failed: 1 })
+    error.mockRestore()
   })
 })

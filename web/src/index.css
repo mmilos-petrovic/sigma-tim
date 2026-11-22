@@ -432,3 +432,17 @@ a:focus-visible {
 .notification-settings .button {
   margin-top: 0.25rem;
 }
+
+/* No connection: on every page, above everything, until it is back */
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-weight: 600;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-bottom: 1px solid var(--danger);
+}
