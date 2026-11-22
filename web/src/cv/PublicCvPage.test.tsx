@@ -29,7 +29,7 @@ describe('the public page of a teacher', () => {
     renderPublic('/nastavnici/marija-jovanovic')
     await screen.findByRole('article')
     expect(
-      within(screen.getAllByRole('banner')[0]!).getByRole('link', { name: '064 4994 235' }),
+      within(screen.getAllByRole('banner')[0]!).getByRole('link', { name: 'Pozovi odmah' }),
     ).toHaveAttribute('href', 'tel:+381644994235')
     await userEvent.click(screen.getByRole('link', { name: '← Svi nastavnici' }))
     expect(where()).toBe('/')
@@ -79,7 +79,7 @@ describe('the public page of a teacher', () => {
     renderPublic('/nastavnici/nema-takvog')
     await screen.findByRole('heading', { name: 'Ovaj CV nije dostupan' })
     await userEvent.click(screen.getByRole('link', { name: '← Svi nastavnici' }))
-    await screen.findByRole('heading', { name: 'Časovi za osnovce, srednjoškolce i studente' })
+    await screen.findByRole('heading', { name: 'Sigma tim Kruševac' })
     expect(robots()).toBeNull()
   })
 
@@ -100,9 +100,9 @@ describe('the public page of a teacher', () => {
     expect(await screen.findByRole('article')).toBeInTheDocument()
   })
 
-  it('sends the bare /nastavnici to the front page, where the teachers are', async () => {
+  it('sends the bare /nastavnici to the front page', async () => {
     renderPublic('/nastavnici')
-    await screen.findByRole('heading', { name: 'Časovi za osnovce, srednjoškolce i studente' })
+    await screen.findByRole('heading', { name: 'Sigma tim Kruševac' })
     expect(where()).toBe('/')
   })
 })

@@ -1,6 +1,6 @@
-import { LOGIN_PATH, NOT_MEMBER_PATH } from './roles'
+import { NOT_MEMBER_PATH } from './roles'
 
-// Signing in with Google leaves the app and comes back to the sign-in page, so the page the person was
+// Signing in with Google leaves the app and comes back to the front page, so the page the person was
 // trying to open has to wait in sessionStorage.
 const KEY = 'sigma.returnTo'
 
@@ -10,12 +10,12 @@ const hasUnsafeCharacter = (path: string) =>
     (char) => char === '\\' || char.charCodeAt(0) <= 0x20 || char.charCodeAt(0) === 0x7f,
   )
 
-/** The path if it stays inside the app and is not one of the sign-in pages; otherwise null (no open redirects). */
+/** The path if it stays inside the app and is not the notice for strangers; otherwise null (no open redirects). */
 export function sanitizeReturnTo(path: string | null | undefined): string | null {
   if (!path || !path.startsWith('/') || path.startsWith('//') || hasUnsafeCharacter(path))
     return null
   const pathname = path.split(/[?#]/)[0]
-  if (pathname === LOGIN_PATH || pathname === NOT_MEMBER_PATH) return null
+  if (pathname === NOT_MEMBER_PATH) return null
   return path
 }
 

@@ -14,7 +14,7 @@ Sve što napraviš za test na kraju obriši (poslednji odeljak ti pokazuje kako,
 ## 1. Tri stvari iz Faze 7 koje nikad nisu proverene na produkciji
 
 ### 1.1 Cela prijava za časove (sa uključenom formom)
-- [ ] Pročitaj `politika-privatnosti.html` (stranica „Politika privatnosti”): proveri da se slaže sa onim što radiš. Posebno odeljak 6 (rokovi čuvanja i brisanje na zahtev) i odeljak 8.
+- [ ] Pročitaj stranicu „Politika privatnosti” (`sigmatim.com/politika-privatnosti`, link u dnu početne strane): proveri da se slaže sa onim što radiš. Posebno odeljak 6 (rokovi čuvanja i brisanje na zahtev) i odeljak 8.
 - [ ] Administracija → **Prijave za časove** → u okviru „Podešavanja” uključi „Prijava za časove je uključena na početnoj strani”. Dnevni limit bez odobrenja treba da piše **20**.
 - [ ] Odjavi se. Na početnoj strani izaberi predmet, „Ja sam: UČENIK”, „Nastavite sa Google-om” i prijavi se nalogom **Učenik**.
 - [ ] Popuni profil (ime, telefon, škola, razred, saglasnost). Do tada treba da vidiš samo poruku da popuniš profil.
@@ -83,7 +83,18 @@ Tebe (`petrovicmilos@gmail.com`) zovemo **glavni administrator**. Samo ti postav
 
 ---
 
-## 7. Šta nije u ovoj listi, a treba da znaš
+## 7. Nova početna strana i politika privatnosti (novi dizajn)
+- [ ] Otvori `sigmatim.com` na telefonu i na računaru (bez prijave). Treba da vidiš: logo, adresu „Hajduk Veljova 62, Kruševac”, žuto dugme „Pozovi odmah” (na telefonu samo slušalica) i plavo dugme „Prijava”; naslov „Sigma tim Kruševac”, formu za izbor predmeta i fotografiju tima; plavi deo „Kako Sigma tim radi” sa tri koraka. Nema spiska nastavnika i nema bočnog skrolovanja na telefonu.
+- [ ] „Pozovi odmah” otvara biranje broja 064 4994 235.
+- [ ] „Počni prijavu” (dole) vraća na formu i stavlja kursor na listu predmeta.
+- [ ] Dugme **Prijava** (gore desno) vodi pravo na Google. Prijavi se svojim nalogom: odmah te vraća u aplikaciju (nema posebne strane za prijavu).
+- [ ] Prijavi se Google nalogom koji škola ne poznaje, bez popunjene forme: ostaješ na početnoj strani uz poruku „Prijavljeni ste kao …, ali škola taj nalog još ne poznaje”. „Odjavi se” gore desno te odjavljuje.
+- [ ] Odjavi se iz aplikacije: završiš na početnoj strani (ne na strani za prijavu), bez poruke „Sesija je istekla”.
+- [ ] `sigmatim.com/prijava` više ne postoji kao strana: otvara početnu.
+- [ ] Politika privatnosti (link u dnu) ima isti izgled kao početna (zaglavlje, boje, slova) i isti tekst kao pre; „← Početna strana” vraća na početnu.
+- [ ] Slova se učitavaju sa našeg sajta, ne sa Google-a (Dev alati → Network ne pokazuju zahteve ka fonts.googleapis.com).
+
+## 8. Šta nije u ovoj listi, a treba da znaš
 - Emailovi koji su već poslati ostaju u sandučićima primalaca i kod Brevo-a. Aplikacija to ne može da obriše.
 - Oznaka „plaćen” za održan čas briše se sa učenikom (odluka vlasnika).
 - Slobodno upisan tekst u beleškama nastavnika ne pretražuje se.

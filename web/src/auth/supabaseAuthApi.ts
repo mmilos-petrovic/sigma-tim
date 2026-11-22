@@ -1,8 +1,9 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../lib/database.types'
 import { AuthExpiredError, type AuthApi, type AuthSession } from './authApi'
-import { LOGIN_PATH, type MyRoles } from './roles'
+import type { MyRoles } from './roles'
 import { saveReturnTo } from './returnTo'
+import { markSignInStarted } from './signInReturn'
 
 type Row = Database['public']['Functions']['my_roles']['Returns'][number]
 
@@ -59,9 +60,11 @@ export function createSupabaseAuthApi(client: SupabaseClient<Database>): AuthApi
 
     async signInWithGoogle(returnTo) {
       saveReturnTo(returnTo)
+      markSignInStarted()
       const { error } = await client.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}${LOGIN_PATH}` },
+        // the front page takes the person on from there
+        options: { redirectTo: `${window.location.origin}/` },
       })
       if (error) throw error
     },

@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
 import { destinationFor } from '../auth/destination'
-import { contextsOf, ENROLMENT_PATH, LOGIN_PATH } from '../auth/roles'
+import { contextsOf, ENROLMENT_PATH } from '../auth/roles'
 import { ErrorScreen, LoadingScreen } from '../components/Status'
 import { useMyEnrolmentRequests } from '../enrolment/queries'
 
@@ -12,7 +12,7 @@ export function NotMemberPage() {
 
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'error') return <ErrorScreen />
-  if (state.status === 'signedOut') return <Navigate to={LOGIN_PATH} replace />
+  if (state.status === 'signedOut') return <Navigate to="/" replace />
   if (contextsOf(state.roles).length > 0)
     return <Navigate to={destinationFor(state.roles, null)} replace />
   // somebody who signed up from the front page is not a stranger: their request is the place for them

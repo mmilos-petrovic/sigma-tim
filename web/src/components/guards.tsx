@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation, useOutletContext } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
-import { contextsOf, LOGIN_PATH, NOT_MEMBER_PATH, type Context, type MyRoles } from '../auth/roles'
+import { contextsOf, NOT_MEMBER_PATH, type Context, type MyRoles } from '../auth/roles'
 import { ErrorScreen, LoadingScreen } from './Status'
 
 export interface Member {
@@ -22,7 +22,7 @@ export function RequireMember() {
   if (state.status === 'signedOut') {
     // Remember the page, so signing in (also after an expired session) brings the person back to it.
     const from = `${location.pathname}${location.search}${location.hash}`
-    return <Navigate to={LOGIN_PATH} replace state={{ from }} />
+    return <Navigate to="/" replace state={{ from }} />
   }
   const contexts = contextsOf(state.roles)
   if (!state.roles || contexts.length === 0) return <Navigate to={NOT_MEMBER_PATH} replace />

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -13,6 +13,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { readLastContext, writeLastContext } from './auth/lastContext'
 import { saveReturnTo } from './auth/returnTo'
 import type { MyRoles } from './auth/roles'
+import { markSignInStarted, peekSignInStarted } from './auth/signInReturn'
 import { createFakeAdminApi } from './test/fakeAdminApi'
 import { createFakeCvApi } from './test/fakeCvApi'
 import { createFakeEnrolmentApi } from './test/fakeEnrolmentApi'
@@ -75,6 +76,14 @@ const heading = (name: string, level = 1) => screen.findByRole('heading', { name
 const signedInAs = (roles: MyRoles | null, email = 'stranger@example.test') =>
   createFakeAuthApi(roles ? { roles } : { roles: null, session: { userId: 'u-stranger', email } })
 
+/** What Google does after a sign-in: the person is on the front page again, and the page takes them on from there. */
+function comeBackFromGoogle(api: FakeAuthApi) {
+  markSignInStarted()
+  return renderApp(api, '/')
+}
+
+const FRONT_PAGE = 'Sigma tim Kruševac'
+
 afterEach(() => {
   vi.unstubAllEnvs()
 })
@@ -86,13 +95,13 @@ describe('after sign-in', () => {
     ['student', personas.student, '/ucenik', 'Moji časovi'],
     ['parent', personas.parent, '/roditelj', 'Časovi dece'],
   ])('the %s lands in their own context', async (_name, roles, path, title) => {
-    renderApp(signedInAs(roles), '/prijava')
+    comeBackFromGoogle(signedInAs(roles))
     expect(await heading(title)).toBeInTheDocument()
     expect(where()).toBe(path)
   })
 
   it('asks an account with two roles which one to open', async () => {
-    renderApp(signedInAs(personas.adminTeacher), '/prijava')
+    comeBackFromGoogle(signedInAs(personas.adminTeacher))
     expect(await heading('Izaberite prikaz')).toBeInTheDocument()
     expect(where()).toBe('/izbor')
     const main = within(screen.getByRole('main'))
@@ -101,7 +110,7 @@ describe('after sign-in', () => {
   })
 
   it('opens the chosen context and remembers it for the next sign-in', async () => {
-    renderApp(signedInAs(personas.adminTeacher), '/prijava')
+    comeBackFromGoogle(signedInAs(personas.adminTeacher))
     await heading('Izaberite prikaz')
     await userEvent.click(
       within(screen.getByRole('main')).getByRole('link', { name: 'Moj raspored' }),
@@ -112,36 +121,36 @@ describe('after sign-in', () => {
 
   it('goes straight back to the remembered context on a later sign-in', async () => {
     writeLastContext('p-boss', 'admin')
-    renderApp(signedInAs(personas.adminTeacher), '/prijava')
+    comeBackFromGoogle(signedInAs(personas.adminTeacher))
     expect(await heading('Administracija')).toBeInTheDocument()
     expect(where()).toBe('/administracija')
   })
 
   it('asks again when the remembered context is no longer one of theirs', async () => {
     writeLastContext('p-boss', 'parent')
-    renderApp(signedInAs(personas.adminTeacher), '/prijava')
+    comeBackFromGoogle(signedInAs(personas.adminTeacher))
     expect(await heading('Izaberite prikaz')).toBeInTheDocument()
   })
 
   it('returns to the page they were trying to open before signing in', async () => {
     saveReturnTo('/moj-raspored')
-    renderApp(signedInAs(personas.adminTeacher), '/prijava')
+    comeBackFromGoogle(signedInAs(personas.adminTeacher))
     expect(await heading('Moj raspored')).toBeInTheDocument()
   })
 })
 
 describe('protected pages', () => {
-  it('send a signed-out visitor to the sign-in page', async () => {
+  it('send a signed-out visitor to the front page, where they sign in', async () => {
     renderApp(createFakeAuthApi(), '/moj-raspored')
-    expect(await heading('Prijava')).toBeInTheDocument()
-    expect(where()).toBe('/prijava')
+    expect(await heading(FRONT_PAGE)).toBeInTheDocument()
+    expect(where()).toBe('/')
     expect(screen.queryByText('Sesija je istekla. Prijavite se ponovo.')).not.toBeInTheDocument()
   })
 
   it('hand the page to sign in with, so the visitor comes back to it', async () => {
     const api = createFakeAuthApi()
     renderApp(api, '/moj-raspored/nedelja')
-    await userEvent.click(await screen.findByRole('button', { name: 'Prijavi se Google nalogom' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Prijava' }))
     expect(api.signInWithGoogle).toHaveBeenCalledWith('/moj-raspored/nedelja')
   })
 
@@ -172,14 +181,14 @@ describe('protected pages', () => {
 
 describe('"not a member" page', () => {
   it('tells an unapproved Google account what to do and which account it used', async () => {
-    renderApp(signedInAs(null, 'stranger@example.test'), '/prijava')
+    renderApp(signedInAs(null, 'stranger@example.test'), '/nije-clan')
     expect(await heading('Još niste član škole')).toBeInTheDocument()
     expect(screen.getByText(/Pozovite nastavnika da vam zakaže prvi čas/)).toBeInTheDocument()
     expect(screen.getByText('stranger@example.test')).toBeInTheDocument()
   })
 
   it('treats an approved profile whose role is no longer in force the same way', async () => {
-    renderApp(signedInAs(personas.deactivatedTeacher), '/prijava')
+    renderApp(signedInAs(personas.deactivatedTeacher), '/moj-raspored')
     expect(await heading('Još niste član škole')).toBeInTheDocument()
   })
 
@@ -188,7 +197,8 @@ describe('"not a member" page', () => {
     renderApp(api, '/nije-clan')
     await userEvent.click(await screen.findByRole('button', { name: 'Prijavi se drugim nalogom' }))
     expect(api.signOut).toHaveBeenCalled()
-    expect(await heading('Prijava')).toBeInTheDocument()
+    expect(await heading(FRONT_PAGE)).toBeInTheDocument()
+    expect(where()).toBe('/')
     expect(screen.queryByText('Sesija je istekla. Prijavite se ponovo.')).not.toBeInTheDocument()
   })
 
@@ -197,9 +207,20 @@ describe('"not a member" page', () => {
     expect(await heading('Moj raspored')).toBeInTheDocument()
   })
 
-  it('asks a visitor who is not signed in to sign in', async () => {
+  it('sends a visitor who is not signed in to the front page', async () => {
     renderApp(createFakeAuthApi(), '/nije-clan')
-    expect(await heading('Prijava')).toBeInTheDocument()
+    expect(await heading(FRONT_PAGE)).toBeInTheDocument()
+  })
+
+  it('is what the front page says to an unapproved account that has only signed in', async () => {
+    comeBackFromGoogle(signedInAs(null, 'stranger@example.test'))
+    await screen.findByText(/škola taj nalog još ne poznaje/)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Prijavljeni ste kao stranger@example.test, ali škola taj nalog još ne poznaje.',
+    )
+    expect(where()).toBe('/')
+    // the note about the sign-in is used up: a later visit to the front page does not repeat it
+    expect(peekSignInStarted()).toBe(false)
   })
 })
 
@@ -245,7 +266,7 @@ describe('loading, errors and expiry', () => {
     await heading('Moj raspored')
 
     act(() => api.emit({ type: 'signedOut' }))
-    expect(await heading('Prijava')).toBeInTheDocument()
+    expect(await heading(FRONT_PAGE)).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Sesija je istekla. Prijavite se ponovo.')
   })
 
@@ -253,31 +274,47 @@ describe('loading, errors and expiry', () => {
     const api = signedInAs(personas.teacher)
     api.rolesError = new AuthExpiredError()
     renderApp(api, '/moj-raspored')
-    expect(await heading('Prijava')).toBeInTheDocument()
+    expect(await heading(FRONT_PAGE)).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Sesija je istekla. Prijavite se ponovo.')
   })
 
-  it('brings the person back to the page they were on after they sign in again', async () => {
+  it('signs in for the page the person was on when the session ran out', async () => {
     const api = signedInAs(personas.teacher)
     renderApp(api, '/moj-raspored')
     await heading('Moj raspored')
     act(() => api.emit({ type: 'signedOut' }))
-    await heading('Prijava')
+    await heading(FRONT_PAGE)
 
+    await userEvent.click(screen.getByRole('button', { name: 'Prijava' }))
+    expect(api.signInWithGoogle).toHaveBeenCalledWith('/moj-raspored')
+  })
+
+  it('takes the person back into the app when they have signed in again', async () => {
+    const api = signedInAs(personas.teacher)
+    renderApp(api, '/moj-raspored')
+    await heading('Moj raspored')
+    act(() => api.emit({ type: 'signedOut' }))
+    await heading(FRONT_PAGE)
+
+    // Google sends the person back to the front page; the page they wanted waits in the browser
+    saveReturnTo('/moj-raspored')
+    markSignInStarted()
     api.roles = personas.teacher
     act(() => api.emit({ type: 'signedIn', session: sessionFor(personas.teacher) }))
     expect(await heading('Moj raspored')).toBeInTheDocument()
+    expect(where()).toBe('/moj-raspored')
   })
 
   it('does not call a deliberate sign-out an expiry', async () => {
     renderApp(signedInAs(personas.teacher), '/moj-raspored')
     await userEvent.click(await screen.findByRole('button', { name: 'Odjavi se' }))
-    expect(await heading('Prijava')).toBeInTheDocument()
+    expect(await heading(FRONT_PAGE)).toBeInTheDocument()
+    expect(where()).toBe('/')
     expect(screen.queryByText('Sesija je istekla. Prijavite se ponovo.')).not.toBeInTheDocument()
   })
 
   it('explains a failed Google sign-in that comes back with an error', async () => {
-    renderApp(createFakeAuthApi(), '/prijava?error=access_denied&error_description=User+denied')
+    renderApp(createFakeAuthApi(), '/?error=access_denied&error_description=User+denied')
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Prijava nije uspela. Pokušajte ponovo.',
     )
@@ -286,8 +323,8 @@ describe('loading, errors and expiry', () => {
   it('tells the person when Google sign-in cannot even start', async () => {
     const api = createFakeAuthApi()
     api.signInWithGoogle.mockRejectedValue(new Error('network'))
-    renderApp(api, '/prijava')
-    await userEvent.click(await screen.findByRole('button', { name: 'Prijavi se Google nalogom' }))
+    renderApp(api, '/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Prijava' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Prijava nije uspela. Pokušajte ponovo.',
     )
@@ -301,9 +338,10 @@ describe('layout', () => {
     ['teacher', personas.teacher, 'desktop'],
     ['admin', personas.admin, 'desktop'],
   ])('the %s context is %s-first', async (_name, roles, layout) => {
-    const { container } = renderApp(signedInAs(roles), '/prijava')
-    await screen.findByRole('heading', { level: 1 })
-    expect(container.querySelector('[data-layout]')).toHaveAttribute('data-layout', layout)
+    const { container } = comeBackFromGoogle(signedInAs(roles))
+    await waitFor(() =>
+      expect(container.querySelector('[data-layout]')).toHaveAttribute('data-layout', layout),
+    )
   })
 
   it('shows who is signed in and a way to sign out', async () => {
@@ -374,8 +412,8 @@ describe('layout', () => {
 describe('public and unknown pages', () => {
   it('shows the front page to a visitor who is not signed in, with a way to sign in', async () => {
     renderApp(createFakeAuthApi(), '/')
-    expect(await heading('Časovi za osnovce, srednjoškolce i studente')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Prijava' })).toHaveAttribute('href', '/prijava')
+    expect(await heading(FRONT_PAGE)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Prijava' })).toBeEnabled()
   })
 
   it('points a signed-in member from the front page to the app', async () => {
@@ -388,8 +426,8 @@ describe('public and unknown pages', () => {
     let release!: () => void
     api.rolesGate = new Promise<void>((resolve) => (release = resolve))
     renderApp(api, '/')
-    expect(await heading('Časovi za osnovce, srednjoškolce i studente')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Prijava' })).not.toBeInTheDocument()
+    expect(await heading(FRONT_PAGE)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Prijava' })).not.toBeInTheDocument()
     await act(async () => release())
     expect(await screen.findByRole('link', { name: 'Otvori aplikaciju' })).toBeInTheDocument()
   })
@@ -405,26 +443,28 @@ describe('development sign-in', () => {
     vi.stubEnv('DEV', true)
     vi.stubEnv('VITE_DEV_LOGIN_PASSWORD', 'local-only')
     const api = createFakeAuthApi()
-    renderApp(api, '/prijava')
+    renderApp(api, '/')
 
     expect(await screen.findByText('Prijava test nalogom')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'Učenik' }))
     expect(api.signInWithPassword).toHaveBeenCalledWith('ucenik1@example.test', 'local-only')
+    // like Google, it comes back to the front page, which takes the person on into the app
+    expect(peekSignInStarted()).toBe(true)
   })
 
   it('is absent outside development', async () => {
     vi.stubEnv('DEV', false)
     vi.stubEnv('VITE_DEV_LOGIN_PASSWORD', 'local-only')
-    renderApp(createFakeAuthApi(), '/prijava')
-    await heading('Prijava')
+    renderApp(createFakeAuthApi(), '/')
+    await heading(FRONT_PAGE)
     expect(screen.queryByText('Prijava test nalogom')).not.toBeInTheDocument()
   })
 
   it('is absent without a configured password', async () => {
     vi.stubEnv('DEV', true)
     vi.stubEnv('VITE_DEV_LOGIN_PASSWORD', '')
-    renderApp(createFakeAuthApi(), '/prijava')
-    await heading('Prijava')
+    renderApp(createFakeAuthApi(), '/')
+    await heading(FRONT_PAGE)
     expect(screen.queryByText('Prijava test nalogom')).not.toBeInTheDocument()
   })
 })

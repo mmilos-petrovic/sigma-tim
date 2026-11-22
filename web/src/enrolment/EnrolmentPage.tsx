@@ -1,7 +1,6 @@
 import { Navigate, useLocation } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
 import { destinationFor } from '../auth/destination'
-import { LOGIN_PATH } from '../auth/roles'
 import { LoadError } from '../components/Loaded'
 import { SiteLayout } from '../components/SiteLayout'
 import { ErrorScreen, LoadingScreen } from '../components/Status'
@@ -19,7 +18,7 @@ export function EnrolmentPage() {
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'error') return <ErrorScreen />
   if (state.status === 'signedOut') {
-    return <Navigate to={LOGIN_PATH} replace state={{ from: location.pathname }} />
+    return <Navigate to="/" replace state={{ from: location.pathname }} />
   }
   if (requests.isPending) return <LoadingScreen />
   if (requests.isError) {

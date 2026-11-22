@@ -56,7 +56,7 @@ test.describe('a session that has run out', () => {
       .getByRole('navigation', { name: 'Glavna navigacija' })
       .getByRole('link', { name: 'Učenici', exact: true })
       .click()
-    await expect(page).toHaveURL(/\/prijava$/)
+    await expect(page).toHaveURL(/\/$/)
     await expect(page.getByRole('alert')).toContainText('Sesija je istekla')
 
     // the server is well again: signing in brings the person back to the page they were on

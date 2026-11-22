@@ -9,6 +9,8 @@
 
 Every `*.sigma-tim.pages.dev` address (staging and previews) is behind Cloudflare Access. Both Supabase projects have Google sign-in configured; the staging project's redirect URLs allow `http://localhost:5173/**` and `https://*.sigma-tim.pages.dev/**`.
 
+Google sign-in returns to the **front page** (`<site>/`), which finishes the sign-in (the old `/prijava` page is gone; the address only redirects to `/`). Authentication → URL Configuration of each Supabase project must therefore allow `<site>/` (a wildcard such as `https://sigmatim.com/**` does; an exact `https://sigmatim.com/prijava` alone does not). If it does not, Supabase falls back to the Site URL, which should be the site itself, so sign-in still lands on the front page, but check it once after deploying.
+
 ## The fixed staging address
 
 `staging` is a long-lived branch that only exists to be deployed. Never merge it into anything and never work on it: it is overwritten on purpose.

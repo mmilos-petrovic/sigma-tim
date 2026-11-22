@@ -46,7 +46,7 @@ describe('return page', () => {
     )
   })
 
-  it('refuses anything that could leave the app or loop through the sign-in pages', () => {
+  it('refuses anything that could leave the app or loop through the notice for strangers', () => {
     for (const bad of [
       'https://evil.example',
       '//evil.example',
@@ -56,9 +56,8 @@ describe('return page', () => {
       '',
       null,
       undefined,
-      '/prijava',
-      '/prijava?error=x',
       '/nije-clan',
+      '/nije-clan?x=1',
     ]) {
       expect(sanitizeReturnTo(bad)).toBeNull()
     }

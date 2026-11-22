@@ -94,15 +94,30 @@ test('a public CV is in the HTML before any script runs, and in the sitemap', as
   await expect(page.locator('meta[name=robots]')).toHaveCount(0)
 
   await page.goto(`${base}/`)
-  await expect(page.locator('#nastavnici')).toContainText('Ana Nikolić')
-  await expect(page.locator(`#nastavnici a[href="/nastavnici/${SLUG}"]`)).toHaveCount(1)
+  // the front page does not list the teachers for now: it has the school, the way to call and how it works
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sigma tim Kruševac')
+  await expect(page.getByRole('heading', { name: 'Kako Sigma tim radi' })).toBeVisible()
+  await expect(page.locator('#nastavnici')).toHaveCount(0)
+  await expect(page.locator(`a[href="/nastavnici/${SLUG}"]`)).toHaveCount(0)
+  await expect(
+    page.getByRole('contentinfo').getByRole('link', { name: 'Politika privatnosti' }),
+  ).toHaveAttribute('href', '/politika-privatnosti')
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
     'content',
     'https://sigmatim.com/img/og.jpg',
   )
   await context.close()
 
+  // the privacy policy is a page of the build, made like the others, and the old static file is gone
+  const policyContext = await browser.newContext({ javaScriptEnabled: false })
+  const policy = await policyContext.newPage()
+  await policy.goto(`${base}/politika-privatnosti`)
+  await expect(policy.getByRole('heading', { level: 1 })).toHaveText('Politika privatnosti')
+  expect(read('politika-privatnosti.html')).toContain('Politika privatnosti – Sigma Tim')
+  await policyContext.close()
+
   expect(read('sitemap.xml')).toContain(`<loc>https://sigmatim.com/nastavnici/${SLUG}</loc>`)
+  expect(read('sitemap.xml')).toContain('<loc>https://sigmatim.com/politika-privatnosti</loc>')
   expect(read('robots.txt')).toContain('Sitemap: https://sigmatim.com/sitemap.xml')
 })
 
@@ -122,9 +137,9 @@ test('the app takes over the prerendered pages without an error, on a desktop an
     await page.goto(`${base}/nastavnici/${SLUG}`)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ana Nikolić')
     await page.getByRole('link', { name: '← Svi nastavnici' }).click()
-    await expect(page.getByRole('heading', { name: 'Naši nastavnici' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sigma tim Kruševac', level: 1 })).toBeVisible()
     // the visitor is not a member: the way in is the way in
-    await expect(page.getByRole('link', { name: 'Prijava' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Prijava' })).toBeVisible()
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     )
@@ -139,9 +154,16 @@ test('an address with no page of its own shows the app, not the front page', asy
 }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
+  await page.goto(`${base}/nema-takve-strane`)
+  await expect(
+    page.getByRole('heading', { name: 'Stranica nije pronađena', level: 1 }),
+  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sigma tim Kruševac' })).toHaveCount(0)
+
+  // the old sign-in address is gone: it leads to the front page, where signing in starts now
   await page.goto(`${base}/prijava`)
-  await expect(page.getByRole('heading', { name: 'Prijava', level: 1 })).toBeVisible()
-  await expect(page.locator('#nastavnici')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Sigma tim Kruševac', level: 1 })).toBeVisible()
+  await expect(page).toHaveURL(`${base}/`)
 
   // a CV that was never there says so and asks search engines to forget it
   await page.goto(`${base}/nastavnici/nema-takvog`)

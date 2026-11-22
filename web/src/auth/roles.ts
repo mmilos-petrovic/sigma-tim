@@ -40,7 +40,6 @@ export const CONTEXT_SHORT_LABEL: Record<Context, string> = {
   parent: CONTEXT_LABEL.parent,
 }
 
-export const LOGIN_PATH = '/prijava'
 export const NOT_MEMBER_PATH = '/nije-clan'
 export const CHOOSER_PATH = '/izbor'
 /** Where somebody who signed up from the front page (and is not a member yet) finds their request. */

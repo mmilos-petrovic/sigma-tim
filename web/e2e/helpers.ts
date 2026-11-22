@@ -20,13 +20,16 @@ export function localEnv() {
 }
 
 export async function signInAs(page: Page, label: string) {
-  await page.goto('/prijava')
+  // signing in starts on the front page (development accounts only appear there while developing)
+  await page.goto('/')
   await page.getByRole('button', { name: label, exact: true }).click()
 }
 
 export async function signOut(page: Page) {
   await page.getByRole('button', { name: 'Odjavi se' }).click()
-  await expect(page.getByRole('heading', { name: 'Prijava', level: 1 })).toBeVisible()
+  // signing out leads to the front page
+  await expect(page.getByRole('heading', { name: 'Sigma tim Kruševac', level: 1 })).toBeVisible()
+  await expect(page).toHaveURL(/\/$/)
 }
 
 /** The access token the app is holding, to ask the API what this account can read. */

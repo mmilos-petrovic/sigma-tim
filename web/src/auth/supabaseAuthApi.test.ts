@@ -179,14 +179,16 @@ describe('loadRoles', () => {
 })
 
 describe('signing in and out', () => {
-  it('starts Google sign-in that comes back to the sign-in page, and remembers where to go afterwards', async () => {
+  it('starts Google sign-in that comes back to the front page, and remembers where to go afterwards', async () => {
     const { client, auth } = fakeClient()
     await createSupabaseAuthApi(client).signInWithGoogle('/moj-raspored')
     expect(auth.signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/prijava` },
+      options: { redirectTo: `${window.location.origin}/` },
     })
     expect(window.sessionStorage.getItem('sigma.returnTo')).toBe('/moj-raspored')
+    // the front page tells somebody who has come back from Google from somebody who only visits
+    expect(window.sessionStorage.getItem('sigma.signingIn')).not.toBeNull()
   })
 
   it('throws when Google sign-in cannot start', async () => {
