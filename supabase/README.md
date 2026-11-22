@@ -68,7 +68,9 @@ The script is idempotent: it never deletes or renames anything, and it only crea
 | `list_public_cvs()` / `get_public_cv(slug)` | anyone | CVs with the public switch on |
 | `list_member_cvs()` / `get_member_cv(slug)` | signed-in members | CVs with the members switch on |
 | `max_lesson_students()` | signed in | the participant limit (4) |
-| `my_roles()` | signed in | the caller's profile and role flags (`is_admin`, `is_teacher`, `is_student`, `is_parent`). No row: a Google account without a profile. All flags false: an approved profile with no role in force (a deactivated teacher). Decides the screen after sign-in only; RLS still filters every query |
+| `my_roles()` | signed in | the caller's profile and role flags (`is_admin`, `is_teacher`, `is_student`, `is_parent`, `is_main_admin`). No row: a Google account without a profile. All flags false: an approved profile with no role in force (a deactivated teacher). Decides the screen after sign-in only; RLS still filters every query |
+| `grant_admin(teacher_id)` | main administrator | makes an active, non-erased teacher an administrator (`PT409`: already one, deactivated, erased; `PT404`: not a teacher) |
+| `revoke_admin(profile_id)` | main administrator | takes the administrator role away (the person stays a teacher). Never from the main administrator (`PT409`), nor from somebody who is not an administrator (`PT409`) |
 
 ### Errors
 
@@ -136,6 +138,14 @@ One **public** bucket, `cv-photos` (JPEG or WebP, at most 2 MiB), for the photo 
 - a request by somebody who is not an administrator or an active teacher gets `PT403` before anything is looked up, so nobody learns which students exist.
 
 A person's request to erase their data (for the law on personal data) is served by `erase_person`, see the next section; `delete_student` is the teacher's everyday tool and keeps refusing a student with a lesson that took place.
+
+## Administrators (after Phase 8)
+
+There is one **main administrator** (`profiles.is_main_admin`, at most one row by a unique index, only ever on an administrator by a check constraint). The migration sets it for `petrovicmilos@gmail.com`; the bootstrap script and the seed set it too. The app cannot change the flag, and `profiles` only lets a person update their own name and picture.
+
+Every administrator has every administrator ability, because the abilities all go through `private.is_admin()`. Two things are the main administrator's alone: `grant_admin` and `revoke_admin`. The main administrator cannot be demoted, so there is always an administrator.
+
+**An administrator's account is protected from the other administrators** (`private.admin_account_is_off_limits(profile)`: the profile is an administrator, the caller is not the main administrator and not that person). Changing the email of such an account would hand it to whoever owns the new address, so these are refused with `PT403` unless the main administrator asks: `change_profile_email` (through `apply_email_change`), `deactivate_teacher`, `reactivate_teacher`, `set_person_phone`, `set_teacher_locations`, and adding or removing a subject (the `teacher_subjects` policies). An administrator may still change their own number, locations and subjects. Erasing an administrator (`erase_teacher`, `erase_person`) is refused for everybody until the role is taken away. Tests: `116_admin_roles`.
 
 ## Erasing a person (Phase 8d)
 

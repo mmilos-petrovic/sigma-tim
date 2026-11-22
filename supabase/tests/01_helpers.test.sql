@@ -255,7 +255,7 @@ end $$;
 
 -- The standard school used by most test files.
 --
---   admin  admin only                      ta, tb, tc  teachers (tc has no students)
+--   admin  main administrator, admin only  ta, tb, tc  teachers (tc has no students)
 --   boss   admin and teacher               s1, s2 -> ta;  s3 -> tb;  sb -> boss;  su unassigned
 --   p1 parent of s1 and s3 (two teachers)  p2 parent of s2;  pu parent of su
 --   outsider: a Google account without a profile
@@ -281,6 +281,9 @@ begin
   perform tests.reg('room:R3', v_id);
 
   perform tests.mkperson('admin', 'Test', 'Admin', true);
+  -- the main administrator ('boss' is an ordinary administrator); a real database has one already, and there can be only one
+  update public.profiles set is_main_admin = false where is_main_admin;
+  update public.profiles set is_main_admin = true where id = tests.id('p:admin');
   perform tests.mkteacher('boss', 'Test', 'Boss', array['math', 'phys'], true);
   perform tests.mkteacher('ta', 'Test', 'Alfa', array['math']);
   perform tests.mkteacher('tb', 'Test', 'Beta', array['phys']);

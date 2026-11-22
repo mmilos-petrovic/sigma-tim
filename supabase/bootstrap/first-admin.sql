@@ -21,9 +21,9 @@ begin
     insert into public.subjects (name) values ('Matematika'), ('Fizika'), ('Hemija'), ('Srpski jezik');
   end if;
 
-  insert into public.profiles (email, first_name, last_name, is_admin)
-  values (c_email, 'Miloš', 'Petrović', true)
-  on conflict (email) do update set is_admin = true
+  insert into public.profiles (email, first_name, last_name, is_admin, is_main_admin)
+  values (c_email, 'Miloš', 'Petrović', true, true)
+  on conflict (email) do update set is_admin = true, is_main_admin = true
   returning id into v_profile;
 
   insert into public.teachers (profile_id) values (v_profile)
