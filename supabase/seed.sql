@@ -17,9 +17,12 @@ select p.id, s.id from public.profiles p cross join public.subjects s where p.em
 
 -- Two more accounts for the sign-in tests: an administrator who is not a teacher, and one who is both.
 -- (petrovicmilos@gmail.com above stays unlinked locally, so a real Google account could still be tried with it.)
-insert into public.profiles (email, first_name, last_name, is_admin) values
-  ('admin@example.test', 'Dragana', 'Stojanović', true),
-  ('admin.nastavnik@example.test', 'Nikola', 'Đorđević', true);
+-- Locally the main administrator (the one who makes and removes the other administrators) is the first of them, the
+-- "Admin" sign-in. In a real database it is petrovicmilos@gmail.com (the migration and bootstrap/first-admin.sql set
+-- it), and there can be only one.
+insert into public.profiles (email, first_name, last_name, is_admin, is_main_admin) values
+  ('admin@example.test', 'Dragana', 'Stojanović', true, true),
+  ('admin.nastavnik@example.test', 'Nikola', 'Đorđević', true, false);
 insert into public.teachers (profile_id) select id from public.profiles where email = 'admin.nastavnik@example.test';
 insert into public.teacher_subjects (teacher_id, subject_id)
 select p.id, s.id from public.profiles p cross join public.subjects s where p.email = 'admin.nastavnik@example.test';

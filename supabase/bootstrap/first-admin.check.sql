@@ -1,6 +1,6 @@
 -- Read-only: the state of the first administrator. Always returns exactly one row.
 --
---   profile_exists / is_admin / is_teacher / teacher_active   what first-admin.sql sets up
+--   profile_exists / is_admin / is_main_admin / is_teacher / teacher_active   what first-admin.sql sets up
 --   subjects_assigned / subjects_total                        the teacher needs at least one
 --   locations_assigned / locations_total                      the teacher needs at least one, once the school has any
 --   has_phone                                                 the administrator enters their number in the app (Podešavanja)
@@ -11,6 +11,7 @@
 select
   coalesce(p.id is not null, false) as profile_exists,
   coalesce(p.is_admin, false) as is_admin,
+  coalesce(p.is_main_admin, false) as is_main_admin,
   t.profile_id is not null as is_teacher,
   coalesce(t.is_active, false) as teacher_active,
   (select count(*) from public.teacher_subjects ts where ts.teacher_id = p.id) as subjects_assigned,
