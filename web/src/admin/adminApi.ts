@@ -18,6 +18,8 @@ export interface TeacherRow {
   hasSignedIn: boolean
   /** An administrator who also teaches: never erased from here. */
   isAdmin: boolean
+  /** The one administrator who makes and removes the others; never demoted. */
+  isMainAdmin: boolean
   /**
    * An erased account that stays only as the record behind lessons that took place: the name is kept, the email is a
    * placeholder and nothing else is left. It cannot be reactivated or edited.
@@ -180,6 +182,10 @@ export interface AdminApi {
   reactivateTeacher(teacherId: string): Promise<void>
   /** Erases the whole profile (also the person's student and parent roles); lessons that started are kept. */
   eraseTeacher(teacherId: string): Promise<EraseResult>
+  /** Makes an active teacher an administrator. Only the main administrator may (`PT403`). */
+  grantAdmin(teacherId: string): Promise<void>
+  /** Takes the administrator role away; the person stays a teacher. Never from the main administrator (`PT409`). */
+  revokeAdmin(profileId: string): Promise<void>
 
   listLocations(): Promise<LocationRow[]>
   addLocation(input: { name: string; address: string }): Promise<void>
@@ -251,6 +257,8 @@ export type ActionKey =
   | 'deactivateTeacher'
   | 'reactivateTeacher'
   | 'eraseTeacher'
+  | 'grantAdmin'
+  | 'revokeAdmin'
   | 'addSubject'
   | 'renameSubject'
   | 'deleteSubject'

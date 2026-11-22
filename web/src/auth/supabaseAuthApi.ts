@@ -18,6 +18,7 @@ const toRoles = (row: Row): MyRoles => ({
   lastName: row.last_name,
   avatarUrl: row.avatar_url,
   isAdmin: row.is_admin,
+  isMainAdmin: row.is_main_admin,
   isTeacher: row.is_teacher,
   isStudent: row.is_student,
   isParent: row.is_parent,

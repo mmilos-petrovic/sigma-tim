@@ -39,7 +39,10 @@ export function explainError(error: unknown, action: ActionKey): string {
       }
       return 'Previše zahteva u kratkom roku. Pokušajte ponovo kasnije.'
     case 'PT404':
-      if (action === 'eraseTeacher') return 'Nastavnik više ne postoji. Osvežite stranicu.'
+      if (action === 'eraseTeacher' || action === 'grantAdmin') {
+        return 'Nastavnik više ne postoji. Osvežite stranicu.'
+      }
+      if (action === 'revokeAdmin') return 'Osoba više ne postoji. Osvežite stranicu.'
       if (action === 'erasePerson') return 'Osoba više ne postoji. Osvežite stranicu.'
       if (action === 'updateStudent') return 'Učenik više nije kod vas. Osvežite stranicu.'
       if (action === 'removeParent') {
@@ -134,6 +137,19 @@ export function explainError(error: unknown, action: ActionKey): string {
           return 'Administrator se ne briše ovde. Prvo mu oduzmite ulogu administratora.'
         }
         return 'Nalog je već obrisan. Osvežite stranicu.'
+      }
+      break
+    case 'grantAdmin':
+      if (code === 'PT409') {
+        if (/already/i.test(message)) return 'Ova osoba je već administrator. Osvežite stranicu.'
+        if (/erased/i.test(message)) return 'Obrisani nalog ne može da postane administrator.'
+        return 'Samo aktivan nastavnik može da postane administrator.'
+      }
+      break
+    case 'revokeAdmin':
+      if (code === 'PT409') {
+        if (/main/i.test(message)) return 'Glavnom administratoru se uloga ne oduzima.'
+        return 'Osoba više nije administrator. Osvežite stranicu.'
       }
       break
     case 'erasePerson':

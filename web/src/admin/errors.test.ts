@@ -88,6 +88,28 @@ describe('explainError', () => {
       expect(explain('PT409', 'reactivateTeacher')).toBe('Nastavnik je već aktivan.')
     })
 
+    it('making and removing an administrator', () => {
+      expect(explain('PT404', 'grantAdmin')).toBe('Nastavnik više ne postoji. Osvežite stranicu.')
+      expect(explain('PT409', 'grantAdmin', 'this person is already an administrator')).toBe(
+        'Ova osoba je već administrator. Osvežite stranicu.',
+      )
+      expect(explain('PT409', 'grantAdmin', 'this person was erased')).toBe(
+        'Obrisani nalog ne može da postane administrator.',
+      )
+      expect(
+        explain('PT409', 'grantAdmin', 'only an active teacher can become an administrator'),
+      ).toBe('Samo aktivan nastavnik može da postane administrator.')
+      expect(explain('PT403', 'grantAdmin')).toBe('Nemate dozvolu za ovu radnju.')
+      expect(explain('PT404', 'revokeAdmin')).toBe('Osoba više ne postoji. Osvežite stranicu.')
+      expect(explain('PT409', 'revokeAdmin', 'the main administrator cannot be removed')).toBe(
+        'Glavnom administratoru se uloga ne oduzima.',
+      )
+      expect(explain('PT409', 'revokeAdmin', 'this person is not an administrator')).toBe(
+        'Osoba više nije administrator. Osvežite stranicu.',
+      )
+      expect(explain('PT403', 'revokeAdmin')).toBe('Nemate dozvolu za ovu radnju.')
+    })
+
     it('erasing a person on request, and what stops it', () => {
       expect(explain('PT404', 'erasePerson')).toBe('Osoba više ne postoji. Osvežite stranicu.')
       expect(

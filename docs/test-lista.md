@@ -66,9 +66,24 @@ Pripremi nalog **Učenik** i nalog **Roditelj** (Roditelj je roditelj Učenika; 
   - [ ] Isti email se može ponovo dodati kao učenik.
 - [ ] Administracija → **Nastavnici**: obriši test nastavnika (ako si ga pravio). Dijalog sad kaže da se briše i fotografija sa CV-a. Ako je imao fotografiju, u Supabase → Storage → `cv-photos` više nema njegovog foldera.
 
+## 6. Administratori (glavni i ostali)
+Tebe (`petrovicmilos@gmail.com`) zovemo **glavni administrator**. Samo ti postavljaš i uklanjaš ostale administratore. Za ovaj deo treba ti jedan nastavnik sa Google nalogom kojim možeš da se prijaviš.
+
+- [ ] Administracija → **Nastavnici**: pored tvog imena piše „Glavni administrator”.
+- [ ] Pored aktivnog nastavnika vidiš **Postavi za administratora**. Kod deaktiviranog nastavnika tog dugmeta nema.
+- [ ] Postavi nastavnika za administratora. Dijalog kaže da ima sva prava kao ti, osim postavljanja i uklanjanja administratora. Posle potvrde pored imena piše „Administrator”.
+- [ ] Prijavi se tim nalogom: vidi se izbor „Administracija / Moj raspored” i administracija radi (spisak učenika, podešavanja, nastavnici).
+- [ ] Kao taj novi administrator, na stranici **Nastavnici**:
+  - [ ] nema dugmadi „Postavi za administratora” ni „Ukloni administratora”,
+  - [ ] u tvom redu piše „Samo glavni administrator menja ovaj nalog.” i nema dugmadi (ne može da ti promeni email, telefon, lokacije ni da te deaktivira),
+  - [ ] u redu običnog nastavnika sva dugmad rade kao pre.
+- [ ] Vrati se kao glavni administrator: pored novog administratora je **Ukloni administratora**, a pored tvog imena ga nema.
+- [ ] Ukloni mu ulogu: ostaje nastavnik, a administracija mu više nije dostupna čim osvezi stranicu.
+- [ ] Obriši nalog bivšeg administratora: radi kao za svakog nastavnika. Dok je administrator, brisanje je odbijeno.
+
 ---
 
-## 6. Šta nije u ovoj listi, a treba da znaš
+## 7. Šta nije u ovoj listi, a treba da znaš
 - Emailovi koji su već poslati ostaju u sandučićima primalaca i kod Brevo-a. Aplikacija to ne može da obriše.
 - Oznaka „plaćen” za održan čas briše se sa učenikom (odluka vlasnika).
 - Slobodno upisan tekst u beleškama nastavnika ne pretražuje se.

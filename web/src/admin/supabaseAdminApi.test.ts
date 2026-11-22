@@ -90,6 +90,7 @@ describe('row mappers', () => {
         last_name: 'Nikolić',
         user_id: null,
         is_admin: false,
+        is_main_admin: false,
         erased_at: null,
       },
       subjects: [{ subject_id: 's1' }, { subject_id: 's2' }],
@@ -103,6 +104,7 @@ describe('row mappers', () => {
       isActive: true,
       hasSignedIn: false,
       isAdmin: false,
+      isMainAdmin: false,
       erased: false,
       subjectIds: ['s1', 's2'],
       locationIds: ['l1'],
@@ -115,6 +117,24 @@ describe('row mappers', () => {
     )
   })
 
+  it('knows the main administrator', () => {
+    const profile = {
+      email: 'glavni@example.test',
+      first_name: 'Glavni',
+      last_name: 'Admin',
+      user_id: 'u1',
+      is_admin: true,
+      is_main_admin: true,
+      erased_at: null,
+    }
+    const row = { profile_id: 't9', is_active: true, profile, subjects: [], locations: [] }
+    expect(mapTeacher(row)).toMatchObject({ isAdmin: true, isMainAdmin: true })
+    expect(mapTeacher({ ...row, profile: { ...profile, is_main_admin: false } })).toMatchObject({
+      isAdmin: true,
+      isMainAdmin: false,
+    })
+  })
+
   it('knows an administrator who teaches and an erased record', () => {
     const profile = {
       email: 'ana@example.test',
@@ -122,6 +142,7 @@ describe('row mappers', () => {
       last_name: 'Nikolić',
       user_id: null,
       is_admin: false,
+      is_main_admin: false,
       erased_at: null,
     }
     const row = { profile_id: 't1', is_active: false, profile, subjects: [], locations: [] }
@@ -285,6 +306,26 @@ describe('notification settings', () => {
     expect(rpc).toHaveBeenLastCalledWith('admin_resend_notification', { p_id: 42 })
     await api.sendTestNotification()
     expect(rpc).toHaveBeenLastCalledWith('admin_send_test_notification')
+  })
+
+  it('asks for the main administrator flag when it lists the teachers', async () => {
+    const select = vi.fn(() => Promise.resolve({ data: [], error: null, status: 200 }))
+    const from = vi.fn(() => ({ select }))
+    await createSupabaseAdminApi({ from } as unknown as SupabaseClient<Database>).listTeachers()
+    expect(from).toHaveBeenCalledWith('teachers')
+    expect(select).toHaveBeenCalledWith(expect.stringContaining('is_main_admin'))
+  })
+
+  it('makes and unmakes an administrator through the database, and a refusal keeps its code', async () => {
+    const { rpc, api } = clientAnswering(null)
+    await api.grantAdmin('t1')
+    expect(rpc).toHaveBeenLastCalledWith('grant_admin', { p_teacher_id: 't1' })
+    await api.revokeAdmin('t2')
+    expect(rpc).toHaveBeenLastCalledWith('revoke_admin', { p_profile_id: 't2' })
+
+    const refused = clientAnswering(null, { code: 'PT403', message: 'not allowed' })
+    await expect(refused.api.grantAdmin('t1')).rejects.toMatchObject({ code: 'PT403' })
+    await expect(refused.api.revokeAdmin('t1')).rejects.toMatchObject({ code: 'PT403' })
   })
 
   it('lists the parents with the names the screen shows', async () => {

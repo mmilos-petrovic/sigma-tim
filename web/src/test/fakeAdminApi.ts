@@ -109,6 +109,7 @@ export const seed = (): FakeState => ({
       isActive: true,
       hasSignedIn: true,
       isAdmin: false,
+      isMainAdmin: false,
       erased: false,
       subjectIds: ['s-mat', 's-fiz'],
       locationIds: ['l-main', 'l-second'],
@@ -122,6 +123,7 @@ export const seed = (): FakeState => ({
       isActive: true,
       hasSignedIn: false,
       isAdmin: false,
+      isMainAdmin: false,
       erased: false,
       subjectIds: ['s-hem'],
       locationIds: ['l-main'],
@@ -135,6 +137,7 @@ export const seed = (): FakeState => ({
       isActive: false,
       hasSignedIn: true,
       isAdmin: false,
+      isMainAdmin: false,
       erased: false,
       subjectIds: ['s-mat'],
       locationIds: ['l-main'],
@@ -351,6 +354,7 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
         isActive: true,
         hasSignedIn: false,
         isAdmin: false,
+        isMainAdmin: false,
         erased: false,
         subjectIds: [...input.subjectIds],
         locationIds: [...new Set(input.locationIds)],
@@ -432,6 +436,25 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       if (teacher.erased) throw new AdminError('PT409', 'this person was erased')
       if (teacher.isActive) throw new AdminError('PT409', 'the teacher is already active')
       teacher.isActive = true
+    },
+    async grantAdmin(teacherId) {
+      await gate('grantAdmin')
+      const teacher = state.teachers.find((t) => t.id === teacherId)
+      if (!teacher) throw new AdminError('PT404', 'teacher not found')
+      if (teacher.erased) throw new AdminError('PT409', 'this person was erased')
+      if (!teacher.isActive)
+        throw new AdminError('PT409', 'only an active teacher can become an administrator')
+      if (teacher.isAdmin) throw new AdminError('PT409', 'this person is already an administrator')
+      teacher.isAdmin = true
+    },
+    async revokeAdmin(profileId) {
+      await gate('revokeAdmin')
+      const teacher = state.teachers.find((t) => t.id === profileId)
+      if (!teacher) throw new AdminError('PT404', 'person not found')
+      if (teacher.isMainAdmin)
+        throw new AdminError('PT409', 'the main administrator cannot be removed')
+      if (!teacher.isAdmin) throw new AdminError('PT409', 'this person is not an administrator')
+      teacher.isAdmin = false
     },
     async eraseTeacher(teacherId): Promise<EraseResult> {
       await gate('eraseTeacher')

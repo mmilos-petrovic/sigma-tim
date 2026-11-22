@@ -369,14 +369,14 @@ isOneToOne: true
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"created_at": string,"email": string,"erased_at": string | null,"first_name": string,"id": string,"is_admin": boolean,"last_name": string,"user_id": string | null
+                    "avatar_url": string | null,"created_at": string,"email": string,"erased_at": string | null,"first_name": string,"id": string,"is_admin": boolean,"is_main_admin": boolean,"last_name": string,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"erased_at"?: string | null,"first_name": string,"id"?: string,"is_admin"?: boolean,"last_name": string,"user_id"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"erased_at"?: string | null,"first_name": string,"id"?: string,"is_admin"?: boolean,"is_main_admin"?: boolean,"last_name": string,"user_id"?: string | null
                   }
                   Update: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"erased_at"?: string | null,"first_name"?: string,"id"?: string,"is_admin"?: boolean,"last_name"?: string,"user_id"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"erased_at"?: string | null,"first_name"?: string,"id"?: string,"is_admin"?: boolean,"is_main_admin"?: boolean,"last_name"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     
@@ -722,6 +722,9 @@ isOneToOne: true
 "get_public_cv":
 { Args: { "p_slug": string }; Returns: Json
                            },
+"grant_admin":
+{ Args: { "p_teacher_id": string }; Returns: undefined
+                           },
 "list_chosen_enrolments":
 { Args: Record<PropertyKey, never>; Returns: {
               "applicant_email": string,"chosen_at": string,"grade": string,"phone": string,"request_id": string,"school": string,"student_first_name": string,"student_last_name": string,"subject_name": string
@@ -757,7 +760,7 @@ isOneToOne: true
                            },
 "my_roles":
 { Args: Record<PropertyKey, never>; Returns: {
-              "avatar_url": string,"email": string,"first_name": string,"is_admin": boolean,"is_parent": boolean,"is_student": boolean,"is_teacher": boolean,"last_name": string,"profile_id": string
+              "avatar_url": string,"email": string,"first_name": string,"is_admin": boolean,"is_main_admin": boolean,"is_parent": boolean,"is_student": boolean,"is_teacher": boolean,"last_name": string,"profile_id": string
             }[]
                            },
 "offer_enrolment":
@@ -774,6 +777,9 @@ isOneToOne: true
                            },
 "rename_person":
 { Args: { "p_first_name": string,"p_last_name": string,"p_profile_id": string }; Returns: undefined
+                           },
+"revoke_admin":
+{ Args: { "p_profile_id": string }; Returns: undefined
                            },
 "save_my_cv":
 { Args: { "p_about": string,"p_education": Json,"p_experience": Json,"p_show_members": boolean,"p_show_public": boolean,"p_skills": Json }; Returns: undefined
