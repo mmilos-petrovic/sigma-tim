@@ -10,7 +10,7 @@ const TARGET = new URL('../public/img/', import.meta.url)
 // crop: [x, y, width, height] of the source in pixels (the logo is 5334 x 3000 with a wide white margin); width: pixels of the result.
 const JOBS = [
   {
-    from: 'logo.jpg',
+    from: 'media/logo.jpg',
     crop: [160, 293, 4934, 2373],
     width: 600,
     to: 'logo.webp',
@@ -18,24 +18,36 @@ const JOBS = [
     quality: 0.9,
   },
   {
-    from: 'main-classroom.jpg',
+    from: 'media/members-sitting.jpg',
     width: 1200,
-    to: 'classroom-1200.webp',
+    to: 'members-1200.webp',
     type: 'image/webp',
     quality: 0.78,
   },
   {
-    from: 'main-classroom.jpg',
+    from: 'media/members-sitting.jpg',
     width: 640,
-    to: 'classroom-640.webp',
+    to: 'members-640.webp',
     type: 'image/webp',
     quality: 0.78,
   },
-  { from: 'exterior.jpg', width: 800, to: 'exterior-800.webp', type: 'image/webp', quality: 0.78 },
-  { from: 'exterior.jpg', width: 480, to: 'exterior-480.webp', type: 'image/webp', quality: 0.78 },
-  // the picture shown when the link is shared: 1200 x 630, the classroom cut to that shape
   {
-    from: 'main-classroom.jpg',
+    from: 'media/exterior.jpg',
+    width: 800,
+    to: 'exterior-800.webp',
+    type: 'image/webp',
+    quality: 0.78,
+  },
+  {
+    from: 'media/exterior.jpg',
+    width: 480,
+    to: 'exterior-480.webp',
+    type: 'image/webp',
+    quality: 0.78,
+  },
+  // the picture shown when the link is shared: 1200 x 630, the photo of the team cut to that shape
+  {
+    from: 'media/members-sitting.jpg',
     width: 1200,
     height: 630,
     to: 'og.jpg',
