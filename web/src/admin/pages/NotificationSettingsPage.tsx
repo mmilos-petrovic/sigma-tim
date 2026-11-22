@@ -159,7 +159,8 @@ function SettingsForm({ settings }: { settings: NotificationSettingsAndKinds }) 
         </label>
         <p className="muted">
           Tekst se dodaje u email dobrodošlice koji dobija svako ko se doda u sistem. Ostavite
-          prazno za podrazumevani tekst.
+          prazno za podrazumevani tekst. Šalje se najviše 20 takvih poruka na sat; ostale čekaju u
+          redu i idu čim ima mesta.
         </p>
       </fieldset>
 

@@ -160,7 +160,7 @@ export function createFakeEnrolmentApi(
     pool: [],
     chosen: [],
     teacherHasCv: true,
-    settings: { formEnabled: true, dailyCap: 10, choiceAfterDays: 3, choiceAfterOffers: 3 },
+    settings: { formEnabled: true, dailyCap: 20, choiceAfterDays: 3, choiceAfterOffers: 3 },
     all: [],
     ...initial,
   }

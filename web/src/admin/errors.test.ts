@@ -28,6 +28,22 @@ describe('explainError', () => {
     expect(explainError('nonsense', 'addSubject')).toBe('Došlo je do greške. Pokušajte ponovo.')
   })
 
+  it('says which limit was reached when there were too many requests', () => {
+    for (const action of ['addStudent', 'addUnassignedStudent'] as const) {
+      expect(explain('PT429', action, 'too many requests, try again later')).toBe(
+        'Dodali ste najveći dozvoljen broj učenika za 24 sata (30). Pokušajte ponovo sutra.',
+      )
+    }
+    for (const action of ['scheduleLesson', 'publishSlot'] as const) {
+      expect(explain('PT429', action, 'too many lessons created in an hour')).toBe(
+        'Za poslednjih sat vremena napravljeno je najviše dozvoljenih 100 časova. Pokušajte ponovo kasnije.',
+      )
+    }
+    expect(explain('PT429', 'addSubject')).toBe(
+      'Previše zahteva u kratkom roku. Pokušajte ponovo kasnije.',
+    )
+  })
+
   it('explains permission and missing-data errors the same way everywhere', () => {
     expect(explain('PT403', 'createTeacher', 'not allowed')).toBe('Nemate dozvolu za ovu radnju.')
     expect(explain('42501', 'addSubject')).toBe('Nemate dozvolu za ovu radnju.')

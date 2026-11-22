@@ -29,6 +29,15 @@ export function explainError(error: unknown, action: ActionKey): string {
       return 'Fotografija je prevelika i posle smanjivanja. Probajte manju.'
     case 'photoLimit':
       return 'Lokacija već ima tri fotografije.'
+    case 'PT429':
+      // a limit of the database was reached (supabase/README.md, "Limits")
+      if (action === 'addStudent' || action === 'addUnassignedStudent') {
+        return 'Dodali ste najveći dozvoljen broj učenika za 24 sata (30). Pokušajte ponovo sutra.'
+      }
+      if (action === 'scheduleLesson' || action === 'publishSlot') {
+        return 'Za poslednjih sat vremena napravljeno je najviše dozvoljenih 100 časova. Pokušajte ponovo kasnije.'
+      }
+      return 'Previše zahteva u kratkom roku. Pokušajte ponovo kasnije.'
     case 'PT404':
       if (action === 'eraseTeacher') return 'Nastavnik više ne postoji. Osvežite stranicu.'
       if (action === 'updateStudent') return 'Učenik više nije kod vas. Osvežite stranicu.'
