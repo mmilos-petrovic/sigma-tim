@@ -17,6 +17,11 @@ const save = () => userEvent.click(form().getByRole('button', { name: 'Sačuvaj 
 const minutes = () => form().getByLabelText('Koliko minuta pre početka časa')
 
 describe('quiet hours and reminders', () => {
+  it('says how many welcome emails go out in an hour', async () => {
+    await open()
+    expect(screen.getByText(/najviše 20 takvih poruka na sat/)).toBeInTheDocument()
+  })
+
   it('shows what the database holds', async () => {
     await open()
     expect(
