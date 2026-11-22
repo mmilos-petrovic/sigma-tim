@@ -130,6 +130,15 @@ export interface NotificationLogRow {
 
 export const NOTIFICATION_PAGE_SIZE = 50
 
+/**
+ * What the administrator has to look at: notices that gave up and were not sent again, and notices that were due more
+ * than ten minutes ago and nobody has tried (sending itself is stuck).
+ */
+export interface NotificationHealth {
+  failed: number
+  overdue: number
+}
+
 export interface AdminApi {
   listSubjects(): Promise<Subject[]>
   addSubject(name: string): Promise<void>
@@ -188,6 +197,7 @@ export interface AdminApi {
     before?: number | null
     state?: NotificationState | null
   }): Promise<NotificationLogRow[]>
+  getNotificationHealth(): Promise<NotificationHealth>
   /** Sends a failed notice again. Refused (`PT409`) for one that is not failed. */
   resendNotification(id: number): Promise<void>
   /** Queues a test notice for the administrator. */

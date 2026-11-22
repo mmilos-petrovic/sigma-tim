@@ -33,6 +33,16 @@ export function useNotificationSettings() {
   })
 }
 
+/** The two numbers on the overview; asked again every minute while the page is open. */
+export function useNotificationHealth() {
+  const api = useAdminApi()
+  return useQuery({
+    queryKey: [...admin, 'notificationHealth'],
+    queryFn: () => api.getNotificationHealth(),
+    refetchInterval: 60_000,
+  })
+}
+
 /** The log, a page at a time, newest first; `Prikaži starija` asks for the next page. */
 export function useNotificationLog(state: NotificationState | null) {
   const api = useAdminApi()
