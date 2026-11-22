@@ -24,7 +24,16 @@ const sameName = (typed: string, name: string) => squash(typed) === squash(name)
 type Dialog =
   | { kind: 'add' }
   | {
-      kind: 'subjects' | 'locations' | 'phone' | 'email' | 'deactivate' | 'activate' | 'erase'
+      kind:
+        | 'subjects'
+        | 'locations'
+        | 'phone'
+        | 'email'
+        | 'deactivate'
+        | 'activate'
+        | 'erase'
+        | 'grantAdmin'
+        | 'revokeAdmin'
       teacher: TeacherRow
     }
   | null
@@ -302,6 +311,56 @@ function DeactivateDialog({ teacher, onClose, onDone }: DialogProps & { teacher:
   )
 }
 
+function GrantAdminDialog({ teacher, onClose, onDone }: DialogProps & { teacher: TeacherRow }) {
+  const api = useAdminApi()
+  const refresh = useRefresh()
+
+  return (
+    <FormDialog
+      title="Novi administrator"
+      action="grantAdmin"
+      submitLabel="Postavi za administratora"
+      onClose={onClose}
+      onSubmit={async () => {
+        await api.grantAdmin(teacher.id)
+        await refresh()
+        onDone('Nastavnik je postao administrator.')
+      }}
+    >
+      <p>
+        Nastavnik <strong>{fullName(teacher)}</strong> postaje administrator i ima sva prava kao i
+        vi, osim što ne može da postavlja ni da uklanja administratore. Ostaje i nastavnik.
+      </p>
+      <p className="muted">Ulogu možete da mu oduzmete u svakom trenutku.</p>
+    </FormDialog>
+  )
+}
+
+function RevokeAdminDialog({ teacher, onClose, onDone }: DialogProps & { teacher: TeacherRow }) {
+  const api = useAdminApi()
+  const refresh = useRefresh()
+
+  return (
+    <FormDialog
+      title="Uklanjanje administratora"
+      action="revokeAdmin"
+      submitLabel="Ukloni administratora"
+      danger
+      onClose={onClose}
+      onSubmit={async () => {
+        await api.revokeAdmin(teacher.id)
+        await refresh()
+        onDone('Administrator je uklonjen. Osoba je i dalje nastavnik.')
+      }}
+    >
+      <p>
+        <strong>{fullName(teacher)}</strong> više neće biti administrator. Ostaje nastavnik sa
+        svojim časovima i učenicima.
+      </p>
+    </FormDialog>
+  )
+}
+
 function EraseDialog({ teacher, onClose, onDone }: DialogProps & { teacher: TeacherRow }) {
   const api = useAdminApi()
   const refresh = useRefresh()
@@ -469,6 +528,8 @@ export function TeachersPage() {
                         <tbody>
                           {rows.map((teacher) => {
                             const own = teacher.id === roles.profileId
+                            // another administrator's account is the main administrator's to change (a database rule)
+                            const locked = teacher.isAdmin && !own && !roles.isMainAdmin
                             const open = (
                               kind:
                                 | 'subjects'
@@ -477,7 +538,9 @@ export function TeachersPage() {
                                 | 'email'
                                 | 'deactivate'
                                 | 'activate'
-                                | 'erase',
+                                | 'erase'
+                                | 'grantAdmin'
+                                | 'revokeAdmin',
                             ) => {
                               setNotice(null)
                               setDialog({ kind, teacher })
@@ -487,6 +550,11 @@ export function TeachersPage() {
                                 <td>
                                   {fullName(teacher)}
                                   {own && <span className="muted"> (vi)</span>}
+                                  {teacher.isMainAdmin ? (
+                                    <span className="badge">Glavni administrator</span>
+                                  ) : (
+                                    teacher.isAdmin && <span className="badge">Administrator</span>
+                                  )}
                                 </td>
                                 <td>
                                   <span>{teacher.email}</span>
@@ -505,61 +573,91 @@ export function TeachersPage() {
                                 </td>
                                 <td>{teacher.isActive ? 'Aktivan' : 'Deaktiviran'}</td>
                                 <td className="table__actions">
-                                  <button
-                                    type="button"
-                                    className="button button--small button--secondary"
-                                    onClick={() => open('subjects')}
-                                  >
-                                    Predmeti
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="button button--small button--secondary"
-                                    onClick={() => open('locations')}
-                                  >
-                                    Lokacije
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="button button--small button--secondary"
-                                    onClick={() => open('phone')}
-                                  >
-                                    Telefon
-                                  </button>
+                                  {locked && (
+                                    <span className="muted">
+                                      Samo glavni administrator menja ovaj nalog.
+                                    </span>
+                                  )}
+                                  {!locked && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="button button--small button--secondary"
+                                        onClick={() => open('subjects')}
+                                      >
+                                        Predmeti
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="button button--small button--secondary"
+                                        onClick={() => open('locations')}
+                                      >
+                                        Lokacije
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="button button--small button--secondary"
+                                        onClick={() => open('phone')}
+                                      >
+                                        Telefon
+                                      </button>
 
-                                  {!own && (
-                                    <button
-                                      type="button"
-                                      className="button button--small button--secondary"
-                                      onClick={() => open('email')}
-                                    >
-                                      Promeni email
-                                    </button>
+                                      {!own && (
+                                        <button
+                                          type="button"
+                                          className="button button--small button--secondary"
+                                          onClick={() => open('email')}
+                                        >
+                                          Promeni email
+                                        </button>
+                                      )}
+                                      {teacher.isActive ? (
+                                        <button
+                                          type="button"
+                                          className="button button--small button--secondary"
+                                          onClick={() => open('deactivate')}
+                                        >
+                                          Deaktiviraj
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          className="button button--small button--secondary"
+                                          onClick={() => open('activate')}
+                                        >
+                                          Aktiviraj
+                                        </button>
+                                      )}
+                                      {!own && !teacher.isAdmin && (
+                                        <button
+                                          type="button"
+                                          className="button button--small button--secondary button--danger-text"
+                                          onClick={() => open('erase')}
+                                        >
+                                          Obriši nalog
+                                        </button>
+                                      )}
+                                    </>
                                   )}
-                                  {teacher.isActive ? (
+                                  {roles.isMainAdmin &&
+                                    !teacher.erased &&
+                                    teacher.isActive &&
+                                    !teacher.isAdmin && (
+                                      <button
+                                        type="button"
+                                        className="button button--small button--secondary"
+                                        onClick={() => open('grantAdmin')}
+                                      >
+                                        Postavi za administratora
+                                      </button>
+                                    )}
+                                  {roles.isMainAdmin && teacher.isAdmin && !teacher.isMainAdmin && (
                                     <button
                                       type="button"
                                       className="button button--small button--secondary"
-                                      onClick={() => open('deactivate')}
+                                      onClick={() => open('revokeAdmin')}
                                     >
-                                      Deaktiviraj
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      className="button button--small button--secondary"
-                                      onClick={() => open('activate')}
-                                    >
-                                      Aktiviraj
-                                    </button>
-                                  )}
-                                  {!own && !teacher.isAdmin && (
-                                    <button
-                                      type="button"
-                                      className="button button--small button--secondary button--danger-text"
-                                      onClick={() => open('erase')}
-                                    >
-                                      Obriši nalog
+                                      Ukloni administratora
                                     </button>
                                   )}
                                 </td>
@@ -633,6 +731,12 @@ export function TeachersPage() {
       )}
       {dialog?.kind === 'erase' && (
         <EraseDialog teacher={dialog.teacher} onClose={close} onDone={done} />
+      )}
+      {dialog?.kind === 'grantAdmin' && (
+        <GrantAdminDialog teacher={dialog.teacher} onClose={close} onDone={done} />
+      )}
+      {dialog?.kind === 'revokeAdmin' && (
+        <RevokeAdminDialog teacher={dialog.teacher} onClose={close} onDone={done} />
       )}
     </>
   )

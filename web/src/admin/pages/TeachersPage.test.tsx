@@ -18,6 +18,161 @@ const open = async (
   return view
 }
 
+/** The seed teachers plus a main administrator, and an administrator who was made one. */
+const withAdmins = () => {
+  const [ana] = seed().teachers
+  const admin = (id: string, first: string, last: string, main: boolean) => ({
+    ...ana,
+    id,
+    email: `${first.toLowerCase()}@example.test`,
+    firstName: first,
+    lastName: last,
+    isAdmin: true,
+    isMainAdmin: main,
+    isActive: true,
+  })
+  return createFakeAdminApi({
+    teachers: [
+      ...seed().teachers,
+      admin('t-glavni', 'Glavni', 'Admin', true),
+      admin('t-novi', 'Novi', 'Admin', false),
+    ],
+  })
+}
+
+describe('administrators', () => {
+  const grant = (name: string) =>
+    within(screen.getByRole('row', { name: new RegExp(name) })).queryByRole('button', {
+      name: 'Postavi za administratora',
+    })
+  const revoke = (name: string) =>
+    within(screen.getByRole('row', { name: new RegExp(name) })).queryByRole('button', {
+      name: 'Ukloni administratora',
+    })
+
+  it('marks the main administrator and the others', async () => {
+    await open(undefined, { api: withAdmins() })
+    expect(within(await row('Glavni Admin')).getByText('Glavni administrator')).toBeInTheDocument()
+    expect(within(await row('Novi Admin')).getByText('Administrator')).toBeInTheDocument()
+    expect(within(await row('Ana Nikolić')).queryByText('Administrator')).not.toBeInTheDocument()
+  })
+
+  it('offers the main administrator to make an active teacher an administrator, and nobody else', async () => {
+    await open(undefined, { api: withAdmins() })
+    expect(grant('Ana Nikolić')).toBeInTheDocument()
+    expect(grant('Marko Jovanović')).toBeInTheDocument()
+    expect(grant('Goran Savić')).not.toBeInTheDocument() // deactivated
+    expect(grant('Novi Admin')).not.toBeInTheDocument() // one already
+    expect(grant('Glavni Admin')).not.toBeInTheDocument()
+  })
+
+  it('offers to take the role away from an administrator, but never from the main one', async () => {
+    await open(undefined, { api: withAdmins() })
+    expect(revoke('Novi Admin')).toBeInTheDocument()
+    expect(revoke('Glavni Admin')).not.toBeInTheDocument()
+    expect(revoke('Ana Nikolić')).not.toBeInTheDocument()
+  })
+
+  it('asks first, and then makes the teacher an administrator', async () => {
+    const api = withAdmins()
+    await open(undefined, { api })
+    await userEvent.click(grant('Ana Nikolić')!)
+    const dialog = await inDialog('Novi administrator')
+    expect(dialog.getByText('Ana Nikolić')).toBeInTheDocument()
+    expect(
+      dialog.getByText(/ne može da postavlja ni da uklanja administratore/),
+    ).toBeInTheDocument()
+    await userEvent.click(dialog.getByRole('button', { name: 'Postavi za administratora' }))
+    expect(api.calls.grantAdmin).toHaveBeenCalledWith('t-ana')
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Nastavnik je postao administrator.',
+    )
+    expect(within(await row('Ana Nikolić')).getByText('Administrator')).toBeInTheDocument()
+    expect(grant('Ana Nikolić')).not.toBeInTheDocument()
+    expect(revoke('Ana Nikolić')).toBeInTheDocument()
+  })
+
+  it('changes nothing when the main administrator backs out', async () => {
+    const api = withAdmins()
+    await open(undefined, { api })
+    await userEvent.click(grant('Ana Nikolić')!)
+    await userEvent.click(
+      (await inDialog('Novi administrator')).getByRole('button', { name: 'Odustani' }),
+    )
+    expect(api.calls.grantAdmin).not.toHaveBeenCalled()
+  })
+
+  it('takes the role away, and the person stays in the list as a teacher', async () => {
+    const api = withAdmins()
+    await open(undefined, { api })
+    await userEvent.click(revoke('Novi Admin')!)
+    const dialog = await inDialog('Uklanjanje administratora')
+    expect(dialog.getByText(/Ostaje nastavnik/)).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Ukloni administratora' })).toHaveClass(
+      'button--danger',
+    )
+    await userEvent.click(dialog.getByRole('button', { name: 'Ukloni administratora' }))
+    expect(api.calls.revokeAdmin).toHaveBeenCalledWith('t-novi')
+    expect(await screen.findByRole('status')).toHaveTextContent('Administrator je uklonjen.')
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('row', { name: /Novi Admin/ })).queryByText('Administrator'),
+      ).toBeNull(),
+    )
+  })
+
+  it('explains it when the database refuses', async () => {
+    const api = withAdmins()
+    await open(undefined, { api })
+    await userEvent.click(grant('Ana Nikolić')!)
+    const dialog = await inDialog('Novi administrator')
+    api.failNext('grantAdmin', new AdminError('PT403', 'not allowed'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Postavi za administratora' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Nemate dozvolu za ovu radnju.')
+  })
+
+  describe('for an administrator who is not the main one', () => {
+    const asOrdinaryAdmin = () => ({
+      api: withAdmins(),
+      roles: { ...personas.adminTeacher, profileId: 't-novi' },
+    })
+
+    it('offers neither of the two buttons', async () => {
+      await open(undefined, asOrdinaryAdmin())
+      expect(grant('Ana Nikolić')).not.toBeInTheDocument()
+      expect(revoke('Novi Admin')).not.toBeInTheDocument()
+      expect(revoke('Glavni Admin')).not.toBeInTheDocument()
+    })
+
+    it('leaves the account of the main administrator alone, and says whose it is', async () => {
+      await open(undefined, asOrdinaryAdmin())
+      const main = within(await row('Glavni Admin'))
+      expect(main.getByText('Samo glavni administrator menja ovaj nalog.')).toBeInTheDocument()
+      for (const name of ['Predmeti', 'Lokacije', 'Telefon', 'Promeni email', 'Deaktiviraj']) {
+        expect(main.queryByRole('button', { name })).not.toBeInTheDocument()
+      }
+    })
+
+    it('keeps their own row and the ordinary teachers as they were', async () => {
+      await open(undefined, asOrdinaryAdmin())
+      const own = within(await row('Novi Admin'))
+      expect(own.queryByText('Samo glavni administrator menja ovaj nalog.')).not.toBeInTheDocument()
+      expect(own.getByRole('button', { name: 'Telefon' })).toBeInTheDocument()
+      const ana = within(await row('Ana Nikolić'))
+      expect(ana.getByRole('button', { name: 'Promeni email' })).toBeInTheDocument()
+      expect(ana.getByRole('button', { name: 'Deaktiviraj' })).toBeInTheDocument()
+    })
+  })
+
+  it('lets the main administrator change the account of another administrator', async () => {
+    await open(undefined, { api: withAdmins() })
+    const novi = within(await row('Novi Admin'))
+    expect(novi.getByRole('button', { name: 'Promeni email' })).toBeInTheDocument()
+    expect(novi.getByRole('button', { name: 'Deaktiviraj' })).toBeInTheDocument()
+    expect(novi.queryByText('Samo glavni administrator menja ovaj nalog.')).not.toBeInTheDocument()
+  })
+})
+
 describe('teachers list', () => {
   it('shows name, email, subjects and status of every teacher', async () => {
     await open()

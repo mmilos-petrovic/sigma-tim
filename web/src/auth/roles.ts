@@ -6,6 +6,8 @@ export interface MyRoles {
   lastName: string
   avatarUrl: string | null
   isAdmin: boolean
+  /** The one administrator who makes and removes the others (`profiles.is_main_admin`). */
+  isMainAdmin: boolean
   isTeacher: boolean
   isStudent: boolean
   isParent: boolean

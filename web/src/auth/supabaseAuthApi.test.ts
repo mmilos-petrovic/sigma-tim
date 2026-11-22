@@ -42,6 +42,7 @@ const row = {
   last_name: 'Nikolić',
   avatar_url: 'https://example.test/a.png',
   is_admin: false,
+  is_main_admin: false,
   is_teacher: true,
   is_student: false,
   is_parent: false,
@@ -120,11 +121,36 @@ describe('loadRoles', () => {
       lastName: 'Nikolić',
       avatarUrl: 'https://example.test/a.png',
       isAdmin: false,
+      isMainAdmin: false,
       isTeacher: true,
       isStudent: false,
       isParent: false,
     })
     expect(rpc).toHaveBeenCalledWith('my_roles')
+  })
+
+  it('knows the main administrator', async () => {
+    const { client } = fakeClient({
+      data: [{ ...row, is_admin: true, is_main_admin: true }],
+      error: null,
+      status: 200,
+    })
+    expect(await createSupabaseAuthApi(client).loadRoles()).toMatchObject({
+      isAdmin: true,
+      isMainAdmin: true,
+    })
+  })
+
+  it('does not take an ordinary administrator for the main one', async () => {
+    const { client } = fakeClient({
+      data: [{ ...row, is_admin: true, is_main_admin: false }],
+      error: null,
+      status: 200,
+    })
+    expect(await createSupabaseAuthApi(client).loadRoles()).toMatchObject({
+      isAdmin: true,
+      isMainAdmin: false,
+    })
   })
 
   it('returns null for an account without a profile', async () => {

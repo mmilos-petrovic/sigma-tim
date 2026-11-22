@@ -8,6 +8,7 @@ export function makeRoles(overrides: Partial<MyRoles> = {}): MyRoles {
     lastName: 'Osoba',
     avatarUrl: null,
     isAdmin: false,
+    isMainAdmin: false,
     isTeacher: false,
     isStudent: false,
     isParent: false,
@@ -22,6 +23,7 @@ export const personas = {
     email: 'admin@example.test',
     firstName: 'Ada',
     isAdmin: true,
+    isMainAdmin: true,
   }),
   adminTeacher: makeRoles({
     profileId: 'p-boss',
