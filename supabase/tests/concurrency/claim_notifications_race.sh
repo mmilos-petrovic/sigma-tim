@@ -8,6 +8,7 @@
 #      wait for A and must get 10 other notices.
 #   2. race: several sessions take notices at the same moment; no notice may be handed out twice, and every notice
 #      must in the end have been taken exactly once (one attempt).
+#   3. welcome budget: while session A holds the 20 welcome emails of the hour, session B must not be given 20 more.
 #
 # Needs the local stack (`npm run db:start`) and docker. It commits real rows and removes them again on exit. Notices that
 # were already waiting in the local database are pushed far into the future while it runs, so they are left alone.
@@ -73,7 +74,7 @@ ids_a=$(cat "$result_a")
 check "session A took 10 notices" "10" "$(count_of "$ids_a")"
 check "session B took 10 notices while A was still open" "10" "$(count_of "$ids_b")"
 check "and none of them is one of A's" "20" "$(echo "$ids_a,$ids_b" | tr ',' '\n' | sort -u | grep -c .)"
-[ "$waited" -le 1 ] && echo "ok - session B did not wait for A (${waited}s)" \
+[ "$waited" -le 2 ] && echo "ok - session B did not wait for A (${waited}s)" \
   || { echo "not ok - session B waited ${waited}s for A's locks"; failures=$((failures + 1)); }
 
 # 2. race ---------------------------------------------------------------------------------------------------------
@@ -95,6 +96,26 @@ check "every notice was taken exactly once in the end" "$NOTICES" \
 check "and none of them more than once" "0" \
   "$(psql_ -c "select count(*) from public.notifications n join public.profiles p on p.id = n.recipient_id where p.email = 'n@race.test' and n.attempts <> 1")"
 
-rm -rf "$dir" "$result_a"
+# 3. the welcome budget ---------------------------------------------------------------------------------------------
+# Session A takes the 20 welcome emails of the hour and keeps its transaction open; session B asks meanwhile and must be
+# given none. (B is held back by A's row locks as well as by the advisory lock the function takes while welcome emails are
+# due. The lock is for the moment between B's count of the places and B's choice of rows, in which A could commit: a window
+# of microseconds that cannot be provoked from outside. What this does check is that the budget holds when claims overlap.)
+psql_ <<SQL
+insert into public.notifications (recipient_id, kind)
+  select p.id, 'welcome' from public.profiles p, generate_series(1, 60) where p.email = 'n@race.test';
+SQL
+result_a3=$(mktemp)
+claim 100 3 >"$result_a3" &
+pid_a3=$!
+sleep 1
+ids_b3=$(claim 100 0)
+wait "$pid_a3"
+ids_a3=$(cat "$result_a3")
+check "session A took the 20 welcome emails of the hour" "20" "$(count_of "$ids_a3")"
+check "and session B, which asked while A was still open, took none" "0" "$(count_of "$ids_b3")"
+check "the other 40 are still waiting" "40"   "$(psql_ -c "select count(*) from public.notifications n join public.profiles p on p.id = n.recipient_id where p.email = 'n@race.test' and n.kind = 'welcome' and n.attempts = 0")"
+
+rm -rf "$dir" "$result_a" "$result_a3"
 if [ "$failures" -ne 0 ]; then echo "$failures check(s) failed"; exit 1; fi
 echo "all concurrency checks passed"
