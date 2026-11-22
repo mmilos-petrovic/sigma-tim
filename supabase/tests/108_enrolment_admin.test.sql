@@ -33,7 +33,7 @@ select tests.logout();
 select tests.login_as('admin');
 select is(
   (select row(s ->> 'form_enabled', s ->> 'daily_cap', s ->> 'choice_after_days', s ->> 'choice_after_offers')::text from (select public.get_enrolment_settings() as s) x),
-  row('true', '10', '3', '3')::text, 'the settings start as the owner decided: on, 10 a day, 3 days, 3 offers'
+  row('true', '20', '3', '3')::text, 'the settings start as the owner decided: on, 20 a day, 3 days, 3 offers'
 );
 select throws_ok($$ select public.set_enrolment_settings(true, 0, 3, 3) $$, 'PT400', null, 'a cap of 0 is refused');
 select throws_ok($$ select public.set_enrolment_settings(true, 10, 31, 3) $$, 'PT400', null, 'so are days beyond 30');
