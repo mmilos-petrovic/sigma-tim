@@ -12,8 +12,10 @@ import { LANDING_META } from '../lib/publicMeta'
 import { SCHOOL_PHONE, TAGLINE } from '../lib/school'
 
 /**
- * The front page. Somebody who is already a member gets the way into the app; everybody else the form for signing up,
- * when the school takes sign-ups and somebody teaches a subject, and otherwise just the phone of the school.
+ * The front page. Somebody who is already a member gets the way
+ * into the app; everybody else the form for signing up,
+ * when the school takes sign-ups and somebody teaches a
+ * subject, and otherwise just the phone of the school.
  */
 export function LandingPage() {
   const { state } = useAuth()
