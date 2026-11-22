@@ -13,6 +13,7 @@ export const ADMIN_NAV: NavItem[] = [
   { to: BASE, label: 'Pregled', end: true },
   { to: `${BASE}/nastavnici`, label: 'Nastavnici' },
   { to: `${BASE}/ucenici`, label: 'Učenici' },
+  { to: `${BASE}/roditelji`, label: 'Roditelji' },
   { to: `${BASE}/predmeti`, label: 'Predmeti' },
   { to: `${BASE}/lokacije`, label: 'Lokacije' },
   { to: `${BASE}/cv`, label: 'CV nastavnika' },

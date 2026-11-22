@@ -6,6 +6,7 @@ import {
   type AdminApi,
   type LocationRow,
   type Photo,
+  type AdminParentRow,
   type AdminStudentRow,
   type Subject,
   type EraseResult,
@@ -21,6 +22,7 @@ export interface FakeState {
   teachers: TeacherRow[]
   locations: LocationRow[]
   students: AdminStudentRow[]
+  parents: AdminParentRow[]
   notificationSettings: NotificationSettingsAndKinds
   /** Any order; the fake sorts newest first like the database. */
   notificationLog: NotificationLogRow[]
@@ -209,6 +211,24 @@ export const seed = (): FakeState => ({
       locationNames: [],
       heldLessons: 0,
       upcomingLessons: 0,
+    },
+  ],
+  parents: [
+    {
+      profileId: 'pr-mira',
+      firstName: 'Mira',
+      lastName: 'Petrović',
+      email: 'mira.petrovic@example.test',
+      createdAt: '2026-02-20T10:00:00Z',
+      childNames: ['Ana Petrović'],
+    },
+    {
+      profileId: 'pr-jovan',
+      firstName: 'Jovan',
+      lastName: 'Ilić',
+      email: 'jovan.ilic@example.test',
+      createdAt: '2026-04-06T10:00:00Z',
+      childNames: [],
     },
   ],
   notificationSettings: seedNotificationSettings(),
@@ -517,6 +537,33 @@ export function createFakeAdminApi(initial: Partial<FakeState> = {}): FakeAdminA
       if (student.heldLessons > 0)
         throw new AdminError('PT409', 'a student with a lesson that took place cannot be deleted')
       state.students = state.students.filter((s) => s.studentId !== studentId)
+    },
+
+    async listParents() {
+      await gate('listParents')
+      return structuredClone(state.parents)
+    },
+    async erasePerson(profileId) {
+      await gate('erasePerson')
+      const records = state.students.filter((s) => s.profileId === profileId)
+      const parent = state.parents.find((p) => p.profileId === profileId)
+      if (state.teachers.some((t) => t.id === profileId))
+        throw new AdminError('PT409', 'a teacher is erased as a teacher')
+      if (records.length === 0 && !parent) throw new AdminError('PT404', 'person not found')
+      if (parent && parent.childNames.length > 0)
+        throw new AdminError(
+          'PT409',
+          'a parent with children cannot be erased: erase or unlink the children first',
+        )
+      const names = records.map((s) => `${s.firstName} ${s.lastName}`)
+      state.students = state.students.filter((s) => s.profileId !== profileId)
+      // a parent who has no child left goes too, like in the database
+      state.parents = state.parents
+        .filter((p) => p.profileId !== profileId)
+        .flatMap((p) => {
+          const left = p.childNames.filter((n) => !names.includes(n))
+          return left.length === 0 && p.childNames.length > 0 ? [] : [{ ...p, childNames: left }]
+        })
     },
 
     async getNotificationSettings() {

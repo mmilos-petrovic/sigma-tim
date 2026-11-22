@@ -88,6 +88,29 @@ describe('explainError', () => {
       expect(explain('PT409', 'reactivateTeacher')).toBe('Nastavnik je već aktivan.')
     })
 
+    it('erasing a person on request, and what stops it', () => {
+      expect(explain('PT404', 'erasePerson')).toBe('Osoba više ne postoji. Osvežite stranicu.')
+      expect(
+        explain(
+          'PT409',
+          'erasePerson',
+          'a parent with children cannot be erased: erase or unlink the children first',
+        ),
+      ).toBe(
+        'Roditelj je još povezan sa učenikom. Prvo obrišite učenika ili uklonite roditelja sa učenika.',
+      )
+      expect(explain('PT409', 'erasePerson', 'an administrator cannot be erased')).toBe(
+        'Administrator se ne briše ovde. Prvo mu oduzmite ulogu administratora.',
+      )
+      expect(explain('PT409', 'erasePerson', 'a teacher is erased as a teacher')).toBe(
+        'Nastavnik se briše na stranici Nastavnici.',
+      )
+      expect(explain('PT409', 'erasePerson', 'this person was already erased')).toBe(
+        'Nalog je već obrisan. Osvežite stranicu.',
+      )
+      expect(explain('PT403', 'erasePerson')).toBe('Nemate dozvolu za ovu radnju.')
+    })
+
     it('erase, and what an erased record cannot do any more', () => {
       expect(explain('PT404', 'eraseTeacher')).toBe('Nastavnik više ne postoji. Osvežite stranicu.')
       expect(explain('PT409', 'eraseTeacher', 'an administrator cannot be erased')).toBe(
