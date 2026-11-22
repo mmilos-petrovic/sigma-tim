@@ -42,7 +42,10 @@ describe('the two actions of the page', () => {
     state.reference.color = 'purple'
     renderTeacher(PATH, { api: createFakeTeacherApi(state) })
     await page('Moj raspored')
-    const lesson = await screen.findByRole('button', { name: 'Novi čas' })
+    // the button is drawn at once in the blue of the lessons and takes the colour of the teacher when the settings are
+    // loaded, which is when the calendar appears
+    await screen.findByRole('region', { name: 'Kalendar' })
+    const lesson = screen.getByRole('button', { name: 'Novi čas' })
     expect(lesson).toHaveStyle({ backgroundColor: '#6b3fa0', color: '#ffffff' })
     const slot = screen.getByRole('button', { name: 'Objavi slobodan termin' })
     expect(slot).not.toHaveAttribute('style')
@@ -54,7 +57,9 @@ describe('the two actions of the page', () => {
   it('fill the button of a lesson with the blue of the lessons until a colour is chosen', async () => {
     renderTeacher(PATH)
     await page('Moj raspored')
-    expect(await screen.findByRole('button', { name: 'Novi čas' })).toHaveStyle({
+    // after the settings are loaded: before that the button is blue whatever the teacher chose
+    await screen.findByRole('region', { name: 'Kalendar' })
+    expect(screen.getByRole('button', { name: 'Novi čas' })).toHaveStyle({
       backgroundColor: '#1f4fd8',
     })
   })
