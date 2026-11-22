@@ -15,6 +15,24 @@ export const clock = (at: Date | string | number) => clockFormat.format(new Date
 export const fullHourAhead = (hoursAhead: number) =>
   new Date(Math.ceil((Date.now() + hoursAhead * 3_600_000) / 3_600_000) * 3_600_000)
 
+const hourFormat = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Belgrade',
+  hour: '2-digit',
+  hourCycle: 'h23',
+})
+
+/**
+ * At least `hoursAhead` hours from now, on a full hour, and in the part of the day the calendar shows (it shows 06:00 to
+ * 23:00): a start that would fall at night is moved on to 10:00. For a block that has to be found on the calendar; a test of
+ * the twelve hour rule needs the exact distance and uses `fullHourAhead`.
+ */
+export function daytimeAhead(hoursAhead: number): Date {
+  const start = fullHourAhead(hoursAhead)
+  const hour = Number(hourFormat.format(start))
+  if (hour >= 7 && hour <= 20) return start
+  return new Date(start.getTime() + ((10 - hour + 24) % 24) * 3_600_000)
+}
+
 /** A block of the calendar by its class and when it is (its text reads "10:00–11:00 ..."). */
 export const block = (page: Page, variant: string, start: Date, minutes = 60) =>
   page

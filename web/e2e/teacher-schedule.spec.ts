@@ -117,7 +117,9 @@ test.describe("the teacher's schedule", () => {
         await page.getByRole('button', { name: 'Novi čas' }).click()
         const form = dialog(page, 'Novi čas')
         await form.getByLabel('Predmet').selectOption({ label: 'Matematika' })
-        await form.getByLabel('Lokacija').selectOption({ label: 'Glavna lokacija' })
+        // a choice of one is no choice: this teacher has only "Glavna lokacija", so the form does not ask (the choice among
+        // several locations is checked in teacher-locations.spec.ts)
+        await expect(form.getByLabel('Lokacija')).toHaveCount(0)
         await form.getByLabel('Učionica').selectOption({ label: 'Učionica 3' })
         await fillDate(form, 'Datum', day)
         await chooseTime(form, 'Početak', start)
@@ -136,7 +138,6 @@ test.describe("the teacher's schedule", () => {
         await page.getByRole('button', { name: 'Novi čas' }).click()
         const form = dialog(page, 'Novi čas')
         await form.getByLabel('Predmet').selectOption({ label: 'Matematika' })
-        await form.getByLabel('Lokacija').selectOption({ label: 'Glavna lokacija' })
         await form.getByLabel('Učionica').selectOption({ label: 'Učionica 3' })
         await fillDate(form, 'Datum', day)
         await chooseTime(form, 'Početak', start)
@@ -339,7 +340,9 @@ test.describe("the teacher's schedule", () => {
         // an outcome freezes the lesson: the form disables what is frozen, and the database would refuse anyway
         await lesson.getByRole('button', { name: 'Izmeni', exact: true }).click()
         const edit = dialog(page, 'Izmena časa')
-        await expect(edit.getByLabel('Početak', { exact: true })).toBeDisabled()
+        // the time is two selects in a group, and it is the selects that are disabled
+        await expect(edit.getByLabel('Početak, sat')).toBeDisabled()
+        await expect(edit.getByLabel('Početak, minuti')).toBeDisabled()
         await edit.getByRole('button', { name: 'Odustani' }).click()
 
         // clearing the outcome is allowed (it stays editable), and leaves the lesson usable for the next run, since a

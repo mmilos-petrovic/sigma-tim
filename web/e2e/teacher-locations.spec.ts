@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 import { rpc, select, sql, tokenFor } from './api.ts'
-import { block, deleteLesson, fullHourAhead, publishSlot, shown } from './calendar.ts'
+import { block, daytimeAhead, deleteLesson, fullHourAhead, publishSlot, shown } from './calendar.ts'
 import { localEnv, signInAs } from './helpers.ts'
 
 const dialog = (page: Page, name: string) => page.getByRole('dialog', { name })
@@ -141,7 +141,7 @@ test.describe('where a teacher may teach', () => {
         p_teacher_id: world.teacherId,
         p_location_ids: [world.main, world.b],
       })
-      const atMain = fullHourAhead(36)
+      const atMain = daytimeAhead(36)
       const atB = new Date(atMain.getTime() + 2 * 3_600_000)
       for (const [locationId, start] of [
         [world.main, atMain],

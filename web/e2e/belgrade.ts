@@ -60,10 +60,13 @@ export function removeLessons(ids: string[]) {
     delete from public.lessons where id in (${list});`)
 }
 
-/** The reasons carried by the notices queued for a lesson, sorted ('-' for a notice without one). */
+/**
+ * The reasons carried by the notices about a lesson being cancelled, sorted ('-' for one without a reason). Only those:
+ * a lesson has other notices (it was scheduled, it will be reminded), and none of them has a reason.
+ */
 export function notedReasons(lessonId: string): string[] {
   const text = sql(`
     select coalesce(payload->>'note', '-') from public.notifications
-     where payload->>'lesson_id' = '${lessonId}' order by 1;`)
+     where kind = 'lesson_cancelled' and payload->>'lesson_id' = '${lessonId}' order by 1;`)
   return text === '' ? [] : text.split('\n')
 }
