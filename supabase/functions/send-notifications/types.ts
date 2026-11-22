@@ -94,6 +94,8 @@ export interface SendSettings {
   /** Non-urgent emails stop at this many a day; the rest of the provider's limit is kept for welcome and test. */
   emailDailyLimit: number
   now: () => Date
+  /** Waits this long (milliseconds); only a test sets it. */
+  sleep?: (ms: number) => Promise<void>
 }
 
 export interface Summary {

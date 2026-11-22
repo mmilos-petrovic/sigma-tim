@@ -16,6 +16,8 @@ import type {
 
 const CONCURRENCY = 10
 const EMAIL_LIMIT_REASON = 'Dnevno ograničenje emailova'
+// Waits before writing down a sent notice again, after the first try and after the second one.
+const RECORD_RETRY_DELAYS_MS = [250, 1000]
 
 export interface Services {
   push: PushSender
@@ -43,6 +45,29 @@ export async function processClaim(
   settings: SendSettings,
 ): Promise<Summary> {
   const { push, email, outbox } = services
+  const sleep =
+    settings.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+
+  /**
+   * Writes down that a notice went out. It has been sent by now, and a notice that is not written down comes back after its
+   * delay and is sent again: an email cannot be taken back. A database that does not answer for a moment is the usual
+   * reason, so this tries again a few times before it gives up (and then says so).
+   */
+  async function recordSent(id: number, channel: 'push' | 'email') {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await outbox.complete(id, channel)
+      } catch (error) {
+        if (attempt >= RECORD_RETRY_DELAYS_MS.length) {
+          // the run logs it with the number and the kind of the notice
+          throw new Error(
+            `went out by ${channel} but could not be written down, so it will be sent again: ${errorText(error)}`,
+          )
+        }
+        await sleep(RECORD_RETRY_DELAYS_MS[attempt])
+      }
+    }
+  }
   const summary: Summary = {
     claimed: claim.notices.length,
     push: 0,
@@ -61,7 +86,7 @@ export async function processClaim(
   async function sendEmail(notice: Notice, alsoPushed: boolean): Promise<Outcome> {
     const urgent = notice.config.always_email
     const delivered = async (): Promise<Outcome> => {
-      await outbox.complete(notice.id, 'push')
+      await recordSent(notice.id, 'push')
       return 'push'
     }
 
@@ -85,7 +110,7 @@ export async function processClaim(
     }
 
     if (result.kind === 'sent') {
-      await outbox.complete(notice.id, 'email')
+      await recordSent(notice.id, 'email')
       return 'email'
     }
     emailsUsed--
@@ -141,7 +166,7 @@ export async function processClaim(
     const { always_email: alwaysEmail, email_fallback: emailFallback } = notice.config
     if (alwaysEmail) return sendEmail(notice, delivered)
     if (delivered) {
-      await outbox.complete(notice.id, 'push')
+      await recordSent(notice.id, 'push')
       return 'push'
     }
 
