@@ -25,7 +25,10 @@ export function Dialog({
   useEffect(() => {
     const node = panel.current
     const previous = document.activeElement as HTMLElement | null
+    // A window that has a safe button says so with `data-autofocus` (so Enter or Space right after it opens can never
+    // press a button that undoes something); else the first field, else the first button.
     ;(
+      node?.querySelector<HTMLElement>('[data-autofocus]') ??
       node?.querySelector<HTMLElement>('input, select, textarea') ??
       node?.querySelector<HTMLElement>('button')
     )?.focus()

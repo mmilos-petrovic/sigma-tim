@@ -138,6 +138,12 @@
   color: var(--primary-text);
 }
 
+/* a note that has been read: quieter than the new one, but still there */
+.badge--note {
+  background: var(--primary-soft);
+  color: var(--text);
+}
+
 .lesson__body {
   padding: 0 0.9rem 0.9rem;
   border-top: 1px solid var(--border);

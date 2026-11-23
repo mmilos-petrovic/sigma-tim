@@ -25,7 +25,7 @@ export function LessonItem({
   lesson: MyLesson
   now: Date
   open: boolean
-  /** The note has not been opened since it was written or changed. */
+  /** The note has not been opened since it was written or changed (the card shows "Nova napomena" until then). */
   unread: boolean
   onToggle: () => void
   onCancel: () => void
@@ -49,7 +49,13 @@ export function LessonItem({
       <span className="lesson__marks">
         {chip && <span className="badge">{chip}</span>}
         {showsPaid(lesson) && <span className="badge badge--paid">Plaćen</span>}
-        {unread && <span className="badge badge--new">Nova napomena</span>}
+        {/* the mark stays for good: only its look changes once the note has been read */}
+        {lesson.note !== null &&
+          (unread ? (
+            <span className="badge badge--new">Nova napomena</span>
+          ) : (
+            <span className="badge badge--note">Napomena</span>
+          ))}
       </span>
     </>
   )

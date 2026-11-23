@@ -55,11 +55,13 @@ describe('the free slots', () => {
     expect(items[2]).toHaveTextContent(formatRange(at(73), at(74)))
   })
 
-  it('show time, subject, place, room and length', async () => {
+  it('show time, the name of the teacher, place, room and length', async () => {
     renderStudent(SLOTS)
     const item = (await screen.findAllByRole('listitem'))[1]
     expect(item).toHaveTextContent(formatRange(at(72), at(73)))
-    expect(item).toHaveTextContent('Fizika')
+    // the teacher, not the subject: the slots are all of one teacher, so the subject says little
+    expect(item).toHaveTextContent('Ana Nikolić')
+    expect(item).not.toHaveTextContent('Fizika')
     expect(item).toHaveTextContent('Centar')
     expect(item).toHaveTextContent('Učionica 2')
     expect(item).toHaveTextContent('60 min')

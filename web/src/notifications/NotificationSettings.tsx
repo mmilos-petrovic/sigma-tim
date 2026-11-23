@@ -104,7 +104,8 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
     <Dialog title="Obaveštenja" onClose={onClose}>
       <NotificationSettings />
       <div className="actions actions--end">
-        <button type="button" className="button button--secondary" onClick={onClose}>
+        {/* the window starts on this button, not on "Isključi obaveštenja" above it */}
+        <button type="button" className="button button--secondary" data-autofocus onClick={onClose}>
           Zatvori
         </button>
       </div>

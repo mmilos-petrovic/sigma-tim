@@ -239,7 +239,7 @@ test.describe('student and parent on a phone', () => {
     }
   })
 
-  test('a parent chooses a child, and an old teacher keeps his name but not his number', async ({
+  test('a parent chooses a child, and an old lesson opens to its note only', async ({
     page,
     request,
   }) => {
@@ -287,12 +287,12 @@ test.describe('student and parent on a phone', () => {
       await page.reload()
       await expect(page.getByLabel('Dete')).toHaveValue(mina.id)
 
-      // the old lesson: the teacher's name is there, his number is not, the note is
+      // the old lesson opens to the note only: no teacher, no number, nothing to cancel
       const past = page.getByRole('list', { name: 'Prošli časovi' })
       const row = past.getByRole('button', { name: /Hemija/ }).first()
       await row.click()
       const body = page.getByRole('region', { name: 'Podaci o času' }).first()
-      await expect(body.getByText('Marko Jovanović')).toBeVisible()
+      await expect(body.getByText('Marko Jovanović')).toHaveCount(0)
       await expect(body.getByText('Stara napomena (e2e)')).toBeVisible()
       await expect(body.getByRole('link', { name: /^\+/ })).toHaveCount(0)
       await expect(body.getByRole('button', { name: /^Otkaži/ })).toHaveCount(0)

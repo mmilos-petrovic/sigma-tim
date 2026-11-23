@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createFakeBrowser,
   createFakePrefs,
@@ -182,6 +183,61 @@ describe('the settings of this device', () => {
     await user.click(screen.getByRole('button', { name: 'Uključi obaveštenja' }))
     expect(await screen.findByText('Obaveštenja su uključena na ovom uređaju.')).toBeInTheDocument()
     expect(store.rows).toHaveLength(1)
+  })
+
+  it('starts on "Zatvori", so Enter or Space right after it opens cannot switch notifications off', async () => {
+    const user = userEvent.setup()
+    const browser = createFakeBrowser({ permissionState: 'granted' })
+    const store = createFakeStore()
+    const prefs = createFakePrefs()
+    const api = createPushApi({ env: browser, store, prefs, vapidKey: VAPID })
+    // as in the app: the state of the device is known long before the window is opened from the bell
+    function Header() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <NotificationsButton onOpen={() => setOpen(true)} />
+          {open && <NotificationsDialog onClose={() => setOpen(false)} />}
+        </>
+      )
+    }
+    render(
+      <PushApiProvider api={api}>
+        <PushDevice profileId={ME}>
+          <Header />
+        </PushDevice>
+      </PushApiProvider>,
+    )
+    await waitFor(() => expect(store.rows).toHaveLength(1))
+    await user.click(await screen.findByRole('button', { name: 'Obaveštenja' }))
+    await screen.findByText('Obaveštenja su uključena na ovom uređaju.')
+    expect(screen.getByRole('button', { name: 'Zatvori' })).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+    expect(store.rows).toHaveLength(1)
+    expect(prefs.isOff(ME)).toBe(false)
+    expect(screen.queryByRole('dialog', { name: 'Obaveštenja' })).toBeNull()
+  })
+
+  it('leaves notifications on when the window is closed', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const browser = createFakeBrowser({ permissionState: 'granted' })
+    const store = createFakeStore()
+    const prefs = createFakePrefs()
+    const api = createPushApi({ env: browser, store, prefs, vapidKey: VAPID })
+    render(
+      <PushApiProvider api={api}>
+        <PushDevice profileId={ME}>
+          <NotificationsDialog onClose={onClose} />
+        </PushDevice>
+      </PushApiProvider>,
+    )
+    await screen.findByText('Obaveštenja su uključena na ovom uređaju.')
+    await user.click(screen.getByRole('button', { name: 'Zatvori' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(store.rows).toHaveLength(1)
+    expect(prefs.isOff(ME)).toBe(false)
   })
 
   it('does not switch itself on again after the person switched it off', async () => {

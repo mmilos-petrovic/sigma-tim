@@ -174,6 +174,25 @@ describe('notes not yet read', () => {
     expect(within(button).queryByText('Nova napomena')).not.toBeInTheDocument()
   })
 
+  it('keeps showing that the lesson has a note, for good, once it has been read', async () => {
+    const first = renderStudent(PATH)
+    const button = await row(30, 31)
+    expect(within(button).getByText('Nova napomena')).toBeInTheDocument()
+    await userEvent.click(button)
+    // read: the mark is quieter, but it is there
+    expect(within(button).getByText('Napomena')).toBeInTheDocument()
+    first.unmount()
+
+    // on a later visit, and after the note was opened and closed again
+    renderStudent(PATH)
+    const again = await row(30, 31)
+    expect(within(again).getByText('Napomena')).toBeInTheDocument()
+    expect(within(again).queryByText('Nova napomena')).not.toBeInTheDocument()
+    await userEvent.click(again)
+    await userEvent.click(again)
+    expect(within(again).getByText('Napomena')).toBeInTheDocument()
+  })
+
   it('does not mark a lesson without a note', async () => {
     renderStudent(PATH)
     const behind = texts(await past())

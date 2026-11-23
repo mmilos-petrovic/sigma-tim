@@ -383,6 +383,19 @@ describe('layout', () => {
     expect(signOut.querySelector('svg')).not.toBeNull()
   })
 
+  it('has a house next to the name of the school in the header of a student, back to the front page', async () => {
+    renderApp(signedInAs(personas.student), '/ucenik')
+    const header = within(await screen.findByRole('banner'))
+    expect(header.getByRole('link', { name: 'Sigma Tim' })).toHaveAttribute('href', '/ucenik')
+    expect(header.getByRole('link', { name: 'Početna strana' })).toHaveAttribute('href', '/')
+  })
+
+  it('has no such house in the short header of a teacher, which has no name of the school', async () => {
+    renderApp(signedInAs(personas.teacher), '/moj-raspored')
+    const header = within(await screen.findByRole('banner'))
+    expect(header.queryByRole('link', { name: 'Početna strana' })).not.toBeInTheDocument()
+  })
+
   it('keeps the name of the school in the header of a student, with icons instead of words', async () => {
     renderApp(signedInAs(personas.student), '/ucenik')
     const header = within(await screen.findByRole('banner'))

@@ -82,7 +82,7 @@ export function SlotsPanel() {
                         <div className="slot__info">
                           <strong>{formatRange(slot.start, slot.end)}</strong>
                           <span>
-                            {slot.subject} · {slot.location}
+                            {record.teacherName ?? 'Nastavnik nije poznat'} · {slot.location}
                             {slot.room ? `, ${slot.room}` : ''}
                           </span>
                           <span className="muted">{minutes(slot)} min</span>
