@@ -99,6 +99,10 @@
   cursor: pointer;
 }
 
+.lesson__head--static {
+  cursor: default;
+}
+
 .lesson__head:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 1px;

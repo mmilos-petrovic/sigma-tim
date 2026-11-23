@@ -4,15 +4,21 @@ import { useCvApi } from './CvApiProvider'
 import { CvView } from './CvView'
 import { useMemberCv } from './queries'
 
-/** One CV. `base` is the path of the list, to go back to. */
-export function CvDetailPage({ base }: { base: string }) {
+/** One CV. `base` is the path of the list, to go back to; a screen without a list says where else to go back to. */
+export function CvDetailPage({
+  base,
+  back = { to: base, label: '← Svi nastavnici' },
+}: {
+  base: string
+  back?: { to: string; label: string }
+}) {
   const api = useCvApi()
   const { slug = '' } = useParams()
   const cv = useMemberCv(slug)
   return (
     <div className="cv-detail">
       <p>
-        <Link to={base}>← Svi nastavnici</Link>
+        <Link to={back.to}>{back.label}</Link>
       </p>
       <Loaded query={cv}>
         {(data) =>

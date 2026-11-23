@@ -383,11 +383,14 @@ describe('layout', () => {
     expect(signOut.querySelector('svg')).not.toBeNull()
   })
 
-  it('keeps the name and the words in the header of a student', async () => {
+  it('keeps the name of the school in the header of a student, with icons instead of words', async () => {
     renderApp(signedInAs(personas.student), '/ucenik')
     const header = within(await screen.findByRole('banner'))
     expect(header.getByText('Sigma Tim')).toBeInTheDocument()
-    expect(header.getByRole('button', { name: 'Odjavi se' })).toHaveTextContent('Odjavi se')
+    const signOut = header.getByRole('button', { name: 'Odjavi se' })
+    expect(signOut).toHaveTextContent('')
+    expect(signOut).toHaveAttribute('title', 'Odjavi se')
+    expect(signOut.querySelector('svg')).not.toBeNull()
   })
 
   it('has no switch for an account with a single context', async () => {

@@ -234,6 +234,49 @@ describe('a student without a subject', () => {
   })
 })
 
+describe('the subject of a request that is open', () => {
+  it('is the parent’s choice, not only the one it was made for: they can change it', async () => {
+    const { enrolmentApi } = await open({}, 'parent')
+    expect(screen.getByRole('heading', { name: 'Matematika' })).toBeInTheDocument()
+    // the parent has a second select for another child: this one is in the card of the request
+    const picker = within(
+      screen.getByRole('region', { name: 'Prijava za Matematika' }),
+    ).getByLabelText('Predmet')
+    expect(picker).toHaveValue('sub-mat')
+    // nothing to save until another one is chosen
+    expect(screen.getByRole('button', { name: 'Promeni predmet' })).toBeDisabled()
+
+    await userEvent.selectOptions(picker, 'Hemija')
+    await userEvent.click(screen.getByRole('button', { name: 'Promeni predmet' }))
+    expect(enrolmentApi.setSubject).toHaveBeenCalledWith('req-1', 'sub-hem')
+    expect(await screen.findByRole('heading', { name: 'Hemija' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Promeni predmet' })).toBeDisabled()
+  })
+
+  it('explains it when nobody teaches the new subject', async () => {
+    const { enrolmentApi } = await open({}, 'parent')
+    enrolmentApi.setSubject.mockRejectedValueOnce(
+      new AdminError('PT400', 'nobody teaches this subject'),
+    )
+    const card = within(screen.getByRole('region', { name: 'Prijava za Matematika' }))
+    await userEvent.selectOptions(card.getByLabelText('Predmet'), 'Fizika')
+    await userEvent.click(card.getByRole('button', { name: 'Promeni predmet' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Za izabrani predmet trenutno nema nastavnika.',
+    )
+  })
+
+  it('is no longer changed once a teacher is chosen', async () => {
+    const enrolmentApi = createFakeEnrolmentApi({
+      requests: [makeCompleted({ role: 'parent', status: 'chosen' })],
+      offers: { 'req-1': [{ ...ANA, isChosen: true }] },
+    })
+    renderPublic('/upis', { auth: stranger(), enrolment: enrolmentApi })
+    await screen.findByText(/Nastavnik je izabran/)
+    expect(screen.queryByLabelText('Predmet')).not.toBeInTheDocument()
+  })
+})
+
 describe('another child', () => {
   const parent = makeCompleted({ role: 'parent' })
 
@@ -302,7 +345,7 @@ describe('inside the app', () => {
   it('a student has the tab only while a request waits, with how many can choose now', async () => {
     renderStudent('/ucenik')
     await studentPage('Moji časovi')
-    await screen.findByRole('link', { name: 'CV nastavnika' })
+    await screen.findByRole('link', { name: 'Časovi' })
     expect(screen.queryByRole('link', { name: /^Prijava za časove/ })).not.toBeInTheDocument()
   })
 

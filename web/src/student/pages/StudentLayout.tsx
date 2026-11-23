@@ -4,7 +4,8 @@ import { CONTEXT_LABEL, homePath } from '../../auth/roles'
 import { Loaded, PageHeader } from '../../components/Loaded'
 import { useMember } from '../../components/guards'
 import { useMyEnrolmentRequests } from '../../enrolment/queries'
-import { pickRecord, recordLabel } from '../lessonList'
+import { TeacherCvLinks } from '../components/TeacherCvLinks'
+import { pickRecord, recordLabel, teachersOf } from '../lessonList'
 import { readLastRecord, writeLastRecord } from '../memory'
 import { useRecords, useSlots } from '../queries'
 import type { StudentContext } from '../studentApi'
@@ -64,7 +65,6 @@ export function StudentLayout({ context }: { context: StudentContext }) {
                     )}
                   </NavLink>
                 )}
-                <NavLink to={`${home}/nastavnici`}>CV nastavnika</NavLink>
                 {/* a parent may always ask for lessons for another child; a student sees this while they wait for a teacher */}
                 {(context === 'parent' || waiting.length > 0) && (
                   <NavLink to={`${home}/prijava`}>
@@ -84,6 +84,11 @@ export function StudentLayout({ context }: { context: StudentContext }) {
               <div key={record.id}>
                 <Outlet context={{ context, record, home, profileId } satisfies StudentView} />
               </div>
+
+              <TeacherCvLinks
+                teachers={teachersOf(context, all, record)}
+                base={`${home}/nastavnici`}
+              />
             </>
           )
         }

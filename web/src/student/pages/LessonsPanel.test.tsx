@@ -73,7 +73,6 @@ describe('the list of lessons', () => {
     const behind = texts(await past())
     // the lesson 120 hours ago has no outcome: its row is just the facts
     expect(behind[2]).not.toMatch(/Održan|Nije održan|Nije potvrđen|ishod|unos|čeka/i)
-    await open(-120, -119)
     expect(screen.queryByText(/ishod|unos/i)).not.toBeInTheDocument()
   })
 
@@ -118,13 +117,35 @@ describe('the list of lessons', () => {
     expect(button).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('shows the note of a lesson that was not held too, and no note section when there is none', async () => {
+  it('shows nothing but the note of a lesson that is over, held or not', async () => {
     renderStudent(PATH)
-    await open(-80, -79)
-    expect(await screen.findByText('Čas je otkazan zbog bolesti nastavnika.')).toBeInTheDocument()
-    await open(-120, -119)
-    // only the first lesson has a note section
-    expect(screen.getAllByRole('heading', { name: 'Napomena nastavnika' })).toHaveLength(1)
+    for (const [start, end, note] of [
+      [-30, -29, 'Radili smo jednačine.'],
+      [-80, -79, 'Čas je otkazan zbog bolesti nastavnika.'],
+    ] as const) {
+      const button = await open(start, end)
+      const region = document.getElementById(
+        button.getAttribute('aria-controls') ?? '',
+      ) as HTMLElement
+      expect(within(region).getByText(new RegExp(note))).toBeInTheDocument()
+      expect(within(region).queryByText('Nastavnik')).not.toBeInTheDocument()
+      expect(within(region).queryByText('Telefon')).not.toBeInTheDocument()
+      expect(within(region).queryByText('Mesto')).not.toBeInTheDocument()
+      expect(within(region).queryByRole('link')).not.toBeInTheDocument()
+    }
+  })
+
+  it('does not open a lesson that is over and has no note', async () => {
+    renderStudent(PATH)
+    const behind = await past()
+    // of the four, the ones 30 and 80 hours ago have a note; the other two are no buttons at all
+    expect(within(behind).getAllByRole('button')).toHaveLength(2)
+    const rows = within(behind).getAllByRole('listitem')
+    for (const plain of [rows[2], rows[3]]) {
+      expect(within(plain).queryByRole('button')).not.toBeInTheDocument()
+      expect(plain.querySelector('[aria-expanded]')).toBeNull()
+    }
+    expect(rows[2]).toHaveTextContent(formatDay(at(-120)))
   })
 
   it('leaves out the phone line when the teacher has no number', async () => {
@@ -155,8 +176,8 @@ describe('notes not yet read', () => {
 
   it('does not mark a lesson without a note', async () => {
     renderStudent(PATH)
-    const button = await row(-120, -119)
-    expect(within(button).queryByText('Nova napomena')).not.toBeInTheDocument()
+    const behind = texts(await past())
+    expect(behind[2]).not.toContain('Nova napomena')
   })
 
   it('remembers what was read, on this device', async () => {
