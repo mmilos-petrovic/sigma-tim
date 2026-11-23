@@ -197,6 +197,12 @@ describe('the front page', () => {
   })
 
   describe('for a member of the school', () => {
+    it('greets them by name, above the way into the app', async () => {
+      renderPublic('/', { roles: personas.student })
+      expect(await heading('Dobro došli nazad, Sava', 2)).toBeInTheDocument()
+      expect(screen.getByText(/čekaju vas u aplikaciji/)).toBeInTheDocument()
+    })
+
     it('gives the way into the app and no form', async () => {
       renderPublic('/', { roles: personas.student })
       expect(await screen.findByRole('link', { name: 'Otvori aplikaciju' })).toHaveAttribute(
