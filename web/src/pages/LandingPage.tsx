@@ -148,10 +148,18 @@ export function LandingPage() {
   if (state.status === 'ready' && member) {
     const app = destinationFor(state.roles, null)
     card = (
-      <div className="pub-card pub-form">
-        <h2 className="pub-form__title">Dobro došli nazad</h2>
-        <Link className="pub-btn pub-btn--primary pub-btn--block" to={app}>
-          Otvori aplikaciju
+      <div className="pub-card pub-welcome">
+        <h2 className="pub-welcome__title">
+          Dobro došli nazad{state.roles?.firstName ? `, ${state.roles.firstName}` : ''}
+        </h2>
+        <p className="pub-welcome__text">
+          Vaši časovi, raspored i obaveštenja čekaju vas u aplikaciji.
+        </p>
+        <Link className="pub-btn pub-btn--primary pub-welcome__button" to={app}>
+          <span>Otvori aplikaciju</span>
+          <svg className="pub-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
         </Link>
       </div>
     )

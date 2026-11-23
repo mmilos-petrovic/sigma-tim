@@ -62,7 +62,8 @@
   outline-offset: 3px;
 }
 
-:where(.pub-landing, .pub-header, .pub-footer) :where(h1, h2, h3, p, ul, ol, figure) {
+/* No margins from the app's own `p`, `h1` ...: the design sets the ones it wants (specificity of one class, before them). */
+:is(.pub-landing, .pub-header, .pub-footer) :where(h1, h2, h3, p, ul, ol, figure) {
   margin: 0;
 }
 
@@ -1003,6 +1004,49 @@ fieldset.pub-role {
   background: #fdecea;
   color: var(--pub-error);
   font-weight: 500;
+}
+
+/* what a member sees instead of the form ---------------------------------------------------------------- */
+
+.pub-welcome {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 34rem;
+  margin-inline: auto;
+  padding: 28px 24px;
+  border: 2px solid var(--pub-blue-soft);
+  text-align: center;
+}
+
+.pub-welcome__title {
+  font-size: clamp(1.3rem, 5vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.pub-welcome__text {
+  max-width: 26rem;
+  color: var(--pub-muted);
+}
+
+.pub-welcome__button {
+  margin-top: 8px;
+  min-height: 52px;
+  padding-inline: 28px;
+  font-size: 1rem;
+}
+
+@media (min-width: 901px) {
+  .pub-welcome {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center; /* as high as its words, in the middle of the row, not as tall as the photo */
+    margin-inline: 0;
+    padding: 36px;
+    justify-items: start;
+    text-align: left;
+  }
 }
 
 /* the card of the form while it is not known yet what it says: it keeps its room, so the page does not jump */
