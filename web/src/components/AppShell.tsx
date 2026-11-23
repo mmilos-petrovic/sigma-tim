@@ -9,7 +9,7 @@ import {
   type Context,
   type MyRoles,
 } from '../auth/roles'
-import { SignOutIcon } from './icons'
+import { HomeIcon, SignOutIcon } from './icons'
 import { ShellFooterSlot } from './shellFooterSlot'
 import { NotificationsButton, NotificationsDialog } from '../notifications/NotificationSettings'
 import { PushDevice, usePushApi } from '../notifications/PushDevice'
@@ -73,9 +73,20 @@ export function AppShell({
         <div className="shell" data-layout={layout}>
           <header className="shell__header">
             {!compact && (
-              <Link className="shell__brand" to={homePath(context)}>
-                Sigma Tim
-              </Link>
+              <div className="shell__brandrow">
+                <Link className="shell__brand" to={homePath(context)}>
+                  Sigma Tim
+                </Link>
+                {/* the front page of the site, where the school's address and phone are */}
+                <Link
+                  className="shell__home"
+                  to="/"
+                  aria-label="Početna strana"
+                  title="Početna strana"
+                >
+                  <HomeIcon />
+                </Link>
+              </div>
             )}
 
             {contexts.length > 1 && (

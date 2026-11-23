@@ -67,7 +67,7 @@ a {
 
 .muted {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: 1.1rem;
 }
 
 /* Buttons ---------------------------------------------------------------------------------------------- */
@@ -76,7 +76,8 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px; /* a comfortable touch target */
+  min-height: 44px;
+  /* a comfortable touch target */
   padding: 0.5rem 1.1rem;
   border: 1px solid var(--primary);
   border-radius: var(--radius);
@@ -225,6 +226,26 @@ a:focus-visible {
   font-weight: 700;
   color: var(--text);
   text-decoration: none;
+}
+
+.shell__brandrow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.shell__home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+.shell__home:hover {
+  background: var(--bg);
 }
 
 .switcher {
