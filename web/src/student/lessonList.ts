@@ -87,6 +87,21 @@ export function recordLabel(context: StudentContext, record: StudentRecord): str
   return `Kod nastavnika: ${record.teacherName ?? 'nepoznat'}`
 }
 
+/**
+ * The teachers of the student: a student sees all of theirs (each record is one teacher); a parent sees the teacher of
+ * the child they are looking at.
+ */
+export function teachersOf(
+  context: StudentContext,
+  records: readonly StudentRecord[],
+  record: StudentRecord,
+): string[] {
+  const names = (context === 'parent' ? [record] : records).flatMap((r) =>
+    r.teacherName ? [r.teacherName] : [],
+  )
+  return [...new Set(names)]
+}
+
 /** The remembered record if it is still one of theirs, else the first. */
 export function pickRecord(
   records: readonly StudentRecord[],

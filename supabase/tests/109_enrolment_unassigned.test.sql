@@ -1,7 +1,7 @@
 -- Enrolment, part 4: students nobody teaches. The request is made by the database, the subject comes from the last lesson,
 -- teachers see the student by subject, and a student and the parents always read their own teacher's CV.
 begin;
-select plan(44);
+select plan(46);
 
 select tests.seed_basic();
 insert into public.subjects (name) values ('Test Hemija');
@@ -125,9 +125,14 @@ select is(tests.student_keys(), array['s2', 's3', 'su'], 'the physics teachers d
 select tests.logout();
 update public.enrolment_requests set source = 'signup' where id = tests.id('req:s2');
 select tests.login_as('p2');
-select throws_ok(format($$ select public.set_enrolment_subject(%L, %L) $$, tests.id('req:s2'), tests.id('subj:math')), 'PT409', null, 'a sign-up keeps the subject it was made for');
+select lives_ok(format($$ select public.set_enrolment_subject(%L, %L) $$, tests.id('req:s2'), tests.id('subj:math')), 'the parent changes the subject of a sign-up that is still open');
 select tests.logout();
-update public.enrolment_requests set source = 'legacy' where id = tests.id('req:s2');
+select is((select subject_id from public.enrolment_requests where id = tests.id('req:s2')), tests.id('subj:math'), 'and it is the new one');
+update public.enrolment_requests set status = 'chosen' where id = tests.id('req:s2');
+select tests.login_as('p2');
+select throws_ok(format($$ select public.set_enrolment_subject(%L, %L) $$, tests.id('req:s2'), tests.id('subj:phys')), 'PT409', null, 'once a teacher is chosen the subject stays');
+select tests.logout();
+update public.enrolment_requests set source = 'legacy', status = 'open', subject_id = tests.id('subj:phys') where id = tests.id('req:s2');
 
 -- placed again, and left again ----------------------------------------------------------------------------------------------------------------------
 update public.enrolment_requests set restarts = 2, choice_opened_at = now() - interval '1 day', listed_at = now() - interval '10 days' where id = tests.id('req:s1');

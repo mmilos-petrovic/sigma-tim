@@ -76,7 +76,7 @@ describe('the free slots', () => {
     expect(screen.queryByText(/Za dodatne termine/)).not.toBeInTheDocument()
   })
 
-  it('tell a student with free slots to call the teacher for more, below the list', async () => {
+  it('tell a student with free slots to call the teacher for more, above the list', async () => {
     renderStudent(SLOTS)
     const text = await screen.findByText(/Za dodatne termine/)
     expect(text).toHaveTextContent('Za dodatne termine pozvati nastavnika na broj 064 1110 000.')
@@ -86,9 +86,7 @@ describe('the free slots', () => {
     )
     expect(screen.queryByText(/kako bi zakazali čas/)).not.toBeInTheDocument()
     const slots = screen.getAllByRole('listitem')
-    expect(
-      slots[slots.length - 1].compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    expect(slots[0].compareDocumentPosition(text) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
   })
 
   it('keep the sentence without a number when the teacher has none', async () => {

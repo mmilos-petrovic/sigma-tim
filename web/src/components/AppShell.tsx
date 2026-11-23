@@ -10,6 +10,7 @@ import {
   type MyRoles,
 } from '../auth/roles'
 import { SignOutIcon } from './icons'
+import { ShellFooterSlot } from './shellFooterSlot'
 import { NotificationsButton, NotificationsDialog } from '../notifications/NotificationSettings'
 import { PushDevice, usePushApi } from '../notifications/PushDevice'
 import { PushInvitation } from '../notifications/PushInvitation'
@@ -52,8 +53,9 @@ export function AppShell({
   const { signOut } = useAuth()
   const push = usePushApi()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [footer, setFooter] = useState<HTMLElement | null>(null)
   const layout = LAYOUT[context]
-  // Teachers and the administration get a header that fits one line on a phone: no app name, short names, icon buttons.
+  // Teachers and the administration get a header that fits one line on a phone: no app name, short names.
   const compact = layout === 'desktop'
   const items: NavItem[] = nav ?? [
     { to: homePath(context), label: CONTEXT_LABEL[context], end: true },
@@ -67,63 +69,65 @@ export function AppShell({
 
   return (
     <PushDevice profileId={roles.profileId}>
-      <div className="shell" data-layout={layout}>
-        <header className="shell__header">
-          {!compact && (
-            <Link className="shell__brand" to={homePath(context)}>
-              Sigma Tim
-            </Link>
-          )}
+      <ShellFooterSlot.Provider value={footer}>
+        <div className="shell" data-layout={layout}>
+          <header className="shell__header">
+            {!compact && (
+              <Link className="shell__brand" to={homePath(context)}>
+                Sigma Tim
+              </Link>
+            )}
 
-          {contexts.length > 1 && (
-            <nav className="switcher" aria-label="Izbor prikaza">
-              {contexts.map((c) => (
-                // the full name stays the accessible name, so a screen reader still hears "Administracija"
-                <NavLink key={c} to={homePath(c)} aria-label={CONTEXT_LABEL[c]}>
-                  {compact ? CONTEXT_SHORT_LABEL[c] : CONTEXT_LABEL[c]}
-                </NavLink>
-              ))}
-            </nav>
-          )}
-
-          <div className="shell__user">
-            <Avatar roles={roles} />
-            <span className="shell__name">
-              {roles.firstName} {roles.lastName}
-            </span>
-            <NotificationsButton iconOnly={compact} onOpen={() => setNotificationsOpen(true)} />
-            <button
-              type="button"
-              className={
-                compact ? 'button button--secondary button--icon' : 'button button--secondary'
-              }
-              aria-label={compact ? 'Odjavi se' : undefined}
-              title={compact ? 'Odjavi se' : undefined}
-              onClick={() => void leave()}
-            >
-              {compact ? <SignOutIcon /> : 'Odjavi se'}
-            </button>
-          </div>
-        </header>
-
-        <PushInvitation profileId={roles.profileId} />
-
-        <div className="shell__body">
-          {layout === 'desktop' && (
-            <aside className="shell__sidebar">
-              <nav aria-label="Glavna navigacija">
-                {items.map((item) => (
-                  <NavLink key={item.to} to={item.to} end={item.end}>
-                    {item.label}
+            {contexts.length > 1 && (
+              <nav className="switcher" aria-label="Izbor prikaza">
+                {contexts.map((c) => (
+                  // the full name stays the accessible name, so a screen reader still hears "Administracija"
+                  <NavLink key={c} to={homePath(c)} aria-label={CONTEXT_LABEL[c]}>
+                    {compact ? CONTEXT_SHORT_LABEL[c] : CONTEXT_LABEL[c]}
                   </NavLink>
                 ))}
               </nav>
-            </aside>
-          )}
-          <main className="shell__main">{children}</main>
+            )}
+
+            <div className="shell__user">
+              <Avatar roles={roles} />
+              <span className="shell__name">
+                {roles.firstName} {roles.lastName}
+              </span>
+              <NotificationsButton iconOnly onOpen={() => setNotificationsOpen(true)} />
+              <button
+                type="button"
+                className="button button--secondary button--icon"
+                aria-label="Odjavi se"
+                title="Odjavi se"
+                onClick={() => void leave()}
+              >
+                <SignOutIcon />
+              </button>
+            </div>
+          </header>
+
+          <PushInvitation profileId={roles.profileId} />
+
+          <div className="shell__body">
+            {layout === 'desktop' && (
+              <aside className="shell__sidebar">
+                <nav aria-label="Glavna navigacija">
+                  {items.map((item) => (
+                    <NavLink key={item.to} to={item.to} end={item.end}>
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </nav>
+              </aside>
+            )}
+            <main className="shell__main">{children}</main>
+          </div>
+          {/* students and parents: the screen puts the CVs of the teachers here; empty, it is not shown */}
+          {layout === 'mobile' && <footer className="shell__footer" ref={setFooter} />}
+          {notificationsOpen && <NotificationsDialog onClose={() => setNotificationsOpen(false)} />}
         </div>
-        {notificationsOpen && <NotificationsDialog onClose={() => setNotificationsOpen(false)} />}
-      </div>
+      </ShellFooterSlot.Provider>
     </PushDevice>
   )
 }

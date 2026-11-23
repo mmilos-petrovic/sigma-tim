@@ -66,6 +66,9 @@ export function SlotsPanel() {
         </p>
       )}
 
+      {/* above the list, so it is read before the slots; `days` is empty until the slots have loaded */}
+      {!phone.isPending && days.length > 0 && <CallTeacher phone={phone.data} more />}
+
       <Loaded query={slots}>
         {() =>
           days.length === 0
@@ -102,8 +105,6 @@ export function SlotsPanel() {
               ))
         }
       </Loaded>
-      {!phone.isPending && days.length > 0 && <CallTeacher phone={phone.data} more />}
-
       {booking && (
         <BookDialog
           slot={booking}

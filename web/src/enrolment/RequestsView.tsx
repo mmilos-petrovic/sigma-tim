@@ -182,14 +182,18 @@ function Offers({
   )
 }
 
-/** A student a teacher left behind without a subject says which one they want. */
+/**
+ * The subject of an open request is the person's choice, also after the request was made: they may pick another one
+ * until a teacher is chosen. A student a teacher left behind has none yet and says which one they want.
+ */
 function SubjectPicker({ request }: { request: MyEnrolmentRequest }) {
   const api = useEnrolmentApi()
   const refresh = useRefreshEnrolment()
   const info = useEnrolmentFormInfo()
-  const [subjectId, setSubjectId] = useState('')
+  const [subjectId, setSubjectId] = useState(request.subjectId ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const changing = request.subjectId !== null
 
   const save = async () => {
     if (busy) return
@@ -201,24 +205,39 @@ function SubjectPicker({ request }: { request: MyEnrolmentRequest }) {
       await refresh()
     } catch (failure) {
       setError(explainError(failure, 'setEnrolmentSubject'))
+    } finally {
       setBusy(false)
     }
   }
 
   return (
     <div className="enrolment-profile">
-      <p>Izaberi predmet iz kog želiš časove, da bi te videli nastavnici tog predmeta.</p>
+      <p>
+        {changing
+          ? 'Predmet možeš da promeniš dok nastavnik nije izabran. Ponude nastavnika koji ne predaju novi predmet se povlače.'
+          : 'Izaberi predmet iz kog želiš časove, da bi te videli nastavnici tog predmeta.'}
+      </p>
       <Loaded query={info}>
-        {(form) => (
-          <SelectField label="Predmet" value={subjectId} onChange={setSubjectId}>
-            <option value="">Izaberi predmet</option>
-            {form.subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.name}
-              </option>
-            ))}
-          </SelectField>
-        )}
+        {(form) => {
+          // the current subject stays in the list even when nobody offers it for new requests any more
+          const subjects =
+            request.subjectId && !form.subjects.some((subject) => subject.id === request.subjectId)
+              ? [
+                  ...form.subjects,
+                  { id: request.subjectId, name: request.subjectName ?? 'Predmet' },
+                ]
+              : form.subjects
+          return (
+            <SelectField label="Predmet" value={subjectId} onChange={setSubjectId}>
+              {!changing && <option value="">Izaberi predmet</option>}
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
+            </SelectField>
+          )
+        }}
       </Loaded>
       {error && (
         <p role="alert" className="form-error">
@@ -226,8 +245,13 @@ function SubjectPicker({ request }: { request: MyEnrolmentRequest }) {
         </p>
       )}
       <div className="actions">
-        <button type="button" className="button" disabled={busy} onClick={() => void save()}>
-          Sačuvaj predmet
+        <button
+          type="button"
+          className="button"
+          disabled={busy || (changing && subjectId === request.subjectId)}
+          onClick={() => void save()}
+        >
+          {changing ? 'Promeni predmet' : 'Sačuvaj predmet'}
         </button>
       </div>
     </div>
@@ -283,6 +307,7 @@ function RequestCard({
       <>
         <p>Popuni profil da bi te videli nastavnici.</p>
         <ProfileForm request={request} defaults={defaults} onSaved={saved} />
+        <SubjectPicker request={request} />
       </>
     )
   } else if (editing) {
@@ -295,6 +320,7 @@ function RequestCard({
           {name} · {request.school}, {request.grade}
         </p>
         <Offers request={request} onNotice={setNotice} />
+        <SubjectPicker request={request} />
         <div className="actions">
           <button
             type="button"

@@ -11,6 +11,9 @@
   --danger-soft: #fdecea;
   --radius: 10px;
   --header-height: 56px;
+  /* the bar at the top and at the bottom of the app: the colour of the header of the front page */
+  --chrome-bg: #e6edff;
+  --chrome-border: #cddafc;
   color-scheme: light dark;
 }
 
@@ -26,6 +29,8 @@
     --primary-soft: #1f2d4d;
     --danger: #ff8b82;
     --danger-soft: #3a1f1d;
+    --chrome-bg: #1f2d4d;
+    --chrome-border: #2f4270;
   }
 }
 
@@ -212,8 +217,8 @@ a:focus-visible {
   gap: 0.5rem 1rem;
   min-height: var(--header-height);
   padding: 0.5rem 1rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-border);
 }
 
 .shell__brand {
@@ -258,7 +263,7 @@ a:focus-visible {
   font-size: 0.875rem;
 }
 
-/* A button with only an icon in it (the header of teachers and the administration). */
+/* A button with only an icon in it (the header of everybody). */
 .shell__user .button--icon {
   width: 40px;
   min-height: 40px;
@@ -284,6 +289,29 @@ a:focus-visible {
   color: var(--primary);
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+/* The footer (students and parents): at the bottom of the page, as wide as the header and the same colour. */
+.shell__footer {
+  padding: 0.25rem 1rem;
+  background: var(--chrome-bg);
+  border-top: 1px solid var(--chrome-border);
+  font-size: 0.9rem;
+}
+
+.shell__footer:empty {
+  display: none;
+}
+
+.shell__footer-nav {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+/* a link a thumb can hit */
+.shell__footer-nav a {
+  display: inline-block;
+  padding: 0.6rem 0;
 }
 
 .shell__body {
