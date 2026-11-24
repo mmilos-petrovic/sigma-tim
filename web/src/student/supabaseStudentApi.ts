@@ -43,6 +43,7 @@ export function mapProfile(value: unknown): MyProfile {
       school: text(person.school),
       grade: text(person.grade),
       cityPart: text(person.city_part),
+      schoolTeacher: text(person.school_teacher),
       situation: text(person.situation),
     })),
   }
@@ -254,6 +255,7 @@ export function createSupabaseStudentApi(client: SupabaseClient<Database>): Stud
             school: person.school,
             grade: person.grade,
             city_part: person.cityPart,
+            school_teacher: person.schoolTeacher,
             situation: person.situation,
           })),
           p_consent: input.consent,

@@ -21,6 +21,7 @@ const person = (overrides: Partial<ProfilePerson> = {}): ProfilePerson => ({
   school: 'Osnovna škola Vuk Karadžić',
   grade: '6',
   cityPart: null,
+  schoolTeacher: null,
   situation: null,
   ...overrides,
 })
@@ -115,6 +116,7 @@ describe('the profile that comes first', () => {
           school: 'Osnovna škola Vuk Karadžić',
           grade: '7',
           cityPart: '',
+          schoolTeacher: '',
           situation: '',
         },
       ],

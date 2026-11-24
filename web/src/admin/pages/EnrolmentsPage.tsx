@@ -304,6 +304,12 @@ function EnrolmentCard({
             </dd>
           </div>
         )}
+        {row.schoolTeacher && (
+          <div>
+            <dt>Nastavnik u školi</dt>
+            <dd>{row.schoolTeacher}</dd>
+          </div>
+        )}
         {row.cityPart && (
           <div>
             <dt>Deo grada</dt>

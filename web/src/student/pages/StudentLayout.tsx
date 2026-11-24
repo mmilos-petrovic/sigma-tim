@@ -21,8 +21,8 @@ export function StudentLayout({ context }: { context: StudentContext }) {
 
   const record = pickRecord(records.data ?? [], chosen)
   const waiting = (requests.data ?? []).filter((r) => r.status === 'open' || r.status === 'chosen')
-  // the person can choose a teacher now
-  const open = waiting.filter((r) => r.choiceOpen && r.status === 'open')
+  // there is an offer to accept
+  const open = waiting.filter((r) => r.offersCount > 0 && r.status === 'open')
   const slots = useSlots(record?.teacherId ?? null)
 
   return (

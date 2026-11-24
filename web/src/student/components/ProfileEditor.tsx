@@ -35,6 +35,7 @@ export function ProfileEditor({
       school: person.school ?? '',
       grade: person.grade ?? '',
       cityPart: person.cityPart ?? '',
+      schoolTeacher: person.schoolTeacher ?? '',
       situation: person.situation ?? '',
     })),
   )
@@ -71,6 +72,7 @@ export function ProfileEditor({
           school: person.school.trim(),
           grade: person.grade.trim(),
           cityPart: person.cityPart.trim(),
+          schoolTeacher: person.schoolTeacher.trim(),
           situation: person.situation.trim(),
         })),
         consent: first ? consent : true,
@@ -148,6 +150,16 @@ export function ProfileEditor({
             value={person.grade}
             maxLength={PROFILE_LIMITS.grade}
             onChange={(grade) => change(person.profileId, { grade })}
+          />
+          <Field
+            label={
+              person.self
+                ? 'Nastavnik koji ti predaje u školi (nije obavezno)'
+                : 'Nastavnik koji detetu predaje u školi (nije obavezno)'
+            }
+            value={person.schoolTeacher}
+            maxLength={PROFILE_LIMITS.schoolTeacher}
+            onChange={(schoolTeacher) => change(person.profileId, { schoolTeacher })}
           />
           <Field
             label="Deo grada (nije obavezno)"
