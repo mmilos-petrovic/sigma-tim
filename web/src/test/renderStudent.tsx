@@ -35,6 +35,10 @@ export function renderStudent(
   const auth = createFakeAuthApi({
     roles: options.roles ?? (path.startsWith('/roditelj') ? personas.parent : personas.student),
   })
+  // once the profile is saved the database says the person has confirmed it
+  studentApi.state.onProfileSaved ??= () => {
+    if (auth.roles) auth.roles = { ...auth.roles, profileConfirmed: true }
+  }
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
   })

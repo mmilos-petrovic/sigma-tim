@@ -7,6 +7,7 @@ import { writeLastContext } from '../auth/lastContext'
 import { type Context } from '../auth/roles'
 import { AppShell } from '../components/AppShell'
 import { useMember } from '../components/guards'
+import { ProfilePage } from '../student/pages/ProfilePage'
 import { StudentRoutes } from '../student/StudentRoutes'
 import { useTeacherNav } from '../teacher/nav'
 import { TeacherRoutes } from '../teacher/TeacherRoutes'
@@ -36,8 +37,11 @@ export function ContextPage({ context }: { context: Context }) {
         <AdminRoutes />
       ) : context === 'teacher' ? (
         <TeacherRoutes />
-      ) : (
+      ) : roles.profileConfirmed ? (
         <StudentRoutes context={context} />
+      ) : (
+        // a student or a parent confirms the profile before they see anything else
+        <ProfilePage gate />
       )}
     </AppShell>
   )

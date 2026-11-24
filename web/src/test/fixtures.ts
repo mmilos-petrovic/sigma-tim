@@ -12,6 +12,7 @@ export function makeRoles(overrides: Partial<MyRoles> = {}): MyRoles {
     isTeacher: false,
     isStudent: false,
     isParent: false,
+    profileConfirmed: true,
     ...overrides,
   }
 }

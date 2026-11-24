@@ -58,6 +58,50 @@ export interface OpenSlot {
   room: string | null
 }
 
+/** One student whose profile a person looks after: themselves (a student), or one of their children (a parent). */
+export interface ProfilePerson {
+  profileId: string
+  /** The signed-in person themselves; their number is `MyProfile.phone`. */
+  self: boolean
+  firstName: string
+  lastName: string
+  email: string
+  /** A child's own number (optional); null for the signed-in person, whose number is `MyProfile.phone`. */
+  phone: string | null
+  school: string | null
+  grade: string | null
+  cityPart: string | null
+  situation: string | null
+}
+
+export interface MyProfile {
+  /** The person has confirmed their profile (and accepted the privacy policy) once. */
+  confirmed: boolean
+  isParent: boolean
+  /** The signed-in person's own number, in the international form. */
+  phone: string | null
+  people: ProfilePerson[]
+}
+
+/** What a person saves: the people as the screen shows them, numbers in the international form (or empty). */
+export interface ProfileInput {
+  /** The signed-in person's own number (a parent needs one); empty for none. */
+  phone: string
+  people: {
+    profileId: string
+    firstName: string
+    lastName: string
+    /** A child's own number; empty for none. */
+    phone: string
+    school: string
+    grade: string
+    cityPart: string
+    situation: string
+  }[]
+  /** The privacy policy; needed for the first save. */
+  consent: boolean
+}
+
 export interface StudentApi {
   /** The records the person looks at: their own (student) or their children's (parent), by name. */
   listRecords(context: StudentContext, profileId: string): Promise<StudentRecord[]>
@@ -76,6 +120,10 @@ export interface StudentApi {
    * teacher in the notification.
    */
   cancelLesson(lessonId: string, reason?: string | null): Promise<void>
+  /** The profile of the signed-in student or parent, and of the children of a parent. */
+  getMyProfile(): Promise<MyProfile>
+  /** Saves it; the first save confirms it (and, for a parent, the profiles of the children). */
+  saveMyProfile(input: ProfileInput): Promise<void>
 }
 
 /** Past lessons shown at first, and added by each "Prikaži starije". */

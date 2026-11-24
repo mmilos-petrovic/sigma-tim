@@ -70,3 +70,12 @@ export function useRefresh() {
     [client],
   )
 }
+
+/** The profile of the signed-in student or parent (and the children of a parent). */
+export function useMyProfile(profileId: string) {
+  const api = useStudentApi()
+  return useQuery({
+    queryKey: [...student, 'profile', profileId],
+    queryFn: () => api.getMyProfile(),
+  })
+}

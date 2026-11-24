@@ -28,6 +28,13 @@ const slotButton = (start: number, end: number) =>
     name: new RegExp(`Zauzmi.*${formatDay(at(start))}.*${formatRange(at(start), at(end))}`),
   })
 
+/** The words come first and the number is the only thing on the next line (a block of its own around the link). */
+function expectNumberOnItsOwnLine(sentence: HTMLElement) {
+  const line = within(sentence).getByRole('link', { name: '064 1110 000' }).parentElement!
+  expect(line).toHaveClass('call-number')
+  expect(line.previousSibling?.textContent).toMatch(/na broj$/)
+}
+
 describe('the free slots', () => {
   it('are a second tab with the number of slots, for the student’s own teacher only', async () => {
     renderStudent('/ucenik')
@@ -70,7 +77,8 @@ describe('the free slots', () => {
   it('tell a student with no free slots to call the teacher, with the number to tap', async () => {
     renderStudent(SLOTS, { api: createFakeStudentApi({ slots: [] }) })
     const text = await screen.findByText(/kako bi zakazali čas/)
-    expect(text).toHaveTextContent('Pozvati nastavnika na broj 064 1110 000 kako bi zakazali čas.')
+    expect(text).toHaveTextContent('Pozvati nastavnika na broj064 1110 000 kako bi zakazali čas.')
+    expectNumberOnItsOwnLine(text)
     expect(within(text).getByRole('link', { name: '064 1110 000' })).toHaveAttribute(
       'href',
       'tel:+381641110000',
@@ -81,7 +89,8 @@ describe('the free slots', () => {
   it('tell a student with free slots to call the teacher for more, above the list', async () => {
     renderStudent(SLOTS)
     const text = await screen.findByText(/Za dodatne termine/)
-    expect(text).toHaveTextContent('Za dodatne termine pozvati nastavnika na broj 064 1110 000.')
+    expect(text).toHaveTextContent('Za dodatne termine pozvati nastavnika na broj064 1110 000.')
+    expectNumberOnItsOwnLine(text)
     expect(within(text).getByRole('link', { name: '064 1110 000' })).toHaveAttribute(
       'href',
       'tel:+381641110000',

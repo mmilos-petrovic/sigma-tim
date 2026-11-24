@@ -66,6 +66,11 @@
   background: var(--primary-soft);
 }
 
+.call-number {
+  display: block;
+  padding: 0.25rem 0;
+}
+
 /* The lessons: an accordion list */
 
 .lessons,

@@ -23,6 +23,7 @@ const toRoles = (row: Row): MyRoles => ({
   isTeacher: row.is_teacher,
   isStudent: row.is_student,
   isParent: row.is_parent,
+  profileConfirmed: row.profile_confirmed,
 })
 
 export function createSupabaseAuthApi(client: SupabaseClient<Database>): AuthApi {

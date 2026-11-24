@@ -17,19 +17,25 @@ const minutes = (slot: OpenSlot) =>
  * does not change under the reader's eyes; a teacher without a number gets the sentence without it.
  */
 function CallTeacher({ phone, more }: { phone: string | null | undefined; more: boolean }) {
+  // the number stands alone on its line, so it is easy to hit with a thumb
   const number = phone ? (
     <>
       {' '}
-      na broj <PhoneLink phone={phone} />
+      na broj
+      <span className="call-number">
+        <PhoneLink phone={phone} />
+        {more && '.'}
+      </span>
     </>
   ) : null
   return (
     <p className="muted">
       {more ? (
-        <>Za dodatne termine pozvati nastavnika{number}.</>
+        <>Za dodatne termine pozvati nastavnika{number}</>
       ) : (
         <>Pozvati nastavnika{number} kako bi zakazali čas.</>
       )}
+      {more && !phone && '.'}
     </p>
   )
 }

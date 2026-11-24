@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 import { AdminError } from '../admin/adminApi'
 import {
   type LessonPage,
+  type MyProfile,
   type LessonStatus,
   type MyLesson,
   type OpenSlot,
@@ -9,6 +10,7 @@ import {
   type StudentRecord,
 } from '../student/studentApi'
 import { isLateBooking, sortPast, sortUpcoming } from '../student/lessonList'
+import { normalizePhone } from '../lib/phone'
 import { TEST_NOW } from './fakeTeacherApi'
 
 export { TEST_NOW }
@@ -26,6 +28,10 @@ export interface FakeStudentState {
   /** Slots that somebody else books while the person is still looking at them. */
   takenElsewhere: Set<string>
   now: Date
+  /** The profile `getMyProfile` answers with (a student who has confirmed it, unless a test says otherwise). */
+  profile: MyProfile
+  /** Called after a save, so a test can say what the account's roles are from then on. */
+  onProfileSaved?: () => void
 }
 
 type Methods = keyof StudentApi
@@ -133,6 +139,25 @@ export const seedStudent = (): FakeStudentState => ({
   phones: { 't-ana': '+381641110000' },
   takenElsewhere: new Set(),
   now: TEST_NOW,
+  profile: {
+    confirmed: true,
+    isParent: false,
+    phone: '+381641234567',
+    people: [
+      {
+        profileId: 'p-student',
+        self: true,
+        firstName: 'Marko',
+        lastName: 'Marković',
+        email: 'marko@example.test',
+        phone: null,
+        school: 'Osnovna škola Vuk Karadžić',
+        grade: '6',
+        cityPart: null,
+        situation: null,
+      },
+    ],
+  },
 })
 
 /** An in-memory backend that follows the same rules as the database functions, for the screen tests. */
@@ -241,6 +266,49 @@ export function createFakeStudentApi(initial: Partial<FakeStudentState> = {}): F
           room: lesson.room,
         })
       }
+    },
+    async getMyProfile() {
+      await gate('getMyProfile')
+      return structuredClone(state.profile)
+    },
+    async saveMyProfile(input) {
+      await gate('saveMyProfile')
+      const profile = state.profile
+      if (!profile.confirmed && !input.consent)
+        throw new AdminError('PT400', 'the privacy policy has to be accepted')
+      if (profile.isParent && input.phone.trim() === '')
+        throw new AdminError('PT400', 'a parent needs a phone number')
+      if (input.phone !== '' && normalizePhone(input.phone) === null)
+        throw new AdminError('PT400', 'invalid phone number')
+      if (input.people.length !== profile.people.length)
+        throw new AdminError('PT400', 'every person has to be in the list')
+      for (const person of input.people) {
+        if (!profile.people.some((known) => known.profileId === person.profileId))
+          throw new AdminError('PT403', 'not allowed')
+        if (!person.firstName.trim() || !person.lastName.trim())
+          throw new AdminError('PT400', 'first and last name are required')
+        if (!person.school.trim()) throw new AdminError('PT400', 'the school is required')
+        if (!person.grade.trim()) throw new AdminError('PT400', 'the grade is required')
+      }
+      state.profile = {
+        confirmed: true,
+        isParent: profile.isParent,
+        phone: input.phone === '' ? null : input.phone,
+        people: profile.people.map((known) => {
+          const sent = input.people.find((person) => person.profileId === known.profileId)!
+          return {
+            ...known,
+            firstName: sent.firstName.trim(),
+            lastName: sent.lastName.trim(),
+            phone: known.self || sent.phone === '' ? null : sent.phone,
+            school: sent.school.trim(),
+            grade: sent.grade.trim(),
+            cityPart: sent.cityPart.trim() || null,
+            situation: sent.situation.trim() || null,
+          }
+        }),
+      }
+      state.onProfileSaved?.()
     },
   }
 
