@@ -1,7 +1,7 @@
 begin;
 -- The profile of a student and a parent: confirmed once before anything else, changed afterwards, and reused when a student (or a
 -- parent, for a child) asks for lessons in another subject.
-select plan(63);
+select plan(72);
 
 select tests.seed_basic();
 select tests.mkoutsider('o1');
@@ -256,6 +256,32 @@ select lives_ok(
   'the profile of the request is completed with the policy'
 );
 select is((select profile_confirmed from public.my_roles()), true, 'and that confirms it');
+select lives_ok(
+  format($$ select public.complete_enrolment_profile(%L, 'Oma', 'Omic', '+381645555666', 'Skola 6', '4', null, null, true, '  Ana Ilic ') $$, tests.id('req:o1')),
+  'the teacher at school can be added to the request'
+);
+select throws_ok(
+  format($$ select public.complete_enrolment_profile(%L, 'Oma', 'Omic', '+381645555666', 'Skola 6', '4', null, null, true, %L) $$, tests.id('req:o1'), repeat('x', 101)),
+  'PT400', null, 'but not a very long one'
+);
+select is((select schoolTeacher from (select (public.my_enrolment_requests()).school_teacher as schoolTeacher) q), 'Ana Ilic', 'the applicant sees it, trimmed');
+select tests.logout();
+select tests.login_as('tc');
+select is((select school_teacher from public.list_enrolment_pool() where request_id = tests.id('req:o1')), 'Ana Ilic', 'a teacher of the subject sees it in the pool');
+select tests.logout();
+select tests.login_as('admin');
+select is((select school_teacher from public.admin_list_enrolments() where request_id = tests.id('req:o1')), 'Ana Ilic', 'the administrator sees it');
+select is(public.admin_assign_enrolment(tests.id('req:o1'), tests.id('p:tc')), 'assigned', 'the student is placed');
+select tests.logout();
+select tests.login_as('o1');
+select is((select (public.my_profile() -> 'people' -> 0 ->> 'school_teacher')), 'Ana Ilic', 'what the request said is in the profile of the student');
+select lives_ok(
+  format($$ select public.save_my_profile(null, %L::jsonb, true) $$, jsonb_build_array(jsonb_build_object(
+    'profile_id', (select id from public.profiles where email = 'o1@t.test'), 'first_name', 'Oma', 'last_name', 'Omic', 'school', 'Skola 6', 'grade', '4',
+    'school_teacher', 'Mara Maric'))),
+  'the student changes the teacher at school'
+);
+select is((select (public.my_profile() -> 'people' -> 0 ->> 'school_teacher')), 'Mara Maric', 'and the profile has the new one');
 select tests.logout();
 
 select * from finish();
