@@ -1,6 +1,6 @@
 -- Enrolment, part 2: the pool the teachers see, offers, the job that opens the choice, choosing, and placing a teacher.
 begin;
-select plan(62);
+select plan(61);
 
 select tests.seed_basic();
 select tests.mkoutsider('o2');
@@ -107,7 +107,6 @@ select is(
   row(1, 1, 1)::text, 'with its experience, education and skills'
 );
 select is(public.get_offered_cv(tests.id('req:pera'), tests.id('p:tb')), null, 'but not the CV of a teacher who did not offer');
-select throws_ok(format($$ select public.choose_enrolment_teacher(%L, %L) $$, tests.id('req:pera'), tests.id('p:ta')), 'PT409', null, 'the choice is not open yet');
 select tests.login_as('o2');
 select throws_ok(format($$ select * from public.my_enrolment_offers(%L) $$, tests.id('req:pera')), 'PT404', null, 'somebody else''s offers are not visible');
 select throws_ok(format($$ select public.get_offered_cv(%L, %L) $$, tests.id('req:pera'), tests.id('p:ta')), 'PT404', null, 'nor their CVs');

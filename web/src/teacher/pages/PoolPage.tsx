@@ -155,6 +155,12 @@ function PoolCard({
             {row.school}, {formatGrade(row.grade)}
           </dd>
         </div>
+        {row.schoolTeacher && (
+          <div>
+            <dt>Nastavnik u školi</dt>
+            <dd>{row.schoolTeacher}</dd>
+          </div>
+        )}
         {row.cityPart && (
           <div>
             <dt>Deo grada</dt>
@@ -218,7 +224,6 @@ export function PoolPage() {
     row: PoolRow,
     run: () => Promise<void>,
     action: 'offerEnrolment' | 'withdrawOffer',
-    done: string,
   ) => {
     if (busyId) return
     setBusyId(row.requestId)
@@ -227,7 +232,6 @@ export function PoolPage() {
     try {
       await run()
       await refresh()
-      setNotice(done)
     } catch (failure) {
       setError(explainError(failure, action))
       await refresh()
@@ -241,8 +245,8 @@ export function PoolPage() {
       <PageHeader title="Neraspoređeni učenici" />
       <p>
         Učenici koji traže nastavnika za predmete koje predajete. Vi ne uzimate učenika: ponudite
-        se, a učenik ili roditelj bira posle nekoliko dana ili kada stigne nekoliko ponuda. Ponudu
-        možete da povučete dok nastavnik nije izabran.
+        se, a učenik ili roditelj prihvata ponudu koja mu odgovara. Ponudu možete da povučete dok
+        nastavnik nije izabran.
       </p>
       {cv.data !== undefined && !canOffer && (
         <p className="callout" role="note">
@@ -271,21 +275,9 @@ export function PoolPage() {
                   row={row}
                   canOffer={canOffer}
                   busy={busyId === row.requestId}
-                  onOffer={() =>
-                    void act(
-                      row,
-                      () => api.offer(row.requestId),
-                      'offerEnrolment',
-                      `Ponudili ste se: ${fullName(row)}.`,
-                    )
-                  }
+                  onOffer={() => void act(row, () => api.offer(row.requestId), 'offerEnrolment')}
                   onWithdraw={() =>
-                    void act(
-                      row,
-                      () => api.withdrawOffer(row.requestId),
-                      'withdrawOffer',
-                      'Ponuda je povučena.',
-                    )
+                    void act(row, () => api.withdrawOffer(row.requestId), 'withdrawOffer')
                   }
                 />
               ))}

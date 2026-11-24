@@ -154,6 +154,7 @@ export const seedStudent = (): FakeStudentState => ({
         school: 'Osnovna škola Vuk Karadžić',
         grade: '6',
         cityPart: null,
+        schoolTeacher: null,
         situation: null,
       },
     ],
@@ -304,6 +305,7 @@ export function createFakeStudentApi(initial: Partial<FakeStudentState> = {}): F
             school: sent.school.trim(),
             grade: sent.grade.trim(),
             cityPart: sent.cityPart.trim() || null,
+            schoolTeacher: sent.schoolTeacher.trim() || null,
             situation: sent.situation.trim() || null,
           }
         }),

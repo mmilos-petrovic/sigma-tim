@@ -44,6 +44,8 @@ export interface MyEnrolmentRequest {
   school: string | null
   grade: string | null
   cityPart: string | null
+  /** Who teaches the student at school, when they said. */
+  schoolTeacher: string | null
   situation: string | null
   /** How many active teachers offered. */
   offersCount: number
@@ -83,6 +85,8 @@ export interface PoolRow {
   school: string
   grade: string
   cityPart: string | null
+  /** Who teaches the student at school, when they said. */
+  schoolTeacher: string | null
   situation: string | null
   listedAt: string
   daysWaiting: number
@@ -150,6 +154,8 @@ export interface AdminEnrolmentRow {
   school: string | null
   grade: string | null
   cityPart: string | null
+  /** Who teaches the student at school, when they said. */
+  schoolTeacher: string | null
   situation: string | null
   createdAt: string
   listedAt: string | null
@@ -169,6 +175,7 @@ export interface EnrolmentProfileInput {
   school: string
   grade: string
   cityPart: string
+  schoolTeacher: string
   situation: string
   /** The privacy policy was accepted (a parent accepts it for the child). */
   consent: boolean
@@ -179,6 +186,7 @@ export const PROFILE_LIMITS = {
   school: 200,
   grade: 50,
   cityPart: 100,
+  schoolTeacher: 100,
   situation: 1000,
 } as const
 

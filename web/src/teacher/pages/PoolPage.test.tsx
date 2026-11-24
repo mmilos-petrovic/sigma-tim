@@ -144,15 +144,16 @@ describe('offering', () => {
     const { enrolmentApi } = await open()
     await userEvent.click(screen.getByRole('button', { name: 'Ponudi se: Luka Lukić' }))
     expect(enrolmentApi.offer).toHaveBeenCalledWith('req-luka')
-    expect(await screen.findByRole('status')).toHaveTextContent('Ponudili ste se: Luka Lukić.')
-    expect(card('Luka Lukić').getByText('Ponudili ste se.')).toBeInTheDocument()
+    expect(await card('Luka Lukić').findByText('Ponudili ste se.')).toBeInTheDocument()
+    // the card says it; there is no message above the list
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
     // the others stay open for an offer
     expect(screen.getByRole('button', { name: 'Ponudi se: Mina Ilić' })).toBeEnabled()
 
     await userEvent.click(screen.getByRole('button', { name: 'Povuci ponudu: Luka Lukić' }))
     expect(enrolmentApi.withdrawOffer).toHaveBeenCalledWith('req-luka')
     expect(await screen.findByRole('button', { name: 'Ponudi se: Luka Lukić' })).toBeEnabled()
-    expect(screen.getByRole('status')).toHaveTextContent('Ponuda je povučena.')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('wants the text of the CV first, and says where to write it', async () => {

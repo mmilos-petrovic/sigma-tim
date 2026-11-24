@@ -64,9 +64,9 @@ function ChooseDialog({
   const refresh = useRefreshEnrolment()
   return (
     <FormDialog
-      title="Izbor nastavnika"
+      title="Prihvatanje ponude"
       action="chooseTeacher"
-      submitLabel="Izaberi"
+      submitLabel="Prihvati ponudu"
       onClose={onClose}
       onSubmit={async () => {
         const result = await api.chooseTeacher(request.id, offer.teacherId)
@@ -81,14 +81,14 @@ function ChooseDialog({
       }}
     >
       <p>
-        Izabrati nastavnika <strong>{fullName(offer)}</strong>? Ostale ponude se zatvaraju, a drugi
-        nastavnici ne dobijaju obaveštenje.
+        Prihvatiti ponudu nastavnika <strong>{fullName(offer)}</strong>? Ostale ponude se zatvaraju,
+        a drugi nastavnici ne dobijaju obaveštenje.
       </p>
     </FormDialog>
   )
 }
 
-/** The teachers who offered, with what the person decides by. Choosing is possible once the choice is open. */
+/** The teachers who offered, with what the person decides by. An offer can be accepted at once. */
 function Offers({
   request,
   onNotice,
@@ -107,12 +107,7 @@ function Offers({
         const rows = chosen ? all.filter((offer) => offer.isChosen) : all
         return (
           <>
-            {rows.length === 0 ? (
-              <p className="muted">
-                Nastavnici predmeta {request.subjectName} vide tvoj zahtev. Ponude će se pojaviti
-                ovde.
-              </p>
-            ) : (
+            {rows.length > 0 && (
               <ul className="offers" aria-label="Ponude nastavnika">
                 {rows.map((offer) => (
                   <li key={offer.teacherId} className="offers__item">
@@ -140,26 +135,20 @@ function Offers({
                           CV
                         </button>
                       )}
-                      {request.choiceOpen && !chosen && (
+                      {!chosen && (
                         <button
                           type="button"
                           className="button button--small"
-                          aria-label={`Izaberi: ${fullName(offer)}`}
+                          aria-label={`Prihvati ponudu: ${fullName(offer)}`}
                           onClick={() => setChoosing(offer)}
                         >
-                          Izaberi
+                          Prihvati ponudu
                         </button>
                       )}
                     </div>
                   </li>
                 ))}
               </ul>
-            )}
-            {rows.length > 0 && !request.choiceOpen && !chosen && (
-              <p className="muted">
-                Izbor nastavnika se otvara posle nekoliko dana ili kada stigne dovoljno ponuda.
-                Obavestićemo te.
-              </p>
             )}
             {cvOf && (
               <OfferedCvDialog requestId={request.id} offer={cvOf} onClose={() => setCvOf(null)} />
@@ -182,63 +171,62 @@ function Offers({
   )
 }
 
-/**
- * The subject of an open request is the person's choice, also after the request was made: they may pick another one
- * until a teacher is chosen. A student a teacher left behind has none yet and says which one they want.
- */
-function SubjectPicker({ request }: { request: MyEnrolmentRequest }) {
+/** The subjects to choose from: the current one stays in the list even when nobody offers it for new requests any more. */
+function useSubjectChoices(request: MyEnrolmentRequest) {
+  const form = useEnrolmentFormInfo().data
+  if (!form) return null
+  return request.subjectId && !form.subjects.some((subject) => subject.id === request.subjectId)
+    ? [...form.subjects, { id: request.subjectId, name: request.subjectName ?? 'Predmet' }]
+    : form.subjects
+}
+
+/** Changes the subject of an open request until a teacher is chosen; the offers of teachers who do not teach it are withdrawn. */
+function useChangeSubject(request: MyEnrolmentRequest) {
   const api = useEnrolmentApi()
   const refresh = useRefreshEnrolment()
-  const info = useEnrolmentFormInfo()
-  const [subjectId, setSubjectId] = useState(request.subjectId ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const changing = request.subjectId !== null
-
-  const save = async () => {
+  const change = async (subjectId: string) => {
     if (busy) return
-    if (!subjectId) return setError('Izaberi predmet.')
+    if (!subjectId) {
+      setError('Izaberi predmet.')
+      return false
+    }
     setBusy(true)
     setError(null)
     try {
       await api.setSubject(request.id, subjectId)
       await refresh()
+      return true
     } catch (failure) {
       setError(explainError(failure, 'setEnrolmentSubject'))
+      return false
     } finally {
       setBusy(false)
     }
   }
+  return { change, error, busy }
+}
+
+/** A student a teacher left behind has no subject yet and says which one they want. */
+function SubjectPicker({ request }: { request: MyEnrolmentRequest }) {
+  const choices = useSubjectChoices(request)
+  const { change, error, busy } = useChangeSubject(request)
+  const [subjectId, setSubjectId] = useState('')
 
   return (
     <div className="enrolment-profile">
-      <p>
-        {changing
-          ? 'Predmet možeš da promeniš dok nastavnik nije izabran. Ponude nastavnika koji ne predaju novi predmet se povlače.'
-          : 'Izaberi predmet iz kog želiš časove, da bi te videli nastavnici tog predmeta.'}
-      </p>
-      <Loaded query={info}>
-        {(form) => {
-          // the current subject stays in the list even when nobody offers it for new requests any more
-          const subjects =
-            request.subjectId && !form.subjects.some((subject) => subject.id === request.subjectId)
-              ? [
-                  ...form.subjects,
-                  { id: request.subjectId, name: request.subjectName ?? 'Predmet' },
-                ]
-              : form.subjects
-          return (
-            <SelectField label="Predmet" value={subjectId} onChange={setSubjectId}>
-              {!changing && <option value="">Izaberi predmet</option>}
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </SelectField>
-          )
-        }}
-      </Loaded>
+      <p>Izaberi predmet iz kog želiš časove, da bi te videli nastavnici tog predmeta.</p>
+      {choices && (
+        <SelectField label="Predmet" value={subjectId} onChange={setSubjectId}>
+          <option value="">Izaberi predmet</option>
+          {choices.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {subject.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
       {error && (
         <p role="alert" className="form-error">
           {error}
@@ -248,13 +236,49 @@ function SubjectPicker({ request }: { request: MyEnrolmentRequest }) {
         <button
           type="button"
           className="button"
-          disabled={busy || (changing && subjectId === request.subjectId)}
-          onClick={() => void save()}
+          disabled={busy}
+          onClick={() => void change(subjectId)}
         >
-          {changing ? 'Promeni predmet' : 'Sačuvaj predmet'}
+          Sačuvaj predmet
         </button>
       </div>
     </div>
+  )
+}
+
+/**
+ * The title of an open request is its subject, and the person's choice: they pick another one in the title itself until a
+ * teacher is chosen. The title is plain text once a teacher is.
+ */
+function RequestTitle({ request }: { request: MyEnrolmentRequest }) {
+  const choices = useSubjectChoices(request)
+  const { change, error, busy } = useChangeSubject(request)
+  if (request.status !== 'open' || !request.subjectId || !choices) {
+    return <h2>{request.subjectName ?? 'Časovi'}</h2>
+  }
+  return (
+    <>
+      <h2 className="enrolment-request__title">
+        <select
+          className="enrolment-request__subject"
+          aria-label="Predmet"
+          value={request.subjectId}
+          disabled={busy}
+          onChange={(event) => void change(event.target.value)}
+        >
+          {choices.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {subject.name}
+            </option>
+          ))}
+        </select>
+      </h2>
+      {error && (
+        <p role="alert" className="form-error">
+          {error}
+        </p>
+      )}
+    </>
   )
 }
 
@@ -305,7 +329,8 @@ function RequestCard({
   } else if (!request.profileCompleted) {
     body = (
       <>
-        <p>Popuni profil da bi te videli nastavnici.</p>
+        {/* somebody who signed up is welcomed above the cards, with the same words */}
+        {request.source !== 'signup' && <p>Popuni profil da bi te videli nastavnici.</p>}
         <ProfileForm request={request} defaults={defaults} onSaved={saved} />
       </>
     )
@@ -318,8 +343,8 @@ function RequestCard({
         <p className="muted">
           {name} · {request.school}, {request.grade}
         </p>
+        <p className="muted">Predmet možeš da promeniš dok nastavnik nije izabran.</p>
         <Offers request={request} onNotice={setNotice} />
-        <SubjectPicker request={request} />
         <div className="actions">
           <button
             type="button"
@@ -338,7 +363,7 @@ function RequestCard({
       className="enrolment-request"
       aria-label={`Prijava za ${request.subjectName ?? 'časove'}`}
     >
-      <h2>{request.subjectName ?? 'Časovi'}</h2>
+      <RequestTitle request={request} />
       {request.role === 'parent' && name && <p className="muted">Dete: {name}</p>}
       <Notice message={notice} />
       {body}
@@ -441,8 +466,20 @@ export function RequestsView({
   /** The children of a parent who are students already, for a new request about one of them. */
   childOptions?: { id: string; name: string }[]
 }) {
+  // who signed up and has not filled in the request yet
+  const welcome = requests.find(
+    (request) =>
+      request.source === 'signup' && request.status === 'open' && !request.profileCompleted,
+  )
   return (
     <>
+      {welcome && (
+        <p className="callout">
+          {welcome.role === 'parent'
+            ? 'Dobrodošli u Sigma Tim! Popunite prijavu da bi dete videli nastavnici.'
+            : 'Dobrodošao u Sigma Tim! Popuni prijavu da bi te videli nastavnici.'}
+        </p>
+      )}
       {requests.map((request) => (
         <RequestCard
           key={request.id}

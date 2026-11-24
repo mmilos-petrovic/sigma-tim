@@ -39,10 +39,10 @@ test.describe('the student who signed up, on a phone', () => {
     )
     expect(scrolls).toBe(false)
 
-    await page.getByRole('button', { name: 'Izaberi: Ana Nikolić' }).click()
+    await page.getByRole('button', { name: 'Prihvati ponudu: Ana Nikolić' }).click()
     await page
-      .getByRole('dialog', { name: 'Izbor nastavnika' })
-      .getByRole('button', { name: 'Izaberi' })
+      .getByRole('dialog', { name: 'Prihvatanje ponude' })
+      .getByRole('button', { name: 'Prihvati ponudu' })
       .click()
     await expect(page.getByText('Nastavnik ti je dodeljen.')).toBeVisible()
     await page.getByRole('link', { name: 'Otvori aplikaciju' }).click()

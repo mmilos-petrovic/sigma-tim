@@ -49,7 +49,9 @@ test.describe('the public site', () => {
       await signInAs(page, 'Stranac (bez profila)')
       await expect(page).toHaveURL(/\/upis$/)
       await expect(page.getByRole('heading', { name: 'Prijava za časove', level: 1 })).toBeVisible()
-      await expect(page.getByText('Popuni profil da bi te videli nastavnici.')).toBeVisible()
+      await expect(
+        page.getByText('Dobrodošao u Sigma Tim! Popuni prijavu da bi te videli nastavnici.'),
+      ).toBeVisible()
       await expect(page.getByRole('region', { name: 'Prijava za Matematika' })).toBeVisible()
     })
 

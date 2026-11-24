@@ -71,6 +71,7 @@ export interface ProfilePerson {
   school: string | null
   grade: string | null
   cityPart: string | null
+  schoolTeacher: string | null
   situation: string | null
 }
 
@@ -96,6 +97,7 @@ export interface ProfileInput {
     school: string
     grade: string
     cityPart: string
+    schoolTeacher: string
     situation: string
   }[]
   /** The privacy policy; needed for the first save. */

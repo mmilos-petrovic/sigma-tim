@@ -26,7 +26,11 @@ describe('coming back from Google after the form', () => {
   it('asks for the profile first, in the words the owner chose', async () => {
     savePendingEnrolment({ subjectId: 'sub-mat', role: 'student' })
     renderPublic('/', { auth: stranger() })
-    expect(await screen.findByText('Popuni profil da bi te videli nastavnici.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Dobrodošao u Sigma Tim! Popuni prijavu da bi te videli nastavnici.'),
+    ).toBeInTheDocument()
+    // said once, above the card: the card itself only has the form
+    expect(screen.queryByText('Popuni profil da bi te videli nastavnici.')).not.toBeInTheDocument()
   })
 
   it('does not sign a member of the school up, and forgets the choice', async () => {
@@ -135,7 +139,7 @@ describe('the profile', () => {
     auth.roles = makeRoles({ firstName: 'Luka', lastName: 'Lukić' })
     const enrolment = createFakeEnrolmentApi({ requests: [request] })
     const view = renderPublic('/upis', { auth, enrolment })
-    await screen.findByText('Popuni profil da bi te videli nastavnici.')
+    await screen.findByLabelText('Ime učenika')
     return { ...view, enrolment }
   }
   const fill = async (label: string, text: string) => {
@@ -158,6 +162,9 @@ describe('the profile', () => {
 
   it("leaves the child's name empty for a parent", async () => {
     await open(makeRequest({ role: 'parent' }))
+    expect(
+      screen.getByText('Dobrodošli u Sigma Tim! Popunite prijavu da bi dete videli nastavnici.'),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText('Ime učenika')).toHaveValue('')
     expect(screen.getByLabelText('Prezime učenika')).toHaveValue('')
   })
@@ -192,6 +199,7 @@ describe('the profile', () => {
   it('sends the profile with the phone in the international form, and then shows the request', async () => {
     const { enrolment } = await open()
     await fillAll()
+    await fill('Nastavnik koji ti predaje u školi (nije obavezno)', '  Jelena Marić ')
     await fill('Deo grada (nije obavezno)', '  Centar ')
     await fill('Kako ide u školi i šta želiš da savladaš (nije obavezno)', 'Treba mi pomoć')
     await userEvent.click(screen.getByRole('checkbox', { name: /Prihvatam politiku privatnosti/ }))
@@ -203,6 +211,7 @@ describe('the profile', () => {
       school: 'Gimnazija',
       grade: '3. razred',
       cityPart: 'Centar',
+      schoolTeacher: 'Jelena Marić',
       situation: 'Treba mi pomoć',
       consent: true,
     })

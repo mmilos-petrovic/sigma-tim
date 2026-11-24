@@ -61,20 +61,21 @@ describe('the offers', () => {
     expect(marko.getByText('Broj telefona nije dat')).toBeInTheDocument()
   })
 
-  it('cannot be chosen before the choice opens, and says when it will', async () => {
+  it('can be accepted at once, without waiting for the choice to open', async () => {
     await open()
-    expect(screen.queryByRole('button', { name: /^Izaberi:/ })).not.toBeInTheDocument()
-    expect(
-      screen.getByText(
-        /Izbor nastavnika se otvara posle nekoliko dana ili kada stigne dovoljno ponuda/,
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Prihvati ponudu: Ana Anić' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Prihvati ponudu: Marko Jovanović' })).toBeEnabled()
+    expect(screen.queryByText(/Izbor nastavnika se otvara/)).not.toBeInTheDocument()
   })
 
-  it('says that there are none yet', async () => {
+  it('only says that the subject can be changed while there are no offers', async () => {
     const enrolmentApi = createFakeEnrolmentApi({ requests: [makeCompleted()] })
     renderPublic('/upis', { auth: stranger(), enrolment: enrolmentApi })
-    expect(await screen.findByText(/Ponude će se pojaviti ovde/)).toBeInTheDocument()
+    expect(
+      await screen.findByText('Predmet možeš da promeniš dok nastavnik nije izabran.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Ponude će se pojaviti ovde/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Ponude nastavnika' })).not.toBeInTheDocument()
   })
 
   it('opens the CV of a teacher, which the teacher cannot hide from the person who chooses', async () => {
@@ -101,8 +102,8 @@ describe('choosing a teacher', () => {
 
   it('asks to be sure, and tells what happens to the other offers', async () => {
     const { enrolmentApi } = await open(ready())
-    await userEvent.click(screen.getByRole('button', { name: 'Izaberi: Ana Anić' }))
-    const dialog = within(await screen.findByRole('dialog', { name: 'Izbor nastavnika' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Prihvati ponudu: Ana Anić' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Prihvatanje ponude' }))
     expect(
       dialog.getByText(/Ostale ponude se zatvaraju, a drugi nastavnici ne dobijaju obaveštenje/),
     ).toBeInTheDocument()
@@ -115,9 +116,9 @@ describe('choosing a teacher', () => {
     expect(auth.loadRoles).toHaveBeenCalledTimes(1)
     // from now on the account is a member
     auth.roles = makeRoles({ firstName: 'Luka', lastName: 'Lukić', isStudent: true })
-    await userEvent.click(screen.getByRole('button', { name: 'Izaberi: Ana Anić' }))
-    const dialog = within(await screen.findByRole('dialog', { name: 'Izbor nastavnika' }))
-    await userEvent.click(dialog.getByRole('button', { name: 'Izaberi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Prihvati ponudu: Ana Anić' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Prihvatanje ponude' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Prihvati ponudu' }))
 
     expect(enrolmentApi.chooseTeacher).toHaveBeenCalledWith('req-1', 't-ana')
     expect(await screen.findByText('Nastavnik ti je dodeljen.')).toBeInTheDocument()
@@ -133,9 +134,9 @@ describe('choosing a teacher', () => {
       { requests: [makeCompleted({ role: 'parent', offersCount: 2, choiceOpen: true })] },
       'parent',
     )
-    await userEvent.click(screen.getByRole('button', { name: 'Izaberi: Ana Anić' }))
-    const dialog = within(await screen.findByRole('dialog', { name: 'Izbor nastavnika' }))
-    await userEvent.click(dialog.getByRole('button', { name: 'Izaberi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Prihvati ponudu: Ana Anić' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Prihvatanje ponude' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Prihvati ponudu' }))
     expect(enrolmentApi.chooseTeacher).toHaveBeenCalledWith('req-1', 't-ana')
     expect(
       await screen.findByText(
@@ -163,7 +164,7 @@ describe('choosing a teacher', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Ana Anić')).toBeInTheDocument()
     expect(screen.queryByText('Marko Jovanović')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Izaberi:/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Prihvati ponudu:/ })).not.toBeInTheDocument()
   })
 
   it('explains it when somebody else was faster, and keeps the dialog', async () => {
@@ -171,9 +172,9 @@ describe('choosing a teacher', () => {
     enrolmentApi.chooseTeacher.mockRejectedValueOnce(
       new AdminError('PT409', 'a teacher was already chosen'),
     )
-    await userEvent.click(screen.getByRole('button', { name: 'Izaberi: Ana Anić' }))
-    const dialog = within(await screen.findByRole('dialog', { name: 'Izbor nastavnika' }))
-    await userEvent.click(dialog.getByRole('button', { name: 'Izaberi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Prihvati ponudu: Ana Anić' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Prihvatanje ponude' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Prihvati ponudu' }))
     expect(await dialog.findByRole('alert')).toHaveTextContent('Nastavnik je već izabran.')
   })
 
@@ -182,9 +183,9 @@ describe('choosing a teacher', () => {
     enrolmentApi.chooseTeacher.mockRejectedValueOnce(
       new AdminError('PT400', 'this teacher has not offered'),
     )
-    await userEvent.click(screen.getByRole('button', { name: 'Izaberi: Marko Jovanović' }))
-    const dialog = within(await screen.findByRole('dialog', { name: 'Izbor nastavnika' }))
-    await userEvent.click(dialog.getByRole('button', { name: 'Izaberi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Prihvati ponudu: Marko Jovanović' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Prihvatanje ponude' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Prihvati ponudu' }))
     expect(await dialog.findByRole('alert')).toHaveTextContent(
       'Taj nastavnik više ne nudi časove. Izaberite drugog.',
     )
@@ -235,22 +236,19 @@ describe('a student without a subject', () => {
 })
 
 describe('the subject of a request that is open', () => {
-  it('is the parent’s choice, not only the one it was made for: they can change it', async () => {
+  it('is the parent’s choice, not only the one it was made for: the title of the request is a select', async () => {
     const { enrolmentApi } = await open({}, 'parent')
-    expect(screen.getByRole('heading', { name: 'Matematika' })).toBeInTheDocument()
     // the parent has a second select for another child: this one is in the card of the request
-    const picker = within(
-      screen.getByRole('region', { name: 'Prijava za Matematika' }),
-    ).getByLabelText('Predmet')
+    const card = within(screen.getByRole('region', { name: 'Prijava za Matematika' }))
+    const picker = card.getByLabelText('Predmet')
     expect(picker).toHaveValue('sub-mat')
-    // nothing to save until another one is chosen
-    expect(screen.getByRole('button', { name: 'Promeni predmet' })).toBeDisabled()
 
     await userEvent.selectOptions(picker, 'Hemija')
-    await userEvent.click(screen.getByRole('button', { name: 'Promeni predmet' }))
     expect(enrolmentApi.setSubject).toHaveBeenCalledWith('req-1', 'sub-hem')
-    expect(await screen.findByRole('heading', { name: 'Hemija' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Promeni predmet' })).toBeDisabled()
+    expect(await screen.findByRole('region', { name: 'Prijava za Hemija' })).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('region', { name: 'Prijava za Hemija' })).getByLabelText('Predmet'),
+    ).toHaveValue('sub-hem')
   })
 
   it('explains it when nobody teaches the new subject', async () => {
@@ -260,10 +258,11 @@ describe('the subject of a request that is open', () => {
     )
     const card = within(screen.getByRole('region', { name: 'Prijava za Matematika' }))
     await userEvent.selectOptions(card.getByLabelText('Predmet'), 'Fizika')
-    await userEvent.click(card.getByRole('button', { name: 'Promeni predmet' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Za izabrani predmet trenutno nema nastavnika.',
     )
+    // the title keeps the subject the request has
+    expect(card.getByLabelText('Predmet')).toHaveValue('sub-mat')
   })
 
   it('is no longer changed once a teacher is chosen', async () => {
@@ -362,6 +361,6 @@ describe('inside the app', () => {
     expect(tab).toHaveTextContent('1')
     await userEvent.click(tab)
     expect(await screen.findByRole('list', { name: 'Ponude nastavnika' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Izaberi: Ana Anić' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Prihvati ponudu: Ana Anić' })).toBeInTheDocument()
   })
 })

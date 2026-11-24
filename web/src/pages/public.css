@@ -1142,3 +1142,47 @@ fieldset.pub-role {
   border-radius: var(--radius);
   background: var(--surface);
 }
+
+/* The title of an open request is a select: the subject can be changed there. */
+.enrolment-request__title {
+  margin: 0 0 0.5rem;
+}
+
+.enrolment-request__subject {
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+}
+
+.enrolment-request__subject:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* The teachers who offered: one card each, with the way to accept the offer. */
+.offers {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.offers__item {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.offers__phone {
+  margin: 0.5rem 0 0;
+}

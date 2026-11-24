@@ -8,6 +8,8 @@
 --    name, phone, school, grade, the part of the town and a free note. A parent keeps one profile per child.
 -- 3. A student may have several requests for lessons, one for each subject, and a parent may ask for a new subject for a child
 --    who is a student already (the profile is reused: only the subject is asked).
+-- 5. The person accepts an offer as soon as it has arrived: the choice no longer waits for days or for several offers.
+-- 4. The student may say who teaches them at school (`school_teacher`, optional), with the school and the grade.
 
 -- Confirmation ---------------------------------------------------------------------------------------------------------------------
 alter table public.profiles add column profile_confirmed_at timestamptz;
@@ -26,9 +28,12 @@ update public.profiles p
 create table public.student_details (
   profile_id uuid primary key references public.profiles (id) on delete cascade,
   city_part text check (char_length(city_part) <= 100),
-  situation text check (char_length(situation) <= 1000)
+  situation text check (char_length(situation) <= 1000),
+  school_teacher text check (char_length(school_teacher) <= 100)
 );
 alter table public.student_details enable row level security;
+
+alter table public.enrolment_requests add column school_teacher text check (char_length(school_teacher) <= 100);
 
 -- The client needs to know whether to show the profile before anything else.
 drop function public.my_roles();
@@ -87,7 +92,7 @@ $$;
 
 -- Reading the profile -------------------------------------------------------------------------------------------------------------
 -- { confirmed, is_parent, phone (the caller's own), people: [{ profile_id, self, first_name, last_name, email, phone, school,
---   grade, city_part, situation }] }. The phone of the caller is also the phone of the person who is the caller.
+--   grade, city_part, school_teacher, situation }] }. The phone of the caller is also the phone of the person who is the caller.
 create function public.my_profile() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -114,6 +119,7 @@ begin
                  'school', private.student_school(p.id),
                  'grade', private.student_grade(p.id),
                  'city_part', d.city_part,
+                 'school_teacher', d.school_teacher,
                  'situation', d.situation)
                order by m.is_self desc, p.first_name, p.last_name, p.id)
         from private.member_people(v_me) m
@@ -143,6 +149,7 @@ declare
   v_school text;
   v_grade text;
   v_city text;
+  v_teacher text;
   v_situation text;
   v_phone text;
   v_seen uuid[] := '{}';
@@ -199,6 +206,7 @@ begin
     v_school := btrim(coalesce(v_person ->> 'school', ''));
     v_grade := btrim(coalesce(v_person ->> 'grade', ''));
     v_city := nullif(btrim(coalesce(v_person ->> 'city_part', '')), '');
+    v_teacher := nullif(btrim(coalesce(v_person ->> 'school_teacher', '')), '');
     v_situation := nullif(btrim(coalesce(v_person ->> 'situation', '')), '');
     if v_first = '' or v_last = '' or char_length(v_first) > 100 or char_length(v_last) > 100 then
       raise exception 'first and last name are required' using errcode = 'PT400';
@@ -209,7 +217,8 @@ begin
     if v_grade = '' or char_length(v_grade) > 50 then
       raise exception 'the grade is required' using errcode = 'PT400';
     end if;
-    if char_length(coalesce(v_city, '')) > 100 or char_length(coalesce(v_situation, '')) > 1000 then
+    if char_length(coalesce(v_city, '')) > 100 or char_length(coalesce(v_teacher, '')) > 100
+       or char_length(coalesce(v_situation, '')) > 1000 then
       raise exception 'the text is too long' using errcode = 'PT400';
     end if;
 
@@ -227,11 +236,13 @@ begin
 
     update public.profiles set first_name = v_first, last_name = v_last where id = v_pid;
     update public.students set school = v_school, grade = v_grade where profile_id = v_pid;
-    if v_city is null and v_situation is null then
+    if v_city is null and v_teacher is null and v_situation is null then
       delete from public.student_details where profile_id = v_pid;
     else
-      insert into public.student_details (profile_id, city_part, situation) values (v_pid, v_city, v_situation)
-      on conflict (profile_id) do update set city_part = excluded.city_part, situation = excluded.situation;
+      insert into public.student_details (profile_id, city_part, school_teacher, situation)
+      values (v_pid, v_city, v_teacher, v_situation)
+      on conflict (profile_id) do update
+        set city_part = excluded.city_part, school_teacher = excluded.school_teacher, situation = excluded.situation;
     end if;
     if v_phone is null then
       -- a parent's number cannot be taken away; a parent who is also a student is covered by the check above
@@ -251,7 +262,7 @@ begin
     loop
       update public.enrolment_requests
          set student_first_name = v_first, student_last_name = v_last, school = v_school, grade = v_grade,
-             city_part = v_city, situation = v_situation,
+             city_part = v_city, school_teacher = v_teacher, situation = v_situation,
              contact_phone = coalesce(v_phone, v_own)
        where id = v_request;
       update public.enrolment_requests
@@ -278,9 +289,11 @@ grant execute on function public.my_profile() to authenticated;
 grant execute on function public.save_my_profile(text, jsonb, boolean) to authenticated;
 
 -- A request made through the form confirms the profile too (the policy was accepted there).
-create or replace function public.complete_enrolment_profile(
+drop function public.complete_enrolment_profile(uuid, text, text, text, text, text, text, text, boolean);
+create function public.complete_enrolment_profile(
   p_request_id uuid, p_first_name text, p_last_name text, p_phone text, p_school text, p_grade text,
-  p_city_part text default null, p_situation text default null, p_consent boolean default false
+  p_city_part text default null, p_situation text default null, p_consent boolean default false,
+  p_school_teacher text default null
 ) returns void
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -309,7 +322,8 @@ begin
   if btrim(coalesce(p_grade, '')) = '' or char_length(btrim(p_grade)) > 50 then
     raise exception 'the grade is required' using errcode = 'PT400';
   end if;
-  if char_length(coalesce(p_city_part, '')) > 100 or char_length(coalesce(p_situation, '')) > 1000 then
+  if char_length(coalesce(p_city_part, '')) > 100 or char_length(coalesce(p_situation, '')) > 1000
+     or char_length(btrim(coalesce(p_school_teacher, ''))) > 100 then
     raise exception 'the text is too long' using errcode = 'PT400';
   end if;
   if v_request.source = 'signup' and v_request.consent_at is null and not coalesce(p_consent, false) then
@@ -323,6 +337,7 @@ begin
          school = btrim(p_school),
          grade = btrim(p_grade),
          city_part = nullif(btrim(coalesce(p_city_part, '')), ''),
+         school_teacher = nullif(btrim(coalesce(p_school_teacher, '')), ''),
          situation = nullif(btrim(coalesce(p_situation, '')), ''),
          consent_at = case when source = 'signup' then coalesce(consent_at, now()) else consent_at end,
          profile_completed_at = coalesce(profile_completed_at, now())
@@ -335,6 +350,9 @@ begin
 
   perform private.refresh_listing(p_request_id);
 end $$;
+
+revoke all on function public.complete_enrolment_profile(uuid, text, text, text, text, text, text, text, boolean, text) from public, anon;
+grant execute on function public.complete_enrolment_profile(uuid, text, text, text, text, text, text, text, boolean, text) to authenticated;
 
 -- More than one request ------------------------------------------------------------------------------------------------------------
 -- A student has one open request for each subject (it was one in all). A parent's request may be about a child who is a student
@@ -363,6 +381,7 @@ begin
          school = private.student_school(p_person),
          grade = private.student_grade(p_person),
          city_part = (select d.city_part from public.student_details d where d.profile_id = p_person),
+         school_teacher = (select d.school_teacher from public.student_details d where d.profile_id = p_person),
          situation = (select d.situation from public.student_details d where d.profile_id = p_person)
    where r.id = p_request_id;
   update public.enrolment_requests
@@ -522,6 +541,15 @@ begin
      and not exists (select 1 from public.teacher_subjects ts where ts.teacher_id = o.teacher_id and ts.subject_id = p_subject_id);
 end $$;
 
+-- What a request said about the student stays with the student, where the profile shows it (nothing is overwritten).
+create function private.keep_request_details(p_profile_id uuid, p_request public.enrolment_requests) returns void
+language sql security definer set search_path = '' as $$
+  insert into public.student_details (profile_id, city_part, school_teacher, situation)
+  select p_profile_id, p_request.city_part, p_request.school_teacher, p_request.situation
+   where p_request.city_part is not null or p_request.school_teacher is not null or p_request.situation is not null
+  on conflict (profile_id) do nothing
+$$;
+
 -- Placing a teacher: a request about a child who is a student already needs no email, the child is known.
 create or replace function private.place_enrolment(p_request_id uuid, p_teacher_id uuid, p_by text, p_child_email text) returns text
 language plpgsql security definer set search_path = '' as $$
@@ -549,12 +577,14 @@ begin
       values (v_request.applicant_id, v_request.school, v_request.grade, p_teacher_id)
       returning id into v_student;
       perform private.keep_phone(v_request.applicant_id, v_request.contact_phone);
+      perform private.keep_request_details(v_request.applicant_id, v_request);
     elsif v_request.child_profile_id is not null then
       insert into public.students (profile_id, school, grade, teacher_id)
       values (v_request.child_profile_id, v_request.school, v_request.grade, p_teacher_id)
       returning id into v_student;
       insert into public.parents (profile_id) values (v_request.applicant_id) on conflict do nothing;
       insert into public.parent_students (parent_id, student_id) values (v_request.applicant_id, v_student);
+      perform private.keep_request_details(v_request.child_profile_id, v_request);
     elsif btrim(coalesce(p_child_email, '')) = '' then
       v_result := 'chosen';
     else
@@ -569,6 +599,7 @@ begin
       insert into public.parents (profile_id) values (v_request.applicant_id) on conflict do nothing;
       insert into public.parent_students (parent_id, student_id) values (v_request.applicant_id, v_student);
       perform private.keep_phone(v_request.applicant_id, v_request.contact_phone);
+      perform private.keep_request_details(v_child, v_request);
     end if;
   exception when unique_violation then
     raise exception 'this person is already a student of that teacher' using errcode = 'PT409';
@@ -602,4 +633,131 @@ begin
       from private.enrolment_recipients(p_request_id) r;
   end if;
   return v_result;
+end $$;
+
+-- The readers of a request show the teacher at school too --------------------------------------------------------------------------
+drop function public.my_enrolment_requests();
+create function public.my_enrolment_requests()
+returns table (
+  id uuid, applicant_role public.enrolment_role, source text, status public.enrolment_status,
+  subject_id uuid, subject_name text, student_first_name text, student_last_name text, contact_phone text,
+  school text, grade text, city_part text, situation text,
+  profile_completed boolean, waiting_for_approval boolean, listed boolean, days_waiting integer,
+  offers_count integer, choice_open boolean, chosen_teacher_id uuid, student_id uuid, school_teacher text
+)
+language sql stable security definer set search_path = '' as $$
+  select r.id, r.applicant_role, r.source, r.status, r.subject_id, sub.name,
+         r.student_first_name, r.student_last_name, r.contact_phone, r.school, r.grade, r.city_part, r.situation,
+         r.profile_completed_at is not null,
+         r.needs_approval and r.approved_at is null,
+         r.listed_at is not null,
+         case when r.listed_at is null then 0 else greatest(0, floor(extract(epoch from (now() - r.listed_at)) / 86400))::integer end,
+         (select count(*)::integer from public.enrolment_offers o join public.teachers t on t.profile_id = o.teacher_id and t.is_active
+           where o.request_id = r.id),
+         r.choice_opened_at is not null,
+         r.chosen_teacher_id, r.student_id, r.school_teacher
+    from public.enrolment_requests r
+    left join public.subjects sub on sub.id = r.subject_id
+   where r.status <> 'rejected' and private.can_act_on_request(r.id)
+   order by r.created_at desc
+$$;
+revoke all on function public.my_enrolment_requests() from public, anon;
+grant execute on function public.my_enrolment_requests() to authenticated;
+
+drop function public.list_enrolment_pool();
+create function public.list_enrolment_pool()
+returns table (
+  request_id uuid, applicant_role public.enrolment_role, source text, subject_id uuid, subject_name text,
+  student_first_name text, student_last_name text, applicant_email text, phone text, school text, grade text,
+  city_part text, situation text, listed_at timestamptz, days_waiting integer, offered boolean, school_teacher text
+)
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_me uuid := private.current_teacher_id();
+begin
+  if v_me is null then
+    raise exception 'not allowed' using errcode = 'PT403';
+  end if;
+  return query
+    select r.id, r.applicant_role, r.source, r.subject_id, sub.name, r.student_first_name, r.student_last_name,
+           p.email, r.contact_phone, r.school, r.grade, r.city_part, r.situation, r.listed_at,
+           greatest(0, floor(extract(epoch from (now() - r.listed_at)) / 86400))::integer,
+           exists (select 1 from public.enrolment_offers o where o.request_id = r.id and o.teacher_id = v_me),
+           r.school_teacher
+      from public.enrolment_requests r
+      join public.profiles p on p.id = r.applicant_id
+      left join public.subjects sub on sub.id = r.subject_id
+     where r.status = 'open' and r.listed_at is not null and private.teacher_teaches(v_me, r.subject_id)
+     order by r.listed_at desc, r.id;
+end $$;
+revoke all on function public.list_enrolment_pool() from public, anon;
+grant execute on function public.list_enrolment_pool() to authenticated;
+
+drop function public.admin_list_enrolments(text);
+create function public.admin_list_enrolments(p_state text default null)
+returns table (
+  request_id uuid, applicant_role public.enrolment_role, source text, status public.enrolment_status, state text,
+  subject_name text, student_first_name text, student_last_name text, applicant_email text, phone text, school text, grade text,
+  city_part text, situation text, created_at timestamptz, listed_at timestamptz, days_waiting integer, restarts integer,
+  choice_opened_at timestamptz, chosen_teacher_id uuid, offers jsonb, school_teacher text
+)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not private.is_admin() then
+    raise exception 'not allowed' using errcode = 'PT403';
+  end if;
+  return query
+    select * from (
+      select r.id, r.applicant_role, r.source, r.status,
+             case
+               when r.status <> 'open' then r.status::text
+               when r.needs_approval and r.approved_at is null then 'needs_approval'
+               when r.profile_completed_at is null then 'incomplete'
+               when r.choice_opened_at is not null then 'choice_open'
+               else 'open'
+             end as state,
+             sub.name, r.student_first_name, r.student_last_name, p.email, r.contact_phone, r.school, r.grade, r.city_part,
+             r.situation, r.created_at, r.listed_at,
+             case when r.listed_at is null then 0
+                  else greatest(0, floor(extract(epoch from (now() - r.listed_at)) / 86400))::integer end,
+             r.restarts, r.choice_opened_at, r.chosen_teacher_id,
+             coalesce((
+               select jsonb_agg(jsonb_build_object('teacher_id', o.teacher_id, 'name', tp.first_name || ' ' || tp.last_name,
+                                                   'offered_at', o.created_at) order by o.created_at)
+                 from public.enrolment_offers o join public.profiles tp on tp.id = o.teacher_id
+                where o.request_id = r.id), '[]') as offers,
+             r.school_teacher
+        from public.enrolment_requests r
+        join public.profiles p on p.id = r.applicant_id
+        left join public.subjects sub on sub.id = r.subject_id
+    ) x
+     where p_state is null or x.state = p_state
+     order by x.created_at desc, x.id
+     limit 500;
+end $$;
+revoke all on function public.admin_list_enrolments(text) from public, anon;
+grant execute on function public.admin_list_enrolments(text) to authenticated;
+
+-- Accepting an offer ---------------------------------------------------------------------------------------------------------------------
+-- The person (or a parent) accepts one of the offers at once; the other offers are closed. (It used to wait until the choice had
+-- opened, some days after the request or when enough offers had come.)
+create or replace function public.choose_enrolment_teacher(p_request_id uuid, p_teacher_id uuid) returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_request public.enrolment_requests;
+begin
+  select * into v_request from public.enrolment_requests where id = p_request_id for update;
+  if not found or not private.can_act_on_request(p_request_id) then
+    raise exception 'request not found' using errcode = 'PT404';
+  end if;
+  if v_request.status <> 'open' then
+    raise exception 'a teacher was already chosen' using errcode = 'PT409';
+  end if;
+  if not exists (
+    select 1 from public.enrolment_offers o join public.teachers t on t.profile_id = o.teacher_id and t.is_active
+     where o.request_id = p_request_id and o.teacher_id = p_teacher_id
+  ) then
+    raise exception 'this teacher has not offered' using errcode = 'PT400';
+  end if;
+  return private.place_enrolment(p_request_id, p_teacher_id, 'student', null);
 end $$;

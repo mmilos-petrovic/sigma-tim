@@ -27,6 +27,7 @@ export function ProfileForm({
   const [phone, setPhone] = useState(request.contactPhone ? formatPhone(request.contactPhone) : '')
   const [school, setSchool] = useState(request.school ?? '')
   const [grade, setGrade] = useState(request.grade ?? '')
+  const [schoolTeacher, setSchoolTeacher] = useState(request.schoolTeacher ?? '')
   const [cityPart, setCityPart] = useState(request.cityPart ?? '')
   const [situation, setSituation] = useState(request.situation ?? '')
   const [consent, setConsent] = useState(false)
@@ -56,6 +57,7 @@ export function ProfileForm({
         school: school.trim(),
         grade: grade.trim(),
         cityPart: cityPart.trim(),
+        schoolTeacher: schoolTeacher.trim(),
         situation: situation.trim(),
         // somebody who accepted the policy once is not asked again
         consent: needsConsent ? consent : true,
@@ -90,6 +92,12 @@ export function ProfileForm({
       />
       <Field label="Škola" value={school} maxLength={PROFILE_LIMITS.school} onChange={setSchool} />
       <Field label="Razred" value={grade} maxLength={PROFILE_LIMITS.grade} onChange={setGrade} />
+      <Field
+        label="Nastavnik koji ti predaje u školi (nije obavezno)"
+        value={schoolTeacher}
+        maxLength={PROFILE_LIMITS.schoolTeacher}
+        onChange={setSchoolTeacher}
+      />
       <Field
         label="Deo grada (nije obavezno)"
         value={cityPart}

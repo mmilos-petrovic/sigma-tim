@@ -9,6 +9,7 @@ export interface PersonDraft {
   school: string
   grade: string
   cityPart: string
+  schoolTeacher: string
   situation: string
 }
 
