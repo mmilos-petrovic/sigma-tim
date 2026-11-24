@@ -10,7 +10,6 @@ const KIND_LABEL: Record<string, string> = {
   participant_left: 'Učenik je napustio čas',
   lesson_reminder: 'Podsetnik pre časa',
   enrolment_offer: 'Nova ponuda za časove (učeniku ili roditelju)',
-  enrolment_choice_open: 'Moguć izbor nastavnika (učeniku ili roditelju)',
   enrolment_chosen: 'Izabran nastavnik (nastavniku)',
   enrolment_assigned: 'Dodeljen nastavnik (nastavniku, učeniku i roditelju)',
   welcome: 'Dobrodošlica',

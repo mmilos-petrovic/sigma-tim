@@ -1,6 +1,6 @@
 -- Enrolment, part 3: the administrator (settings, list, assigning, rejecting), and students a teacher adds to the pool.
 begin;
-select plan(51);
+select plan(49);
 
 select tests.seed_basic();
 select tests.mkoutsider('o2');
@@ -32,12 +32,12 @@ select tests.logout();
 -- settings and the list ---------------------------------------------------------------------------------------------------------------
 select tests.login_as('admin');
 select is(
-  (select row(s ->> 'form_enabled', s ->> 'daily_cap', s ->> 'choice_after_days', s ->> 'choice_after_offers')::text from (select public.get_enrolment_settings() as s) x),
-  row('true', '20', '3', '3')::text, 'the settings start as the owner decided: on, 20 a day, 3 days, 3 offers'
+  (select row(s ->> 'form_enabled', s ->> 'daily_cap')::text from (select public.get_enrolment_settings() as s) x),
+  row('true', '20')::text, 'the settings start as the owner decided: on, 20 a day'
 );
-select throws_ok($$ select public.set_enrolment_settings(true, 0, 3, 3) $$, 'PT400', null, 'a cap of 0 is refused');
-select throws_ok($$ select public.set_enrolment_settings(true, 10, 31, 3) $$, 'PT400', null, 'so are days beyond 30');
-select throws_ok($$ select public.set_enrolment_settings(null, 10, 3, 3) $$, 'PT400', null, 'and no on/off');
+select throws_ok($$ select public.set_enrolment_settings(true, 0) $$, 'PT400', null, 'a cap of 0 is refused');
+select throws_ok($$ select public.set_enrolment_settings(true, 1001) $$, 'PT400', null, 'so is one beyond 1000');
+select throws_ok($$ select public.set_enrolment_settings(null, 10) $$, 'PT400', null, 'and no on/off');
 select is(
   (select array_agg(state order by applicant_email) from public.admin_list_enrolments() where applicant_email in ('o2@t.test', 'o3@t.test')),
   array['open', 'incomplete'], 'the list tells which request is waiting and which has no profile yet'
@@ -167,12 +167,6 @@ select is((select count(*)::int from public.my_enrolment_offers(tests.id('req:po
 select is((select count(*)::int from public.my_enrolment_requests()), 1, 'and the request');
 select tests.logout();
 
--- the number of offers is a setting
-select tests.login_as('admin');
-select public.set_enrolment_settings(true, 10, 3, 1);
-select tests.logout();
-select is(private.advance_enrolments() >= 1, true, 'with one offer enough, the choice opens');
-select is((select choice_opened_at is not null from public.enrolment_requests where id = tests.id('req:pool1')), true, 'for the request that has one');
 select tests.login_as('pk');
 select is(public.choose_enrolment_teacher(tests.id('req:pool1'), tests.id('p:tc')), 'assigned', 'a parent chooses for the student a teacher added');
 select tests.logout();

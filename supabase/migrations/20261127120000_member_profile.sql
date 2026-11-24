@@ -643,7 +643,7 @@ returns table (
   subject_id uuid, subject_name text, student_first_name text, student_last_name text, contact_phone text,
   school text, grade text, city_part text, situation text,
   profile_completed boolean, waiting_for_approval boolean, listed boolean, days_waiting integer,
-  offers_count integer, choice_open boolean, chosen_teacher_id uuid, student_id uuid, school_teacher text
+  offers_count integer, chosen_teacher_id uuid, student_id uuid, school_teacher text
 )
 language sql stable security definer set search_path = '' as $$
   select r.id, r.applicant_role, r.source, r.status, r.subject_id, sub.name,
@@ -654,7 +654,6 @@ language sql stable security definer set search_path = '' as $$
          case when r.listed_at is null then 0 else greatest(0, floor(extract(epoch from (now() - r.listed_at)) / 86400))::integer end,
          (select count(*)::integer from public.enrolment_offers o join public.teachers t on t.profile_id = o.teacher_id and t.is_active
            where o.request_id = r.id),
-         r.choice_opened_at is not null,
          r.chosen_teacher_id, r.student_id, r.school_teacher
     from public.enrolment_requests r
     left join public.subjects sub on sub.id = r.subject_id
@@ -698,8 +697,8 @@ create function public.admin_list_enrolments(p_state text default null)
 returns table (
   request_id uuid, applicant_role public.enrolment_role, source text, status public.enrolment_status, state text,
   subject_name text, student_first_name text, student_last_name text, applicant_email text, phone text, school text, grade text,
-  city_part text, situation text, created_at timestamptz, listed_at timestamptz, days_waiting integer, restarts integer,
-  choice_opened_at timestamptz, chosen_teacher_id uuid, offers jsonb, school_teacher text
+  city_part text, situation text, created_at timestamptz, listed_at timestamptz, days_waiting integer,
+  chosen_teacher_id uuid, offers jsonb, school_teacher text
 )
 language plpgsql stable security definer set search_path = '' as $$
 begin
@@ -713,14 +712,13 @@ begin
                when r.status <> 'open' then r.status::text
                when r.needs_approval and r.approved_at is null then 'needs_approval'
                when r.profile_completed_at is null then 'incomplete'
-               when r.choice_opened_at is not null then 'choice_open'
                else 'open'
              end as state,
              sub.name, r.student_first_name, r.student_last_name, p.email, r.contact_phone, r.school, r.grade, r.city_part,
              r.situation, r.created_at, r.listed_at,
              case when r.listed_at is null then 0
                   else greatest(0, floor(extract(epoch from (now() - r.listed_at)) / 86400))::integer end,
-             r.restarts, r.choice_opened_at, r.chosen_teacher_id,
+             r.chosen_teacher_id,
              coalesce((
                select jsonb_agg(jsonb_build_object('teacher_id', o.teacher_id, 'name', tp.first_name || ' ' || tp.last_name,
                                                    'offered_at', o.created_at) order by o.created_at)

@@ -21,14 +21,13 @@ import { STATE_LABEL } from '../enrolmentLabels'
 
 type FilterKey = 'active' | 'all' | AdminState
 
-const ACTIVE: AdminState[] = ['needs_approval', 'incomplete', 'open', 'choice_open', 'chosen']
+const ACTIVE: AdminState[] = ['needs_approval', 'incomplete', 'open', 'chosen']
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'active', label: 'Aktivne' },
   { key: 'needs_approval', label: STATE_LABEL.needs_approval },
   { key: 'incomplete', label: STATE_LABEL.incomplete },
   { key: 'open', label: STATE_LABEL.open },
-  { key: 'choice_open', label: STATE_LABEL.choice_open },
   { key: 'chosen', label: STATE_LABEL.chosen },
   { key: 'assigned', label: STATE_LABEL.assigned },
   { key: 'rejected', label: STATE_LABEL.rejected },
@@ -44,9 +43,7 @@ const SOURCE_NOTE: Record<AdminEnrolmentRow['source'], string | null> = {
 const nameOf = (row: AdminEnrolmentRow) =>
   row.firstName && row.lastName ? `${row.firstName} ${row.lastName}` : row.email
 
-const times = (count: number) => (count === 1 ? '1 put' : `${count} puta`)
-
-/** The switch of the front page and the three numbers that set the pace of the choice. */
+/** The switch of the front page and the number of sign-ups a day that need no approval. */
 function SettingsPanel() {
   const api = useEnrolmentApi()
   const refresh = useRefreshEnrolment()
@@ -69,8 +66,6 @@ function SettingsForm({
 }) {
   const [enabled, setEnabled] = useState(saved.formEnabled)
   const [cap, setCap] = useState(String(saved.dailyCap))
-  const [days, setDays] = useState(String(saved.choiceAfterDays))
-  const [offers, setOffers] = useState(String(saved.choiceAfterOffers))
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -83,17 +78,15 @@ function SettingsForm({
   const save = async () => {
     if (busy) return
     const dailyCap = inRange(cap, SETTINGS_LIMITS.dailyCap)
-    const choiceAfterDays = inRange(days, SETTINGS_LIMITS.choiceAfterDays)
-    const choiceAfterOffers = inRange(offers, SETTINGS_LIMITS.choiceAfterOffers)
     setNotice(null)
-    if (dailyCap === null || choiceAfterDays === null || choiceAfterOffers === null) {
+    if (dailyCap === null) {
       setError('Brojevi moraju biti celi i u dozvoljenim granicama.')
       return
     }
     setBusy(true)
     setError(null)
     try {
-      await api.saveSettings({ formEnabled: enabled, dailyCap, choiceAfterDays, choiceAfterOffers })
+      await api.saveSettings({ formEnabled: enabled, dailyCap })
       await refresh()
       setNotice('Podešavanja su sačuvana.')
     } catch (failure) {
@@ -137,24 +130,6 @@ function SettingsForm({
       <p className="muted">
         Posle toga nove prijave čekaju vaše odobrenje, a niko ne dobija poruku da su prijave
         zatvorene.
-      </p>
-      <Field
-        label={`Izbor nastavnika se otvara posle (dana, ${SETTINGS_LIMITS.choiceAfterDays.min} do ${SETTINGS_LIMITS.choiceAfterDays.max})`}
-        type="number"
-        value={days}
-        onChange={setDays}
-        maxLength={2}
-      />
-      <Field
-        label={`... ili čim stigne ponuda (${SETTINGS_LIMITS.choiceAfterOffers.min} do ${SETTINGS_LIMITS.choiceAfterOffers.max})`}
-        type="number"
-        value={offers}
-        onChange={setOffers}
-        maxLength={2}
-      />
-      <p className="muted">
-        Posle isteka dana izbor se otvara samo ako je bar jedan nastavnik ponudio; ako niko nije,
-        čekanje počinje ispočetka, a prijava se označava u spisku.
       </p>
       <Notice message={notice} />
       {error && (
@@ -274,12 +249,6 @@ function EnrolmentCard({
           {row.listedAt && ` · čeka ${row.daysWaiting} d`}
         </p>
       </header>
-      {row.state === 'open' && row.restarts > 0 && (
-        <p className="callout" role="note">
-          Nijedan nastavnik se nije ponudio, pa je čekanje počelo ispočetka ({times(row.restarts)}).
-          Možete odmah da dodelite nastavnika.
-        </p>
-      )}
       <dl className="details">
         {row.phone && (
           <div>
@@ -375,7 +344,7 @@ function EnrolmentCard({
 }
 
 /**
- * The sign-ups for lessons: the switch and the pace of the choice, and every request with where it is. The administrator
+ * The sign-ups for lessons: the switch and the daily number, and every request with where it is. The administrator
  * approves the ones past the daily cap, turns one down, or assigns any teacher at any time.
  */
 export function EnrolmentsPage() {

@@ -49,8 +49,6 @@ export interface MyEnrolmentRequest {
   situation: string | null
   /** How many active teachers offered. */
   offersCount: number
-  /** The person (or parent) may choose among the offers now. */
-  choiceOpen: boolean
   chosenTeacherId: string | null
 }
 
@@ -125,21 +123,15 @@ export interface EnrolmentSettings {
   formEnabled: boolean
   /** Sign-ups a day (school time) that go straight to the teachers; later ones wait for the administrator. */
   dailyCap: number
-  /** The choice opens this many days after the request was listed, when somebody offered. */
-  choiceAfterDays: number
-  /** ... or as soon as this many teachers offered. */
-  choiceAfterOffers: number
 }
 
 export const SETTINGS_LIMITS = {
   dailyCap: { min: 1, max: 1000 },
-  choiceAfterDays: { min: 1, max: 30 },
-  choiceAfterOffers: { min: 1, max: 20 },
 } as const
 
 /** Where a request is, for the administrator's list. */
 export type AdminState =
-  'needs_approval' | 'incomplete' | 'open' | 'choice_open' | 'chosen' | 'assigned' | 'rejected'
+  'needs_approval' | 'incomplete' | 'open' | 'chosen' | 'assigned' | 'rejected'
 
 export interface AdminEnrolmentRow {
   requestId: string
@@ -160,9 +152,6 @@ export interface AdminEnrolmentRow {
   createdAt: string
   listedAt: string | null
   daysWaiting: number
-  /** How often the waiting period began again because nobody had offered. */
-  restarts: number
-  choiceOpenedAt: string | null
   chosenTeacherId: string | null
   offers: { teacherId: string; name: string; offeredAt: string }[]
 }

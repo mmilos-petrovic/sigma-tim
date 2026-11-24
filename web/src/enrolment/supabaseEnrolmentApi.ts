@@ -58,7 +58,6 @@ export function mapRequest(
     schoolTeacher: row.school_teacher ?? null,
     situation: row.situation ?? null,
     offersCount: row.offers_count,
-    choiceOpen: row.choice_open,
     chosenTeacherId: row.chosen_teacher_id ?? null,
   }
 }
@@ -127,8 +126,6 @@ export function mapSettings(value: unknown): EnrolmentSettings {
   return {
     formEnabled: json.form_enabled,
     dailyCap: number('daily_cap'),
-    choiceAfterDays: number('choice_after_days'),
-    choiceAfterOffers: number('choice_after_offers'),
   }
 }
 
@@ -154,8 +151,6 @@ export function mapAdminRow(
     createdAt: row.created_at,
     listedAt: row.listed_at ?? null,
     daysWaiting: row.days_waiting,
-    restarts: row.restarts,
-    choiceOpenedAt: row.choice_opened_at ?? null,
     chosenTeacherId: row.chosen_teacher_id ?? null,
     offers: offers.flatMap((item) => {
       const offer = (item ?? {}) as Record<string, unknown>
@@ -292,8 +287,6 @@ export function createSupabaseEnrolmentApi(client: SupabaseClient<Database>): En
         client.rpc('set_enrolment_settings', {
           p_form_enabled: settings.formEnabled,
           p_daily_cap: settings.dailyCap,
-          p_choice_after_days: settings.choiceAfterDays,
-          p_choice_after_offers: settings.choiceAfterOffers,
         }),
       )
     },

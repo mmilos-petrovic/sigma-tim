@@ -27,13 +27,11 @@ export const noticesFor = (email: string): string[] =>
 /** The administrator sets the sign-up form (the database starts with it off). The numbers are the usual ones unless given. */
 export async function setEnrolmentSettings(
   request: APIRequestContext,
-  settings: { enabled: boolean; offers?: number },
+  settings: { enabled: boolean },
 ) {
   await rpc(request, await tokenFor(request, 'admin@example.test'), 'set_enrolment_settings', {
     p_form_enabled: settings.enabled,
     p_daily_cap: 10,
-    p_choice_after_days: 3,
-    p_choice_after_offers: settings.offers ?? 3,
   })
 }
 

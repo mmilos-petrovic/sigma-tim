@@ -74,9 +74,9 @@ describe('overview', () => {
       enrolmentApi: createFakeEnrolmentApi({
         all: [
           makeAdminRow({ requestId: 'a', state: 'needs_approval' }),
-          makeAdminRow({ requestId: 'b', state: 'open', restarts: 1 }),
           // these wait for a teacher, not for the administrator
-          makeAdminRow({ requestId: 'c', state: 'open', restarts: 0 }),
+          makeAdminRow({ requestId: 'b', state: 'open' }),
+          makeAdminRow({ requestId: 'c', state: 'incomplete' }),
           makeAdminRow({ requestId: 'd', state: 'assigned' }),
         ],
       }),
@@ -88,8 +88,8 @@ describe('overview', () => {
     expect(await link(/^Predmeti/)).toHaveTextContent('3')
     expect(await link(/^Lokacije/)).toHaveTextContent('2')
     expect(await link(/^Nastavnici/)).toHaveTextContent('2') // two of the three teachers are active
-    // what waits for the administrator: one sign-up past the cap and one nobody offered for
-    expect(await link(/^Prijave za časove/)).toHaveTextContent('2')
+    // what waits for the administrator: the sign-up past the cap
+    expect(await link(/^Prijave za časove/)).toHaveTextContent('1')
   })
 
   it('points a new school at the first thing to add', async () => {

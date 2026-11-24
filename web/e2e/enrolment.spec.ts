@@ -30,8 +30,7 @@ test.describe('signing up for lessons, from the sign-up to a teacher', () => {
     test.setTimeout(180_000)
     const run = Date.now().toString(36)
     const first = `Upis${run}`
-    // the choice opens after one offer, so the test does not wait for days
-    await setEnrolmentSettings(request, { enabled: true, offers: 1 })
+    await setEnrolmentSettings(request, { enabled: true })
     await giveTeacherACv(request)
     await signUp(request, first)
 
@@ -54,11 +53,8 @@ test.describe('signing up for lessons, from the sign-up to a teacher', () => {
       await expect(card.getByText('Ponudili ste se.')).toBeVisible()
     })
 
-    await test.step('the student is told, and the choice opens', async () => {
+    await test.step('the student is told', async () => {
       expect(noticesFor(STRANGER)).toContain('enrolment_offer')
-      // the job runs every minute; here it is run by hand
-      sql('select private.advance_enrolments();')
-      expect(noticesFor(STRANGER)).toContain('enrolment_choice_open')
     })
 
     await test.step('the student sees the teacher, with the phone, and chooses', async () => {
@@ -139,7 +135,7 @@ test.describe('signing up for lessons, from the sign-up to a teacher', () => {
       await signUp(request, first)
       await page.reload()
       const card = page.getByRole('article', { name: `${first} Prijavljen` })
-      await expect(card).toContainText('Čeka ponude')
+      await expect(card).toContainText('Čeka nastavnika')
       await card.getByRole('button', { name: /^Dodeli nastavnika/ }).click()
       const dialog = page.getByRole('dialog', { name: 'Dodela nastavnika' })
       await dialog.getByLabel('Nastavnik').selectOption({ label: 'Ana Nikolić' })

@@ -96,10 +96,8 @@ export function OverviewPage() {
     {
       to: 'prijave',
       title: 'Prijave za časove',
-      // what waits for the administrator: sign-ups past the daily cap, and requests nobody offered for
-      count: enrolments.data.filter(
-        (row) => row.state === 'needs_approval' || (row.state === 'open' && row.restarts > 0),
-      ).length,
+      // what waits for the administrator: sign-ups past the daily cap
+      count: enrolments.data.filter((row) => row.state === 'needs_approval').length,
       empty: 'Nema prijava koje čekaju odluku',
     },
   ]

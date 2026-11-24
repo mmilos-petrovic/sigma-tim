@@ -37,11 +37,10 @@ const ROWS = [
     firstName: 'Neda',
     lastName: 'Marković',
     email: 'neda@example.test',
-    restarts: 2,
   }),
   makeAdminRow({
     requestId: 'r-choice',
-    state: 'choice_open',
+    state: 'open',
     firstName: 'Mina',
     lastName: 'Ilić',
     email: 'mina@example.test',
@@ -129,7 +128,7 @@ describe('the list of sign-ups', () => {
   it('shows what the person typed and who offered', async () => {
     await open()
     const luka = card('Luka Lukić')
-    expect(luka.getByRole('list', { name: 'Stanje' })).toHaveTextContent('Čeka ponude')
+    expect(luka.getByRole('list', { name: 'Stanje' })).toHaveTextContent('Čeka nastavnika')
     expect(luka.getByRole('link', { name: '064 1234 567' })).toBeInTheDocument()
     expect(luka.getByText('Gimnazija, 3 razred')).toBeInTheDocument()
     expect(luka.getByText('Centar')).toBeInTheDocument()
@@ -137,14 +136,6 @@ describe('the list of sign-ups', () => {
     expect(luka.getByText('Ana Nikolić')).toBeInTheDocument()
     expect(card('Mina Ilić').getByText('Ana Nikolić, Marko Jovanović')).toBeInTheDocument()
     expect(card('Petar Petrović').getByText('Još nema')).toBeInTheDocument()
-  })
-
-  it('flags a request nobody offered for, and only that', async () => {
-    await open()
-    expect(card('Neda Marković').getByRole('note')).toHaveTextContent(
-      'Nijedan nastavnik se nije ponudio, pa je čekanje počelo ispočetka (2 puta).',
-    )
-    expect(card('Luka Lukić').queryByRole('note')).not.toBeInTheDocument()
   })
 
   it('says whether a parent or the student wrote, and where a student came from', async () => {
@@ -195,7 +186,7 @@ describe('approving and rejecting', () => {
       card('Petar Petrović').queryByRole('button', { name: /^Odobri/ }),
     ).not.toBeInTheDocument()
     expect(card('Petar Petrović').getByRole('list', { name: 'Stanje' })).toHaveTextContent(
-      'Čeka ponude',
+      'Čeka nastavnika',
     )
   })
 
@@ -323,19 +314,17 @@ describe('the settings', () => {
 
   it('shows how things are set, and what a switched-off form means', async () => {
     await open({
-      settings: { formEnabled: false, dailyCap: 7, choiceAfterDays: 4, choiceAfterOffers: 2 },
+      settings: { formEnabled: false, dailyCap: 7 },
     })
     const form = await panel()
     expect(form.getByRole('checkbox')).not.toBeChecked()
     expect(form.getByText(/početna strana prikazuje samo broj telefona/)).toBeInTheDocument()
     expect(form.getByLabelText(/^Prijava u jednom danu/)).toHaveValue(7)
-    expect(form.getByLabelText(/^Izbor nastavnika se otvara posle/)).toHaveValue(4)
-    expect(form.getByLabelText(/^\.\.\. ili čim stigne/)).toHaveValue(2)
   })
 
   it('switches the form on and saves the numbers', async () => {
     const { enrolmentApi } = await open({
-      settings: { formEnabled: false, dailyCap: 10, choiceAfterDays: 3, choiceAfterOffers: 3 },
+      settings: { formEnabled: false, dailyCap: 10 },
     })
     const form = await panel()
     await userEvent.click(form.getByRole('checkbox'))
@@ -346,8 +335,6 @@ describe('the settings', () => {
     expect(enrolmentApi.saveSettings).toHaveBeenCalledWith({
       formEnabled: true,
       dailyCap: 25,
-      choiceAfterDays: 3,
-      choiceAfterOffers: 3,
     })
     expect(await screen.findByRole('status')).toHaveTextContent('Podešavanja su sačuvana.')
     expect(enrolmentApi.state.settings.formEnabled).toBe(true)

@@ -34,7 +34,7 @@ language sql stable as $$
 $$;
 
 -- Plumbing ---------------------------------------------------------------------------------------------------------------------------
-select is((select count(*)::int from public.notification_kinds), 15, 'fifteen kinds of notice are known');
+select is((select count(*)::int from public.notification_kinds), 14, 'fourteen kinds of notice are known');
 select is((select count(*)::int from public.notification_settings), 1, 'there is one row of settings');
 select throws_ok($$ insert into public.notification_settings (singleton) values (false) $$, '23514', null, 'there can only be one row of settings');
 select throws_ok($$ insert into public.notifications (recipient_id, kind) values (tests.id('p:ta'), 'nonsense') $$, '23503', null,
@@ -296,7 +296,7 @@ select throws_ok($$ select public.get_notification_settings() $$, '42501', null,
 select tests.login_as('admin');
 select is((public.get_notification_settings() ->> 'reminder_minutes')::int, 60, 'the administrator reads the settings: 60 minutes');
 select is(public.get_notification_settings() ->> 'quiet_start', '22:00', 'quiet hours as clock times');
-select is(jsonb_array_length(public.get_notification_settings() -> 'kinds'), 15, 'with every kind of notice');
+select is(jsonb_array_length(public.get_notification_settings() -> 'kinds'), 14, 'with every kind of notice');
 select lives_ok($$ select public.set_notification_settings(true, '21:30', '06:45', true, 90, '  Dobrodošli  ', 'Tel 011 1234567') $$, 'the administrator saves the settings');
 select is(public.get_notification_settings() ->> 'quiet_end', '06:45', 'quiet hours are saved');
 select is((public.get_notification_settings() ->> 'reminder_minutes')::int, 90, 'and the reminder time');

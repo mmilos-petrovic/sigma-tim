@@ -168,9 +168,9 @@ update public.enrolment_requests set created_at = now() - interval '2 days'
 -- the daily cap ------------------------------------------------------------------------------------------------------------------
 -- today there are 4 sign-ups (outsider, o2, o3 and the parent request p1)
 select tests.login_as('admin');
-select lives_ok($$ select public.set_enrolment_settings(true, 5, 3, 3) $$, 'the administrator sets the cap');
+select lives_ok($$ select public.set_enrolment_settings(true, 5) $$, 'the administrator sets the cap');
 select tests.login_as('ta');
-select throws_ok($$ select public.set_enrolment_settings(true, 5, 3, 3) $$, 'PT403', null, 'nobody else does');
+select throws_ok($$ select public.set_enrolment_settings(true, 5) $$, 'PT403', null, 'nobody else does');
 select throws_ok($$ select public.get_enrolment_settings() $$, 'PT403', null, 'or reads them');
 select tests.logout();
 select tests.mkoutsider('o5');
@@ -217,7 +217,7 @@ select is(
 );
 
 select tests.login_as('admin');
-select lives_ok($$ select public.set_enrolment_settings(false, 5, 3, 3) $$, 'the administrator switches the form off');
+select lives_ok($$ select public.set_enrolment_settings(false, 5) $$, 'the administrator switches the form off');
 select tests.logout();
 select tests.mkoutsider('o7');
 select tests.login_as('o7');
