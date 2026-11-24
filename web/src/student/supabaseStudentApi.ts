@@ -8,6 +8,7 @@ import type {
   MyLesson,
   OpenSlot,
   Outcome,
+  MyProfile,
   StudentApi,
   StudentRecord,
 } from './studentApi'
@@ -21,6 +22,31 @@ interface Named {
 const fullName = (profile: Named) => `${profile.first_name} ${profile.last_name}`
 
 // Row mappers ----------------------------------------------------------------------------------------------------
+
+const text = (value: unknown): string | null => (typeof value === 'string' ? value : null)
+
+/** `my_profile` answers with one JSON object; a field it does not have is simply empty. */
+export function mapProfile(value: unknown): MyProfile {
+  const root = (value ?? {}) as Record<string, unknown>
+  const people = Array.isArray(root.people) ? (root.people as Record<string, unknown>[]) : []
+  return {
+    confirmed: root.confirmed === true,
+    isParent: root.is_parent === true,
+    phone: text(root.phone),
+    people: people.map((person) => ({
+      profileId: String(person.profile_id),
+      self: person.self === true,
+      firstName: text(person.first_name) ?? '',
+      lastName: text(person.last_name) ?? '',
+      email: text(person.email) ?? '',
+      phone: text(person.phone),
+      school: text(person.school),
+      grade: text(person.grade),
+      cityPart: text(person.city_part),
+      situation: text(person.situation),
+    })),
+  }
+}
 
 export function mapRecord(
   row: { id: string; teacher_id: string | null; profile: Named },
@@ -209,6 +235,30 @@ export function createSupabaseStudentApi(client: SupabaseClient<Database>): Stud
 
     async cancelLesson(lessonId, reason) {
       await run(client.rpc('cancel_lesson', { p_lesson_id: lessonId, p_note: reason ?? undefined }))
+    },
+
+    async getMyProfile() {
+      const { data } = await run(client.rpc('my_profile'))
+      return mapProfile(data)
+    },
+
+    async saveMyProfile(input) {
+      await run(
+        client.rpc('save_my_profile', {
+          p_phone: input.phone,
+          p_people: input.people.map((person) => ({
+            profile_id: person.profileId,
+            first_name: person.firstName,
+            last_name: person.lastName,
+            phone: person.phone,
+            school: person.school,
+            grade: person.grade,
+            city_part: person.cityPart,
+            situation: person.situation,
+          })),
+          p_consent: input.consent,
+        }),
+      )
     },
   }
 }

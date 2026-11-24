@@ -93,14 +93,14 @@ isOneToOne: false
                   ]
                 },"enrolment_requests": {
                   Row: {
-                    "added_by": string | null,"applicant_id": string,"applicant_role": Database["public"]['Enums']["enrolment_role"],"approved_at": string | null,"assigned_at": string | null,"choice_opened_at": string | null,"chosen_at": string | null,"chosen_by": string | null,"chosen_teacher_id": string | null,"city_part": string | null,"consent_at": string | null,"contact_phone": string | null,"created_at": string,"grade": string | null,"id": string,"listed_at": string | null,"needs_approval": boolean,"profile_completed_at": string | null,"restarts": number,"school": string | null,"situation": string | null,"source": string,"status": Database["public"]['Enums']["enrolment_status"],"student_first_name": string | null,"student_id": string | null,"student_last_name": string | null,"subject_id": string | null,"window_started_at": string | null
+                    "added_by": string | null,"applicant_id": string,"applicant_role": Database["public"]['Enums']["enrolment_role"],"approved_at": string | null,"assigned_at": string | null,"child_profile_id": string | null,"choice_opened_at": string | null,"chosen_at": string | null,"chosen_by": string | null,"chosen_teacher_id": string | null,"city_part": string | null,"consent_at": string | null,"contact_phone": string | null,"created_at": string,"grade": string | null,"id": string,"listed_at": string | null,"needs_approval": boolean,"profile_completed_at": string | null,"restarts": number,"school": string | null,"situation": string | null,"source": string,"status": Database["public"]['Enums']["enrolment_status"],"student_first_name": string | null,"student_id": string | null,"student_last_name": string | null,"subject_id": string | null,"window_started_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "added_by"?: string | null,"applicant_id": string,"applicant_role": Database["public"]['Enums']["enrolment_role"],"approved_at"?: string | null,"assigned_at"?: string | null,"choice_opened_at"?: string | null,"chosen_at"?: string | null,"chosen_by"?: string | null,"chosen_teacher_id"?: string | null,"city_part"?: string | null,"consent_at"?: string | null,"contact_phone"?: string | null,"created_at"?: string,"grade"?: string | null,"id"?: string,"listed_at"?: string | null,"needs_approval"?: boolean,"profile_completed_at"?: string | null,"restarts"?: number,"school"?: string | null,"situation"?: string | null,"source": string,"status"?: Database["public"]['Enums']["enrolment_status"],"student_first_name"?: string | null,"student_id"?: string | null,"student_last_name"?: string | null,"subject_id"?: string | null,"window_started_at"?: string | null
+                    "added_by"?: string | null,"applicant_id": string,"applicant_role": Database["public"]['Enums']["enrolment_role"],"approved_at"?: string | null,"assigned_at"?: string | null,"child_profile_id"?: string | null,"choice_opened_at"?: string | null,"chosen_at"?: string | null,"chosen_by"?: string | null,"chosen_teacher_id"?: string | null,"city_part"?: string | null,"consent_at"?: string | null,"contact_phone"?: string | null,"created_at"?: string,"grade"?: string | null,"id"?: string,"listed_at"?: string | null,"needs_approval"?: boolean,"profile_completed_at"?: string | null,"restarts"?: number,"school"?: string | null,"situation"?: string | null,"source": string,"status"?: Database["public"]['Enums']["enrolment_status"],"student_first_name"?: string | null,"student_id"?: string | null,"student_last_name"?: string | null,"subject_id"?: string | null,"window_started_at"?: string | null
                   }
                   Update: {
-                    "added_by"?: string | null,"applicant_id"?: string,"applicant_role"?: Database["public"]['Enums']["enrolment_role"],"approved_at"?: string | null,"assigned_at"?: string | null,"choice_opened_at"?: string | null,"chosen_at"?: string | null,"chosen_by"?: string | null,"chosen_teacher_id"?: string | null,"city_part"?: string | null,"consent_at"?: string | null,"contact_phone"?: string | null,"created_at"?: string,"grade"?: string | null,"id"?: string,"listed_at"?: string | null,"needs_approval"?: boolean,"profile_completed_at"?: string | null,"restarts"?: number,"school"?: string | null,"situation"?: string | null,"source"?: string,"status"?: Database["public"]['Enums']["enrolment_status"],"student_first_name"?: string | null,"student_id"?: string | null,"student_last_name"?: string | null,"subject_id"?: string | null,"window_started_at"?: string | null
+                    "added_by"?: string | null,"applicant_id"?: string,"applicant_role"?: Database["public"]['Enums']["enrolment_role"],"approved_at"?: string | null,"assigned_at"?: string | null,"child_profile_id"?: string | null,"choice_opened_at"?: string | null,"chosen_at"?: string | null,"chosen_by"?: string | null,"chosen_teacher_id"?: string | null,"city_part"?: string | null,"consent_at"?: string | null,"contact_phone"?: string | null,"created_at"?: string,"grade"?: string | null,"id"?: string,"listed_at"?: string | null,"needs_approval"?: boolean,"profile_completed_at"?: string | null,"restarts"?: number,"school"?: string | null,"situation"?: string | null,"source"?: string,"status"?: Database["public"]['Enums']["enrolment_status"],"student_first_name"?: string | null,"student_id"?: string | null,"student_last_name"?: string | null,"subject_id"?: string | null,"window_started_at"?: string | null
                   }
                   Relationships: [
                     {
@@ -112,6 +112,12 @@ isOneToOne: false
     },{
       foreignKeyName: "enrolment_requests_applicant_id_fkey"
       columns: ["applicant_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "enrolment_requests_child_profile_id_fkey"
+      columns: ["child_profile_id"]
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
@@ -369,14 +375,14 @@ isOneToOne: true
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"created_at": string,"email": string,"erased_at": string | null,"first_name": string,"id": string,"is_admin": boolean,"is_main_admin": boolean,"last_name": string,"user_id": string | null
+                    "avatar_url": string | null,"created_at": string,"email": string,"erased_at": string | null,"first_name": string,"id": string,"is_admin": boolean,"is_main_admin": boolean,"last_name": string,"profile_confirmed_at": string | null,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"erased_at"?: string | null,"first_name": string,"id"?: string,"is_admin"?: boolean,"is_main_admin"?: boolean,"last_name": string,"user_id"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"erased_at"?: string | null,"first_name": string,"id"?: string,"is_admin"?: boolean,"is_main_admin"?: boolean,"last_name": string,"profile_confirmed_at"?: string | null,"user_id"?: string | null
                   }
                   Update: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"erased_at"?: string | null,"first_name"?: string,"id"?: string,"is_admin"?: boolean,"is_main_admin"?: boolean,"last_name"?: string,"user_id"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"erased_at"?: string | null,"first_name"?: string,"id"?: string,"is_admin"?: boolean,"is_main_admin"?: boolean,"last_name"?: string,"profile_confirmed_at"?: string | null,"user_id"?: string | null
                   }
                   Relationships: [
                     
@@ -418,6 +424,26 @@ isOneToOne: false
       columns: ["location_id"]
 isOneToOne: false
       referencedRelation: "locations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"student_details": {
+                  Row: {
+                    "city_part": string | null,"profile_id": string,"situation": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "city_part"?: string | null,"profile_id": string,"situation"?: string | null
+                  }
+                  Update: {
+                    "city_part"?: string | null,"profile_id"?: string,"situation"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "student_details_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -758,9 +784,12 @@ isOneToOne: true
               "applicant_role": Database["public"]['Enums']["enrolment_role"],"choice_open": boolean,"chosen_teacher_id": string,"city_part": string,"contact_phone": string,"days_waiting": number,"grade": string,"id": string,"listed": boolean,"offers_count": number,"profile_completed": boolean,"school": string,"situation": string,"source": string,"status": Database["public"]['Enums']["enrolment_status"],"student_first_name": string,"student_id": string,"student_last_name": string,"subject_id": string,"subject_name": string,"waiting_for_approval": boolean
             }[]
                            },
+"my_profile":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "my_roles":
 { Args: Record<PropertyKey, never>; Returns: {
-              "avatar_url": string,"email": string,"first_name": string,"is_admin": boolean,"is_main_admin": boolean,"is_parent": boolean,"is_student": boolean,"is_teacher": boolean,"last_name": string,"profile_id": string
+              "avatar_url": string,"email": string,"first_name": string,"is_admin": boolean,"is_main_admin": boolean,"is_parent": boolean,"is_student": boolean,"is_teacher": boolean,"last_name": string,"profile_confirmed": boolean,"profile_id": string
             }[]
                            },
 "offer_enrolment":
@@ -783,6 +812,9 @@ isOneToOne: true
                            },
 "save_my_cv":
 { Args: { "p_about": string,"p_education": Json,"p_experience": Json,"p_show_members": boolean,"p_show_public": boolean,"p_skills": Json }; Returns: undefined
+                           },
+"save_my_profile":
+{ Args: { "p_consent"?: boolean,"p_people": Json,"p_phone": string }; Returns: undefined
                            },
 "schedule_lesson":
 { Args: { "p_end_at": string,"p_location_id": string,"p_room_id": string,"p_start_at": string,"p_student_ids": (string)[],"p_subject_id": string }; Returns: string
@@ -812,7 +844,7 @@ isOneToOne: true
 { Args: { "p_location_ids": (string)[],"p_teacher_id": string }; Returns: undefined
                            },
 "start_enrolment":
-{ Args: { "p_role": string,"p_subject_id": string }; Returns: string
+{ Args: { "p_child_id"?: string,"p_role": string,"p_subject_id": string }; Returns: string
                            },
 "student_lesson_counts":
 { Args: Record<PropertyKey, never>; Returns: {

@@ -288,7 +288,7 @@ describe('another child', () => {
     expect(await section.findByRole('alert')).toHaveTextContent('Izaberi predmet.')
     await userEvent.selectOptions(section.getByLabelText('Predmet'), 'Fizika')
     await userEvent.click(section.getByRole('button', { name: 'Nova prijava' }))
-    expect(enrolmentApi.startEnrolment).toHaveBeenCalledWith('sub-fiz', 'parent')
+    expect(enrolmentApi.startEnrolment).toHaveBeenCalledWith('sub-fiz', 'parent', undefined)
     expect(await screen.findByRole('region', { name: 'Prijava za Fizika' })).toBeInTheDocument()
   })
 
@@ -342,11 +342,12 @@ describe('inside the app', () => {
     )
   })
 
-  it('a student has the tab only while a request waits, with how many can choose now', async () => {
+  it('a student has the tab always, with how many requests can choose now', async () => {
     renderStudent('/ucenik')
     await studentPage('Moji časovi')
-    await screen.findByRole('link', { name: 'Časovi' })
-    expect(screen.queryByRole('link', { name: /^Prijava za časove/ })).not.toBeInTheDocument()
+    const tab = await screen.findByRole('link', { name: 'Prijava za časove' })
+    // nothing to choose from: no count
+    expect(tab).toHaveTextContent(/^Prijava za časove$/)
   })
 
   it('a student who waits for a teacher chooses among the offers', async () => {

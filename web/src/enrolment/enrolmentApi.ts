@@ -189,7 +189,7 @@ export interface EnrolmentApi {
    * Called for a signed-in Google account right after the form's sign-in. Makes the profile of an account the school
    * does not know yet, and the request; asking again for the same thing returns the same request.
    */
-  startEnrolment(subjectId: string, role: ApplicantRole): Promise<string>
+  startEnrolment(subjectId: string, role: ApplicantRole, childId?: string): Promise<string>
   myRequests(): Promise<MyEnrolmentRequest[]>
   /** Fills in the profile, or changes it until a teacher is chosen. Once complete, the teachers of the subject see the request. */
   completeProfile(requestId: string, input: EnrolmentProfileInput): Promise<void>

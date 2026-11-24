@@ -252,7 +252,11 @@ export function explainError(error: unknown, action: ActionKey): string {
       break
     case 'startEnrolment':
       if (code === 'PT400') return 'Za izabrani predmet trenutno nema nastavnika. Izaberite drugi.'
+      if (code === 'PT404') return 'Dete nije pronađeno. Osvežite stranicu.'
       if (code === 'PT409') {
+        if (/already/i.test(message) && /request/i.test(message)) {
+          return 'Već imate prijavu za taj predmet.'
+        }
         if (/erased/i.test(message)) return 'Ovaj nalog ne može da se prijavi za časove.'
         return 'Ovaj nalog već pripada školi. Prijavite se na početnoj strani.'
       }
@@ -272,9 +276,23 @@ export function explainError(error: unknown, action: ActionKey): string {
       if (code === '42501')
         return 'Fotografija ne može da se sačuva. Osvežite stranicu i pokušajte ponovo.'
       break
+    case 'saveMyProfile':
+      if (code === 'PT409') return 'Ovaj nalog više ne postoji.'
+      if (code === 'PT400') {
+        if (/first and last name/i.test(message)) return 'Upišite ime i prezime.'
+        if (/phone/i.test(message)) return INVALID_PHONE
+        if (/school/i.test(message)) return 'Upišite školu.'
+        if (/grade/i.test(message)) return 'Upišite razred.'
+        if (/privacy/i.test(message)) return 'Prihvatite politiku privatnosti da biste nastavili.'
+        if (/too long/i.test(message)) return 'Neki tekst je predugačak.'
+      }
+      break
     case 'setEnrolmentSubject':
       if (code === 'PT400') return 'Za izabrani predmet trenutno nema nastavnika. Izaberite drugi.'
-      if (code === 'PT409') return 'Predmet se više ne menja.'
+      if (code === 'PT409') {
+        if (/request for this subject/i.test(message)) return 'Već imate prijavu za taj predmet.'
+        return 'Predmet se više ne menja.'
+      }
       break
     case 'chooseTeacher':
       if (code === 'PT409') {

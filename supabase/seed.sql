@@ -66,6 +66,10 @@ select pa.id, st.id
   join public.students st on st.profile_id = sp.id
  where pa.email = 'roditelj1@example.test';
 
+-- These people have been in the app: their profile counts as confirmed (a student or a parent added after this is asked once).
+update public.profiles set profile_confirmed_at = now()
+ where email in ('ucenik1@example.test', 'ucenik2@example.test', 'ucenik3@example.test', 'roditelj1@example.test');
+
 -- Every teacher may use every location (the administrator narrows this down per teacher in the app).
 insert into public.teacher_locations (teacher_id, location_id)
 select t.profile_id, l.id from public.teachers t cross join public.locations l;

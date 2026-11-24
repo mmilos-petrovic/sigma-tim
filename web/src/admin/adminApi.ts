@@ -300,6 +300,7 @@ export type ActionKey =
   // sign-up for lessons
   | 'startEnrolment'
   | 'completeEnrolmentProfile'
+  | 'saveMyProfile'
   | 'setEnrolmentSubject'
   | 'chooseTeacher'
   | 'offerEnrolment'

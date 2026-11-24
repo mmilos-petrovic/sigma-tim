@@ -174,9 +174,13 @@ export function createSupabaseEnrolmentApi(client: SupabaseClient<Database>): En
       return mapFormInfo(data)
     },
 
-    async startEnrolment(subjectId, role: ApplicantRole) {
+    async startEnrolment(subjectId, role: ApplicantRole, childId) {
       const { data } = await run(
-        client.rpc('start_enrolment', { p_subject_id: subjectId, p_role: role }),
+        client.rpc('start_enrolment', {
+          p_subject_id: subjectId,
+          p_role: role,
+          p_child_id: childId,
+        }),
       )
       return data as string
     },

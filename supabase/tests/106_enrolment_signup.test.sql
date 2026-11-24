@@ -71,8 +71,8 @@ select is(
 select is((select avatar_url from public.profiles where email = 'o2@t.test'), 'http://x/a.png', 'and the picture');
 
 -- who may not -------------------------------------------------------------------------------------------------------------------
-select tests.login_as('s1');
-select throws_ok($$ select public.start_enrolment(tests.id('subj:math'), 'student') $$, 'PT409', null, 'a student is already a member');
+select tests.login_as('tb');
+select throws_ok($$ select public.start_enrolment(tests.id('subj:math'), 'student') $$, 'PT409', null, 'a teacher is already a member (a student may ask for another subject: see 117)');
 select tests.login_as('ta');
 select throws_ok($$ select public.start_enrolment(tests.id('subj:math'), 'student') $$, 'PT409', null, 'a teacher too');
 select tests.login_as('admin');

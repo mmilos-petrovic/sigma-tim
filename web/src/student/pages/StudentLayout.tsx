@@ -65,13 +65,11 @@ export function StudentLayout({ context }: { context: StudentContext }) {
                     )}
                   </NavLink>
                 )}
-                {/* a parent may always ask for lessons for another child; a student sees this while they wait for a teacher */}
-                {(context === 'parent' || waiting.length > 0) && (
-                  <NavLink to={`${home}/prijava`}>
-                    Prijava za časove
-                    {open.length > 0 && <span className="tabs__count">{open.length}</span>}
-                  </NavLink>
-                )}
+                {/* anybody may ask for lessons in another subject (a parent also for another child) */}
+                <NavLink to={`${home}/prijava`}>
+                  Prijava za časove
+                  {open.length > 0 && <span className="tabs__count">{open.length}</span>}
+                </NavLink>
               </nav>
 
               {!record.teacherId && (

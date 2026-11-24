@@ -10,7 +10,7 @@ import { useCvApi } from '../cv/CvApiProvider'
 import { CvView } from '../cv/CvView'
 import { explainError } from '../admin/errors'
 import { useEnrolmentApi } from './EnrolmentApiProvider'
-import type { MyEnrolmentRequest, OfferRow } from './enrolmentApi'
+import type { ApplicantRole, MyEnrolmentRequest, OfferRow } from './enrolmentApi'
 import { ProfileForm } from './ProfileForm'
 import { useEnrolmentFormInfo, useOfferedCv, useOffers, useRefreshEnrolment } from './queries'
 
@@ -307,7 +307,6 @@ function RequestCard({
       <>
         <p>Popuni profil da bi te videli nastavnici.</p>
         <ProfileForm request={request} defaults={defaults} onSaved={saved} />
-        <SubjectPicker request={request} />
       </>
     )
   } else if (editing) {
@@ -347,12 +346,24 @@ function RequestCard({
   )
 }
 
-/** A parent asks for lessons for another child, or another subject. */
-function StartAnother() {
+/**
+ * A new request: the subject, and for a parent also whose lessons it is, one of the children who are students already
+ * (their profile is reused) or another child (the profile is asked next).
+ */
+function StartAnother({
+  role,
+  childOptions,
+}: {
+  role: ApplicantRole
+  childOptions: { id: string; name: string }[]
+}) {
   const api = useEnrolmentApi()
   const refresh = useRefreshEnrolment()
   const info = useEnrolmentFormInfo()
   const [subjectId, setSubjectId] = useState('')
+  // a parent's first child unless they chose; '' is another child
+  const [chosenChild, setChosenChild] = useState<string | null>(null)
+  const childId = chosenChild ?? childOptions[0]?.id ?? ''
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -362,7 +373,7 @@ function StartAnother() {
     setBusy(true)
     setError(null)
     try {
-      await api.startEnrolment(subjectId, 'parent')
+      await api.startEnrolment(subjectId, role, childId || undefined)
       await refresh()
       setSubjectId('')
     } catch (failure) {
@@ -376,8 +387,18 @@ function StartAnother() {
   if (!info.data?.enabled || info.data.subjects.length === 0) return null
   return (
     <section className="enrolment-request" aria-label="Nova prijava">
-      <h2>Prijavi još jedno dete</h2>
+      <h2>Nova prijava</h2>
       <div className="enrolment-profile">
+        {role === 'parent' && (
+          <SelectField label="Dete" value={childId} onChange={setChosenChild}>
+            {childOptions.map((child) => (
+              <option key={child.id} value={child.id}>
+                {child.name}
+              </option>
+            ))}
+            <option value="">Drugo dete</option>
+          </SelectField>
+        )}
         <SelectField label="Predmet" value={subjectId} onChange={setSubjectId}>
           <option value="">Izaberi predmet</option>
           {info.data.subjects.map((subject) => (
@@ -409,10 +430,16 @@ export function RequestsView({
   requests,
   defaults,
   canStartAnother,
+  startAs,
+  childOptions = [],
 }: {
   requests: MyEnrolmentRequest[]
   defaults: { firstName: string; lastName: string }
   canStartAnother: boolean
+  /** Who asks for more lessons: a parent also says for which child. By default what the requests say. */
+  startAs?: ApplicantRole
+  /** The children of a parent who are students already, for a new request about one of them. */
+  childOptions?: { id: string; name: string }[]
 }) {
   return (
     <>
@@ -423,7 +450,15 @@ export function RequestsView({
           defaults={request.role === 'student' ? defaults : { firstName: '', lastName: '' }}
         />
       ))}
-      {canStartAnother && <StartAnother />}
+      {canStartAnother && (
+        <StartAnother
+          role={
+            startAs ??
+            (requests.some((request) => request.role === 'parent') ? 'parent' : 'student')
+          }
+          childOptions={childOptions}
+        />
+      )}
     </>
   )
 }

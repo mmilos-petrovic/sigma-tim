@@ -11,6 +11,8 @@ export interface MyRoles {
   isTeacher: boolean
   isStudent: boolean
   isParent: boolean
+  /** The person has confirmed their profile once; a student or a parent sees nothing else before that. */
+  profileConfirmed: boolean
 }
 
 /** A part of the app an account can work in. Several roles on one account mean several contexts. */

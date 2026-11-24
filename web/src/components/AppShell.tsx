@@ -9,7 +9,7 @@ import {
   type Context,
   type MyRoles,
 } from '../auth/roles'
-import { HomeIcon, SignOutIcon } from './icons'
+import { GearIcon, HomeIcon, SignOutIcon } from './icons'
 import { ShellFooterSlot } from './shellFooterSlot'
 import { NotificationsButton, NotificationsDialog } from '../notifications/NotificationSettings'
 import { PushDevice, usePushApi } from '../notifications/PushDevice'
@@ -74,9 +74,6 @@ export function AppShell({
           <header className="shell__header">
             {!compact && (
               <div className="shell__brandrow">
-                <Link className="shell__brand" to={homePath(context)}>
-                  Sigma Tim
-                </Link>
                 {/* the front page of the site, where the school's address and phone are */}
                 <Link
                   className="shell__home"
@@ -85,6 +82,9 @@ export function AppShell({
                   title="Početna strana"
                 >
                   <HomeIcon />
+                </Link>
+                <Link className="shell__brand" to={homePath(context)}>
+                  Sigma Tim
                 </Link>
               </div>
             )}
@@ -106,6 +106,17 @@ export function AppShell({
                 {roles.firstName} {roles.lastName}
               </span>
               <NotificationsButton iconOnly onOpen={() => setNotificationsOpen(true)} />
+              {!compact && (
+                // the profile of a student or a parent: the place to change it
+                <Link
+                  className="button button--secondary button--icon"
+                  to={`${homePath(context)}/podesavanja`}
+                  aria-label="Podešavanja"
+                  title="Podešavanja"
+                >
+                  <GearIcon />
+                </Link>
+              )}
               <button
                 type="button"
                 className="button button--secondary button--icon"

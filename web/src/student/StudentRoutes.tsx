@@ -5,6 +5,7 @@ import { CvDetailPage } from '../cv/CvDetailPage'
 import { LessonsPanel } from './pages/LessonsPanel'
 import { RequestsPanel } from './pages/RequestsPanel'
 import { SlotsPanel } from './pages/SlotsPanel'
+import { ProfilePage } from './pages/ProfilePage'
 import { StudentLayout } from './pages/StudentLayout'
 import type { StudentContext } from './studentApi'
 
@@ -12,6 +13,7 @@ import type { StudentContext } from './studentApi'
 export function StudentRoutes({ context }: { context: StudentContext }) {
   return (
     <Routes>
+      <Route path="podesavanja" element={<ProfilePage />} />
       <Route element={<StudentLayout context={context} />}>
         <Route index element={<LessonsPanel />} />
         <Route path="termini" element={<SlotsPanel />} />

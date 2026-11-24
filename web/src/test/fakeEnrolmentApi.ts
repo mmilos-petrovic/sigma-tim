@@ -171,24 +171,34 @@ export function createFakeEnrolmentApi(
     state.all = state.all.map((r) => (r.requestId === id ? { ...r, ...change } : r))
   }
 
+  // which child a parent's request is about (the screens never see it)
+  const childOf = new Map<string, string>()
+
   return {
     state,
     getFormInfo: vi.fn(async () => state.form),
-    startEnrolment: vi.fn(async (subjectId: string, role: ApplicantRole) => {
-      // a student has one request; a parent one for each subject
+    startEnrolment: vi.fn(async (subjectId: string, role: ApplicantRole, childId?: string) => {
+      // one request for each subject (and, for a parent, each child); asking again gives the same one
       const existing = state.requests.find(
         (request) =>
-          request.role === role && (role === 'student' || request.subjectId === subjectId),
+          request.role === role &&
+          request.subjectId === subjectId &&
+          (childOf.get(request.id) ?? null) === (childId ?? null),
       )
       if (existing) return existing.id
       const subject = state.form.subjects.find((s) => s.id === subjectId)
+      // a child who is a student already, and a student who has a profile, are not asked for it again
+      const known =
+        childId !== undefined || state.requests.some((r) => r.role === role && r.profileCompleted)
       const request = makeRequest({
         id: `req-${state.requests.length + 1}`,
         role,
         subjectId,
         subjectName: subject?.name ?? null,
+        ...(known ? { profileCompleted: true } : {}),
       })
       state.requests = [...state.requests, request]
+      if (childId !== undefined) childOf.set(request.id, childId)
       return request.id
     }),
     myRequests: vi.fn(async () => state.requests),
