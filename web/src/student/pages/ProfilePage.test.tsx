@@ -228,6 +228,7 @@ describe('the profile afterwards', () => {
     await page('Moji časovi')
     await userEvent.click(await screen.findByRole('link', { name: 'Podešavanja' }))
     await page('Podešavanja')
+    expect(screen.getByRole('link', { name: /Moji časovi/ })).toHaveAttribute('href', '/ucenik')
     const form = within(await screen.findByRole('form', { name: 'Profil' }))
     expect(form.getByLabelText('Telefon (nije obavezno)')).toHaveValue('064 1234 567')
     expect(form.getByLabelText('Deo grada (nije obavezno)')).toHaveValue('Zemun')

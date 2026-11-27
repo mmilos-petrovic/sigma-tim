@@ -13,7 +13,7 @@ import type { StudentContext } from './studentApi'
 export function StudentRoutes({ context }: { context: StudentContext }) {
   return (
     <Routes>
-      <Route path="podesavanja" element={<ProfilePage />} />
+      <Route path="podesavanja" element={<ProfilePage context={context} />} />
       <Route element={<StudentLayout context={context} />}>
         <Route index element={<LessonsPanel />} />
         <Route path="termini" element={<SlotsPanel />} />
