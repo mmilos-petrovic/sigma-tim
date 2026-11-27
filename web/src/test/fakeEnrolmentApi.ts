@@ -64,7 +64,6 @@ export function makeRequest(overrides: Partial<MyEnrolmentRequest> = {}): MyEnro
     schoolTeacher: null,
     situation: null,
     offersCount: 0,
-    choiceOpen: false,
     chosenTeacherId: null,
     ...overrides,
   }
@@ -140,8 +139,6 @@ export function makeAdminRow(overrides: Partial<AdminEnrolmentRow> = {}): AdminE
     createdAt: '2026-11-13T09:00:00Z',
     listedAt: '2026-11-13T10:00:00Z',
     daysWaiting: 2,
-    restarts: 0,
-    choiceOpenedAt: null,
     chosenTeacherId: null,
     offers: [],
     ...overrides,
@@ -163,7 +160,7 @@ export function createFakeEnrolmentApi(
     pool: [],
     chosen: [],
     teacherHasCv: true,
-    settings: { formEnabled: true, dailyCap: 20, choiceAfterDays: 3, choiceAfterOffers: 3 },
+    settings: { formEnabled: true, dailyCap: 20 },
     all: [],
     ...initial,
   }

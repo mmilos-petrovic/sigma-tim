@@ -135,7 +135,7 @@ select tests.logout();
 update public.enrolment_requests set source = 'legacy', status = 'open', subject_id = tests.id('subj:phys') where id = tests.id('req:s2');
 
 -- placed again, and left again ----------------------------------------------------------------------------------------------------------------------
-update public.enrolment_requests set restarts = 2, choice_opened_at = now() - interval '1 day', listed_at = now() - interval '10 days' where id = tests.id('req:s1');
+update public.enrolment_requests set listed_at = now() - interval '10 days' where id = tests.id('req:s1');
 select tests.login_as('admin');
 select is(public.admin_assign_enrolment(tests.id('req:s1'), tests.id('p:tc')), 'assigned', 'the administrator places a teacher');
 select tests.logout();
@@ -144,9 +144,9 @@ select tests.login_as('admin');
 select public.deactivate_teacher(tests.id('p:tc'));
 select tests.logout();
 select is(
-  (select row(status::text, restarts, choice_opened_at is null, chosen_teacher_id is null, assigned_at is null, listed_at > now() - interval '1 minute')::text
+  (select row(status::text, chosen_teacher_id is null, assigned_at is null, listed_at > now() - interval '1 minute')::text
      from public.enrolment_requests where id = tests.id('req:s1')),
-  row('open', 0, true, true, true, true)::text, 'the teacher leaves: the same request is open again and waiting from now'
+  row('open', true, true, true)::text, 'the teacher leaves: the same request is open again and waiting from now'
 );
 
 -- whatever places a teacher closes the request -------------------------------------------------------------------------------------------------------------

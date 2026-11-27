@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { rpc, sql, tokenFor } from './api.ts'
+import { rpc, tokenFor } from './api.ts'
 import { signInAs } from './helpers.ts'
 import {
   clearTeacherCv,
@@ -22,11 +22,10 @@ test.describe('the student who signed up, on a phone', () => {
   test('sees who offered, reads a CV and chooses', async ({ page, request }) => {
     test.setTimeout(120_000)
     const first = `Telefon${Date.now().toString(36)}`
-    await setEnrolmentSettings(request, { enabled: true, offers: 1 })
+    await setEnrolmentSettings(request, { enabled: true })
     await giveTeacherACv(request)
     const id = await signUp(request, first)
     await rpc(request, await tokenFor(request, TEACHER), 'offer_enrolment', { p_request_id: id })
-    sql('select private.advance_enrolments();')
 
     await signInAs(page, 'Stranac (bez profila)')
     await expect(page).toHaveURL(/\/upis$/)

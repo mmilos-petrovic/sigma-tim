@@ -1,6 +1,6 @@
--- Enrolment, part 2: the pool the teachers see, offers, the job that opens the choice, choosing, and placing a teacher.
+-- Enrolment, part 2: the pool the teachers see, offers, choosing, and placing a teacher.
 begin;
-select plan(61);
+select plan(52);
 
 select tests.seed_basic();
 select tests.mkoutsider('o2');
@@ -90,8 +90,8 @@ select is(
 -- what the person who is waiting sees ------------------------------------------------------------------------------------------------
 select tests.login_as('outsider');
 select is(
-  (select row(offers_count, choice_open, status, days_waiting, listed)::text from public.my_enrolment_requests()),
-  row(1, false, 'open', 3, true)::text, 'one offer, the choice is not open, three days waited'
+  (select row(offers_count, status, days_waiting, listed)::text from public.my_enrolment_requests()),
+  row(1, 'open', 3, true)::text, 'one offer, three days waited'
 );
 select is(
   (select row(first_name, last_name, is_chosen, cv_slug is not null)::text from public.my_enrolment_offers(tests.id('req:pera'))),
@@ -115,37 +115,15 @@ select tests.login_as('s1');
 select is((select count(*)::int from public.my_enrolment_requests()), 0, 'a member sees none');
 select tests.logout();
 
--- the job: nothing happens too early, nor when nobody offered ------------------------------------------------------------------------------
-select is(private.advance_enrolments(), 0, 'one offer and a fresh waiting period: the choice stays closed');
-update public.enrolment_requests set window_started_at = now() - interval '4 days' where id in (tests.id('req:mara'), tests.id('req:pera'));
-select is(private.advance_enrolments(), 1, 'after the days the choice opens for the request that has an offer');
-select is(
-  (select row(choice_opened_at is not null, restarts)::text from public.enrolment_requests where id = tests.id('req:pera')),
-  row(true, 0)::text, 'that one is open'
-);
-select is(
-  (select row(choice_opened_at is null, restarts, window_started_at > now() - interval '1 minute')::text from public.enrolment_requests where id = tests.id('req:mara')),
-  row(true, 1, true)::text, 'the one nobody offered for starts waiting again and counts the restart'
-);
-select is(private.advance_enrolments(), 0, 'and nothing opens twice');
-select is(
-  (select count(*)::int from public.notifications n join public.profiles p on p.id = n.recipient_id
-    where n.kind = 'enrolment_choice_open' and p.email = 'outsider@t.test'),
-  1, 'the person is told that the choice is open, once'
-);
-
--- the third offer opens the choice at once ----------------------------------------------------------------------------------------------------
+-- more offers for a request: the student can accept any of them ----------------------------------------------------------------------------------------------------
 select tests.login_as('ta');
 select public.offer_enrolment(tests.id('req:mara'));
 select tests.login_as('tc');
 select public.offer_enrolment(tests.id('req:mara'));
 select tests.logout();
-select is(private.advance_enrolments(), 0, 'two offers are not enough');
 select tests.login_as('boss');
 select public.offer_enrolment(tests.id('req:mara'));
 select tests.logout();
-select is(private.advance_enrolments(), 1, 'the third one opens the choice, without waiting for the days');
-select is((select choice_opened_at is not null from public.enrolment_requests where id = tests.id('req:mara')), true, 'it is marked open');
 
 -- choosing: a student -------------------------------------------------------------------------------------------------------------------------
 select tests.login_as('outsider');
@@ -232,7 +210,6 @@ select public.complete_enrolment_profile(tests.id('req:four'), 'Ceda', 'Cedic', 
 select tests.login_as('boss');
 select public.offer_enrolment(tests.id('req:four'));
 select tests.logout();
-update public.enrolment_requests set choice_opened_at = now() where id = tests.id('req:four');
 select tests.login_as('o4');
 select public.choose_enrolment_teacher(tests.id('req:four'), tests.id('p:boss'));
 select tests.logout();

@@ -4,8 +4,7 @@ import type { AdminState } from '../enrolment/enrolmentApi'
 export const STATE_LABEL: Record<AdminState, string> = {
   needs_approval: 'Čeka odobrenje',
   incomplete: 'Profil nije popunjen',
-  open: 'Čeka ponude',
-  choice_open: 'Izbor je otvoren',
+  open: 'Čeka nastavnika',
   chosen: 'Čeka email deteta',
   assigned: 'Nastavnik je dodeljen',
   rejected: 'Odbijeno',

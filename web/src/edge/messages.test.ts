@@ -380,17 +380,6 @@ describe('signing up for lessons', () => {
     })
   })
 
-  it('the choice that opens says how many offers there are', () => {
-    const open = offer({
-      kind: 'enrolment_choice_open',
-      payload: { request_id: 'req-1', offers: 3, subject: 'Fizika' },
-    })
-    expect(describeNotice(open, NOW)).toEqual({
-      title: 'Možete da izaberete nastavnika',
-      body: 'Fizika. Ponuda: 3. Izaberite nastavnika u aplikaciji.',
-    })
-  })
-
   it('a teacher who was chosen by a student is told the student is theirs', () => {
     const chosen = notice({
       kind: 'enrolment_chosen',
@@ -451,12 +440,7 @@ describe('signing up for lessons', () => {
   })
 
   it('holds together when the snapshot is empty', () => {
-    for (const kind of [
-      'enrolment_offer',
-      'enrolment_choice_open',
-      'enrolment_chosen',
-      'enrolment_assigned',
-    ]) {
+    for (const kind of ['enrolment_offer', 'enrolment_chosen', 'enrolment_assigned']) {
       const { title, body } = describeNotice(notice({ kind, payload: {} }), NOW)
       expect(title).not.toBe('Sigma Tim')
       expect(body).not.toContain('undefined')
@@ -466,7 +450,6 @@ describe('signing up for lessons', () => {
   describe('where a tap leads', () => {
     it('a person who is not a member yet goes to their request', () => {
       expect(pathFor(offer())).toBe('/upis')
-      expect(pathFor(offer({ kind: 'enrolment_choice_open' }))).toBe('/upis')
     })
 
     it('a student or a parent who waits for a teacher goes to the page of the request in their part of the app', () => {
@@ -501,9 +484,6 @@ describe('signing up for lessons', () => {
 
   it('the push of a request replaces an older one of the same kind for the same request', () => {
     expect(pushMessage(offer(), NOW).tag).toBe('enrolment_offer-req-1')
-    expect(pushMessage(offer({ kind: 'enrolment_choice_open' }), NOW).tag).toBe(
-      'enrolment_choice_open-req-1',
-    )
     expect(pushMessage(offer({ payload: { teacher: 'Ana Anić' } }), NOW).tag).toBeUndefined()
   })
 

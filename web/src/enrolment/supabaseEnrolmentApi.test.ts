@@ -68,7 +68,6 @@ describe('mapRequest', () => {
     listed: false,
     days_waiting: 0,
     offers_count: 2,
-    choice_open: true,
     chosen_teacher_id: null,
     student_id: null,
   } as unknown as Parameters<typeof mapRequest>[0]
@@ -92,7 +91,6 @@ describe('mapRequest', () => {
       schoolTeacher: 'Jelena Marić',
       situation: 'Treba mi pomoć',
       offersCount: 2,
-      choiceOpen: true,
       chosenTeacherId: null,
     })
   })

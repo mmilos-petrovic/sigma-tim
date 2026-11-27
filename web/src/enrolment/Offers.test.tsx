@@ -97,7 +97,7 @@ describe('the offers', () => {
 
 describe('choosing a teacher', () => {
   const ready = () => ({
-    requests: [makeCompleted({ offersCount: 2, choiceOpen: true })],
+    requests: [makeCompleted({ offersCount: 2 })],
   })
 
   it('asks to be sure, and tells what happens to the other offers', async () => {
@@ -131,7 +131,7 @@ describe('choosing a teacher', () => {
 
   it("for a parent the teacher still has to say the child's email, and the other offers are gone", async () => {
     const { enrolmentApi, auth } = await open(
-      { requests: [makeCompleted({ role: 'parent', offersCount: 2, choiceOpen: true })] },
+      { requests: [makeCompleted({ role: 'parent', offersCount: 2 })] },
       'parent',
     )
     await userEvent.click(screen.getByRole('button', { name: 'Prihvati ponudu: Ana Anić' }))
@@ -351,7 +351,7 @@ describe('inside the app', () => {
 
   it('a student who waits for a teacher chooses among the offers', async () => {
     const enrolmentApi = createFakeEnrolmentApi({
-      requests: [makeCompleted({ source: 'legacy', offersCount: 2, choiceOpen: true })],
+      requests: [makeCompleted({ source: 'legacy', offersCount: 2 })],
       offers: { 'req-1': [ANA, MARKO] },
     })
     renderStudent('/ucenik', { enrolmentApi, roles: personas.student })

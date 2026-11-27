@@ -89,7 +89,6 @@ function enrolmentPath(notice: Notice): string {
   const { recipient: r, kind } = notice
   const forApplicant =
     kind === 'enrolment_offer' ||
-    kind === 'enrolment_choice_open' ||
     (kind === 'enrolment_assigned' && text(notice.payload.teacher) !== '')
   if (!forApplicant) return '/moj-raspored/neraspodeljeni'
   if (kind === 'enrolment_assigned') {
@@ -223,17 +222,6 @@ export function describe(notice: Notice, now: Date): { title: string; body: stri
           'Pogledajte ponudu u aplikaciji',
         ),
       }
-    case 'enrolment_choice_open': {
-      const offers = Number(p.offers)
-      return {
-        title: 'Možete da izaberete nastavnika',
-        body: sentence(
-          subject,
-          Number.isInteger(offers) && offers > 0 && `Ponuda: ${offers}`,
-          'Izaberite nastavnika u aplikaciji',
-        ),
-      }
-    }
     case 'enrolment_chosen':
       return {
         title: 'Izabrani ste za nastavnika',
