@@ -41,6 +41,7 @@ export function AppShell({
   contexts,
   roles,
   nav,
+  actions,
   children,
 }: {
   context: Context
@@ -48,6 +49,8 @@ export function AppShell({
   roles: MyRoles
   /** The sections of this context; a single link to its home when omitted. */
   nav?: NavItem[]
+  /** Buttons of this context in the header, before the settings (a student's sign-up for lessons). */
+  actions?: ReactNode
   children: ReactNode
 }) {
   const { signOut } = useAuth()
@@ -106,6 +109,7 @@ export function AppShell({
                 {roles.firstName} {roles.lastName}
               </span>
               <NotificationsButton iconOnly onOpen={() => setNotificationsOpen(true)} />
+              {actions}
               {!compact && (
                 // the profile of a student or a parent: the place to change it
                 <Link

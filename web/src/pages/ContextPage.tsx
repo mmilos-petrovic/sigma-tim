@@ -7,6 +7,7 @@ import { writeLastContext } from '../auth/lastContext'
 import { type Context } from '../auth/roles'
 import { AppShell } from '../components/AppShell'
 import { useMember } from '../components/guards'
+import { RequestsLink } from '../student/components/RequestsLink'
 import { ProfilePage } from '../student/pages/ProfilePage'
 import { StudentRoutes } from '../student/StudentRoutes'
 import { useTeacherNav } from '../teacher/nav'
@@ -32,6 +33,12 @@ export function ContextPage({ context }: { context: Context }) {
       contexts={contexts}
       roles={roles}
       nav={context === 'admin' ? ADMIN_NAV : context === 'teacher' ? teacherNav : undefined}
+      // asking for lessons: a student's and a parent's own button, once the profile is confirmed
+      actions={
+        (context === 'student' || context === 'parent') && roles.profileConfirmed ? (
+          <RequestsLink context={context} />
+        ) : undefined
+      }
     >
       {context === 'admin' ? (
         <AdminRoutes />

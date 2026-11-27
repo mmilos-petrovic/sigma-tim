@@ -53,6 +53,7 @@ export function explainError(error: unknown, action: ActionKey): string {
       if (action === 'deleteStudent') return 'Učenik više ne postoji. Osvežite stranicu.'
       if (action === 'claimSlot') return 'Termin više ne postoji. Izaberite drugi.'
       if (action === 'offerEnrolment') return 'Prijava više nije dostupna. Osvežite stranicu.'
+      if (action === 'cancelEnrolment') return 'Prijava više ne postoji. Osvežite stranicu.'
       if (action === 'approveEnrolment') {
         return 'Prijava više ne postoji ili je već obrađena. Osvežite stranicu.'
       }
@@ -254,6 +255,9 @@ export function explainError(error: unknown, action: ActionKey): string {
       if (code === 'PT400') return 'Za izabrani predmet trenutno nema nastavnika. Izaberite drugi.'
       if (code === 'PT404') return 'Dete nije pronađeno. Osvežite stranicu.'
       if (code === 'PT409') {
+        if (/active request/i.test(message)) {
+          return 'Već imate aktivnu prijavu. Obrišite je da biste napravili novu.'
+        }
         if (/already/i.test(message) && /request/i.test(message)) {
           return 'Već imate prijavu za taj predmet.'
         }
@@ -294,9 +298,11 @@ export function explainError(error: unknown, action: ActionKey): string {
         return 'Predmet se više ne menja.'
       }
       break
+    case 'cancelEnrolment':
+      if (code === 'PT409') return 'Nastavnik je već izabran, pa prijava više ne može da se obriše.'
+      break
     case 'chooseTeacher':
       if (code === 'PT409') {
-        if (/not open/i.test(message)) return 'Izbor još nije otvoren.'
         if (/already a student/i.test(message)) return 'Već ste učenik ovog nastavnika.'
         return 'Nastavnik je već izabran. Osvežite stranicu.'
       }

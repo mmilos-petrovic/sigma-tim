@@ -269,7 +269,7 @@ describe('more than one sign-up', () => {
   it('lets a student ask for another subject, always', async () => {
     const enrolmentApi = createFakeEnrolmentApi({ requests: [] })
     renderStudent('/ucenik/prijava', { enrolmentApi })
-    await page('Moji časovi')
+    await page('Moje prijave')
     const section = within(await screen.findByRole('region', { name: 'Nova prijava' }))
     // a student chooses no child
     expect(section.queryByLabelText('Dete')).not.toBeInTheDocument()
@@ -277,6 +277,39 @@ describe('more than one sign-up', () => {
     await userEvent.click(section.getByRole('button', { name: 'Nova prijava' }))
     expect(enrolmentApi.startEnrolment).toHaveBeenCalledWith('sub-fiz', 'student', undefined)
     expect(await screen.findByRole('region', { name: 'Prijava za Fizika' })).toBeInTheDocument()
+  })
+
+  it('lets a student have one request at a time: the old one is deleted to make another', async () => {
+    const enrolmentApi = createFakeEnrolmentApi({
+      requests: [makeCompleted({ id: 'req-open', subjectId: 'sub-fiz', subjectName: 'Fizika' })],
+    })
+    renderStudent('/ucenik/prijava', { enrolmentApi })
+    await page('Moje prijave')
+    expect(await screen.findByRole('region', { name: 'Prijava za Fizika' })).toBeInTheDocument()
+    // no new request while one is active
+    expect(screen.queryByRole('region', { name: 'Nova prijava' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Možeš da imaš samo jednu prijavu/)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Obriši prijavu' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Brisanje prijave' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Obriši prijavu' }))
+
+    expect(enrolmentApi.cancelRequest).toHaveBeenCalledWith('req-open')
+    expect(await screen.findByRole('region', { name: 'Nova prijava' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Prijava za Fizika' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the request when the person does not confirm the deletion', async () => {
+    const enrolmentApi = createFakeEnrolmentApi({
+      requests: [makeCompleted({ id: 'req-open', subjectId: 'sub-fiz', subjectName: 'Fizika' })],
+    })
+    renderStudent('/ucenik/prijava', { enrolmentApi })
+    await page('Moje prijave')
+    await userEvent.click(await screen.findByRole('button', { name: 'Obriši prijavu' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Brisanje prijave' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Odustani' }))
+    expect(enrolmentApi.cancelRequest).not.toHaveBeenCalled()
+    expect(screen.getByRole('region', { name: 'Prijava za Fizika' })).toBeInTheDocument()
   })
 
   it('hides a request that is over, and keeps the ones that wait', async () => {
@@ -297,7 +330,7 @@ describe('more than one sign-up', () => {
     profile.phone = '+381641234567'
     const enrolmentApi = createFakeEnrolmentApi({ requests: [] })
     renderStudent('/roditelj/prijava', { enrolmentApi, api: apiWith(profile) })
-    await page('Časovi dece')
+    await page('Moje prijave')
     const section = within(await screen.findByRole('region', { name: 'Nova prijava' }))
     const child = await section.findByLabelText('Dete')
     expect([...(child as HTMLSelectElement).options].map((o) => o.textContent)).toEqual([

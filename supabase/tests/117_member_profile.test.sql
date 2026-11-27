@@ -1,7 +1,7 @@
 begin;
 -- The profile of a student and a parent: confirmed once before anything else, changed afterwards, and reused when a student (or a
 -- parent, for a child) asks for lessons in another subject.
-select plan(72);
+select plan(71);
 
 select tests.seed_basic();
 select tests.mkoutsider('o1');
@@ -212,15 +212,8 @@ select is(
 );
 select tests.login_as('s1');
 select is(public.start_enrolment(tests.id('subj:phys'), 'student'), tests.id('req:s1phys'), 'asking again for it gives the same request');
-select lives_ok($$ select public.start_enrolment(tests.id('subj:math'), 'student') $$, 'and for a second subject another request');
-select is((select count(*)::int from public.my_enrolment_requests()), 2, 'a student has two requests, one for each subject');
-select tests.logout();
-select tests.reg('req:s1math', id) from public.enrolment_requests where applicant_id = tests.id('p:s1') and subject_id = tests.id('subj:math');
-select tests.login_as('s1');
-select throws_ok(
-  format($$ select public.set_enrolment_subject(%L, %L) $$, tests.id('req:s1math'), tests.id('subj:phys')),
-  'PT409', null, 'the subject of one cannot become the subject of the other'
-);
+select throws_ok($$ select public.start_enrolment(tests.id('subj:math'), 'student') $$, 'PT409', null, 'but not for a second subject while that request is active');
+select is((select count(*)::int from public.my_enrolment_requests()), 1, 'a student has one request');
 select tests.logout();
 
 -- a parent asks for another subject for a child --------------------------------------------------------------------------------------------------
