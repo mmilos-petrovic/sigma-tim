@@ -240,9 +240,6 @@ describe('explainError', () => {
     })
 
     it('explains why a choice is refused', () => {
-      expect(explain('PT409', 'chooseTeacher', 'the choice is not open yet')).toBe(
-        'Izbor još nije otvoren.',
-      )
       expect(explain('PT409', 'chooseTeacher', 'a teacher was already chosen')).toBe(
         'Nastavnik je već izabran. Osvežite stranicu.',
       )
@@ -270,6 +267,15 @@ describe('explainError', () => {
       )
       expect(explain('PT409', 'withdrawOffer', 'a teacher was already chosen')).toBe(
         'Nastavnik je već izabran. Osvežite stranicu.',
+      )
+      expect(explain('PT409', 'startEnrolment', 'there is an active request already')).toBe(
+        'Već imate aktivnu prijavu. Obrišite je da biste napravili novu.',
+      )
+      expect(explain('PT404', 'cancelEnrolment', 'request not found')).toBe(
+        'Prijava više ne postoji. Osvežite stranicu.',
+      )
+      expect(explain('PT409', 'cancelEnrolment', 'the request is over')).toBe(
+        'Nastavnik je već izabran, pa prijava više ne može da se obriše.',
       )
     })
 

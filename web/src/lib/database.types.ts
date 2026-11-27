@@ -851,6 +851,9 @@ isOneToOne: true
               "held_lessons": number,"student_id": string,"upcoming_lessons": number
             }[]
                            },
+"cancel_enrolment_request":
+{ Args: { "p_request_id": string }; Returns: undefined
+                           }
 "withdraw_enrolment_offer":
 { Args: { "p_request_id": string }; Returns: undefined
                            }

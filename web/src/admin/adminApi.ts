@@ -302,6 +302,7 @@ export type ActionKey =
   | 'completeEnrolmentProfile'
   | 'saveMyProfile'
   | 'setEnrolmentSubject'
+  | 'cancelEnrolment'
   | 'chooseTeacher'
   | 'offerEnrolment'
   | 'withdrawOffer'

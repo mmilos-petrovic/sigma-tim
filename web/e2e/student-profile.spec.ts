@@ -82,9 +82,10 @@ test.describe('the profile of a student, on a phone', () => {
       ).trim(),
     ).toBe('8')
 
-    // 4. another subject: the tab is always there, only the subject is asked, and the profile is reused
+    // 4. another subject: the button in the header leads to the requests, only the subject is asked, and the profile is reused
     await page.goto('/ucenik')
-    await page.getByRole('link', { name: 'Prijava za časove' }).click()
+    await page.getByRole('banner').getByRole('link', { name: 'Prijava za časove' }).click()
+    await expect(page.getByRole('heading', { name: 'Moje prijave', level: 1 })).toBeVisible()
     const another = page.getByRole('region', { name: 'Nova prijava' })
     await another.getByLabel('Predmet').selectOption({ label: 'Hemija' })
     await another.getByRole('button', { name: 'Nova prijava' }).click()
@@ -99,10 +100,16 @@ test.describe('the profile of a student, on a phone', () => {
       `).trim(),
     ).toBe('OŠ Vuk Karadžić|8|Zemun|true')
 
-    // 5. and for a second subject too
+    // 5. one request at a time: there is no form for a second one until the first is deleted
+    await expect(another).toBeHidden()
+    await card.getByRole('button', { name: 'Obriši prijavu' }).click()
+    await page
+      .getByRole('dialog', { name: 'Brisanje prijave' })
+      .getByRole('button', { name: 'Obriši prijavu' })
+      .click()
+    await expect(card).toBeHidden()
     await another.getByLabel('Predmet').selectOption({ label: 'Fizika' })
     await another.getByRole('button', { name: 'Nova prijava' }).click()
     await expect(page.getByRole('region', { name: 'Prijava za Fizika' })).toBeVisible()
-    await expect(page.getByRole('region', { name: 'Prijava za Hemija' })).toBeVisible()
   })
 })

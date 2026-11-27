@@ -233,6 +233,10 @@ export function createSupabaseEnrolmentApi(client: SupabaseClient<Database>): En
       )
     },
 
+    async cancelRequest(requestId) {
+      await run(client.rpc('cancel_enrolment_request', { p_request_id: requestId }))
+    },
+
     async listPool() {
       const { data } = await run(client.rpc('list_enrolment_pool'))
       return (data ?? []).map(mapPool)

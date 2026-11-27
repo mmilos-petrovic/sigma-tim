@@ -200,6 +200,8 @@ export interface EnrolmentApi {
   chooseTeacher(requestId: string, teacherId: string): Promise<ChooseResult>
   /** For a student a teacher left behind without a subject: says which one they want. */
   setSubject(requestId: string, subjectId: string): Promise<void>
+  /** Deletes a request that still waits (a teacher not placed yet), with its offers; a new one can be made then. */
+  cancelRequest(requestId: string): Promise<void>
 
   // a teacher
   /** The requests for the teachers' subjects, the newest first. */

@@ -186,6 +186,17 @@ export function createFakeEnrolmentApi(
           (childOf.get(request.id) ?? null) === (childId ?? null),
       )
       if (existing) return existing.id
+      // one active request at a time (for a parent, for each child): the old one is deleted first
+      if (
+        state.requests.some(
+          (request) =>
+            request.role === role &&
+            (request.status === 'open' || request.status === 'chosen') &&
+            (role === 'student' || (childId !== undefined && childOf.get(request.id) === childId)),
+        )
+      ) {
+        throw new AdminError('PT409', 'there is an active request already')
+      }
       const subject = state.form.subjects.find((s) => s.id === subjectId)
       // a child who is a student already, and a student who has a profile, are not asked for it again
       const known =
@@ -230,6 +241,10 @@ export function createFakeEnrolmentApi(
     setSubject: vi.fn(async (requestId, subjectId) => {
       const subject = state.form.subjects.find((s) => s.id === subjectId)
       patchRequest(requestId, { subjectId, subjectName: subject?.name ?? null })
+    }),
+
+    cancelRequest: vi.fn(async (requestId) => {
+      state.requests = state.requests.filter((request) => request.id !== requestId)
     }),
 
     listPool: vi.fn(async () => state.pool),

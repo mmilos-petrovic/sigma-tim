@@ -282,16 +282,44 @@ function RequestTitle({ request }: { request: MyEnrolmentRequest }) {
   )
 }
 
+/** Deletes a request that still waits; the offers go with it, and the person may make a new one. */
+function CancelDialog({ request, onClose }: { request: MyEnrolmentRequest; onClose: () => void }) {
+  const api = useEnrolmentApi()
+  const refresh = useRefreshEnrolment()
+  return (
+    <FormDialog
+      title="Brisanje prijave"
+      action="cancelEnrolment"
+      submitLabel="Obriši prijavu"
+      danger
+      onClose={onClose}
+      onSubmit={async () => {
+        await api.cancelRequest(request.id)
+        await refresh()
+        onClose()
+      }}
+    >
+      <p>
+        Obrisati prijavu za <strong>{request.subjectName ?? 'časove'}</strong>? Ponude nastavnika se
+        brišu zajedno sa njom. Posle toga možeš da napraviš novu prijavu.
+      </p>
+    </FormDialog>
+  )
+}
+
 function RequestCard({
   request,
   defaults,
+  canCancel,
 }: {
   request: MyEnrolmentRequest
   defaults: { firstName: string; lastName: string }
+  canCancel: boolean
 }) {
   const { state } = useAuth()
   const refresh = useRefreshEnrolment()
   const [editing, setEditing] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const saved = () => {
     setEditing(false)
@@ -367,6 +395,18 @@ function RequestCard({
       {request.role === 'parent' && name && <p className="muted">Dete: {name}</p>}
       <Notice message={notice} />
       {body}
+      {canCancel && (request.status === 'open' || request.status === 'chosen') && (
+        <div className="actions">
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => setCancelling(true)}
+          >
+            Obriši prijavu
+          </button>
+        </div>
+      )}
+      {cancelling && <CancelDialog request={request} onClose={() => setCancelling(false)} />}
     </section>
   )
 }
@@ -455,12 +495,15 @@ export function RequestsView({
   requests,
   defaults,
   canStartAnother,
+  canCancel = false,
   startAs,
   childOptions = [],
 }: {
   requests: MyEnrolmentRequest[]
   defaults: { firstName: string; lastName: string }
   canStartAnother: boolean
+  /** A request that still waits can be deleted (a member of the school, on the page of their requests). */
+  canCancel?: boolean
   /** Who asks for more lessons: a parent also says for which child. By default what the requests say. */
   startAs?: ApplicantRole
   /** The children of a parent who are students already, for a new request about one of them. */
@@ -485,6 +528,7 @@ export function RequestsView({
           key={request.id}
           request={request}
           defaults={request.role === 'student' ? defaults : { firstName: '', lastName: '' }}
+          canCancel={canCancel}
         />
       ))}
       {canStartAnother && (

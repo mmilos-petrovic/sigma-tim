@@ -24,6 +24,8 @@ export function RequestsPanel({ context }: { context: StudentContext }) {
       {(all) => {
         // a request that is over (a teacher was placed) is not a request any more: its lessons are in the list
         const rows = all.filter((request) => request.status !== 'assigned')
+        // a student has one request at a time (a parent, one for each child): another needs the old one deleted first
+        const another = context === 'parent' || rows.length === 0
         return (
           <>
             {rows.length === 0 && (
@@ -33,10 +35,16 @@ export function RequestsPanel({ context }: { context: StudentContext }) {
                   : 'Nema otvorenih prijava za časove.'}
               </p>
             )}
+            {!another && (
+              <p className="muted">
+                Možeš da imaš samo jednu prijavu. Da bi napravio novu, prvo obriši ovu.
+              </p>
+            )}
             <RequestsView
               requests={rows}
               defaults={{ firstName: roles?.firstName ?? '', lastName: roles?.lastName ?? '' }}
-              canStartAnother
+              canStartAnother={another}
+              canCancel
               startAs={context}
               childOptions={childOptions}
             />

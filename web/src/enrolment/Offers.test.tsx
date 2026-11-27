@@ -328,25 +328,40 @@ describe('another child', () => {
 })
 
 describe('inside the app', () => {
-  it('a parent always has a tab for sign-ups, and can ask for lessons for another child', async () => {
+  it('a parent reaches the sign-ups from the header, and can ask for lessons for another child', async () => {
     const enrolmentApi = createFakeEnrolmentApi()
     renderStudent('/roditelj', { enrolmentApi })
     await studentPage('Časovi dece')
-    await userEvent.click(await screen.findByRole('link', { name: 'Prijava za časove' }))
+    // not a tab of the lessons
+    expect(
+      within(await screen.findByRole('navigation', { name: 'Prikaz' })).queryByRole('link', {
+        name: 'Prijava za časove',
+      }),
+    ).not.toBeInTheDocument()
+    await userEvent.click(
+      await within(screen.getByRole('banner')).findByRole('link', { name: 'Prijava za časove' }),
+    )
+    expect(await studentPage('Moje prijave')).toBeInTheDocument()
     expect(await screen.findByText('Nemate otvorenih prijava za časove.')).toBeInTheDocument()
     expect(await screen.findByRole('region', { name: 'Nova prijava' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Prijava za časove' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
+    // the page of the requests has no tabs, and a way back
+    expect(screen.queryByRole('navigation', { name: 'Prikaz' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Časovi dece/ })).toBeInTheDocument()
   })
 
-  it('a student has the tab always, with how many requests can choose now', async () => {
+  it('a student has the button in the header, with how many requests can choose now', async () => {
     renderStudent('/ucenik')
     await studentPage('Moji časovi')
-    const tab = await screen.findByRole('link', { name: 'Prijava za časove' })
+    const button = await within(screen.getByRole('banner')).findByRole('link', {
+      name: 'Prijava za časove',
+    })
     // nothing to choose from: no count
-    expect(tab).toHaveTextContent(/^Prijava za časove$/)
+    expect(button).toHaveTextContent(/^$/)
+    expect(
+      within(await screen.findByRole('navigation', { name: 'Prikaz' })).queryByRole('link', {
+        name: /Prijava za časove/,
+      }),
+    ).not.toBeInTheDocument()
   })
 
   it('a student who waits for a teacher chooses among the offers', async () => {
@@ -356,10 +371,12 @@ describe('inside the app', () => {
     })
     renderStudent('/ucenik', { enrolmentApi, roles: personas.student })
     await studentPage('Moji časovi')
-    const tab = await screen.findByRole('link', { name: /^Prijava za časove/ })
+    const button = await within(screen.getByRole('banner')).findByRole('link', {
+      name: /^Prijava za časove/,
+    })
     // one request can be chosen from now
-    expect(tab).toHaveTextContent('1')
-    await userEvent.click(tab)
+    expect(button).toHaveTextContent('1')
+    await userEvent.click(button)
     expect(await screen.findByRole('list', { name: 'Ponude nastavnika' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Prihvati ponudu: Ana Anić' })).toBeInTheDocument()
   })
